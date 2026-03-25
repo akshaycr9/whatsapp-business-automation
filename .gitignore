@@ -2,6 +2,10 @@
 .env
 .env.local
 .env.production
+server/.env
+server/.env.local
+client/.env
+client/.env.local
 
 # Dependencies
 node_modules/
