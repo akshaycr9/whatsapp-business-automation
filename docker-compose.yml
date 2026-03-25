@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: qwertees_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-qwertees}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-qwertees_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-qwertees_whatsapp}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-qwertees} -d ${POSTGRES_DB:-qwertees_whatsapp}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    name: qwertees_postgres_data

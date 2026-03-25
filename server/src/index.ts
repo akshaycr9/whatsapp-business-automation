@@ -1,0 +1,43 @@
+import 'dotenv/config';
+import { env } from './config/env.js';
+import express from 'express';
+import { createServer } from 'http';
+import cors from 'cors';
+import { initSocket } from './socket/index.js';
+import { captureRawBody } from './middleware/raw-body.js';
+import { errorHandler } from './middleware/error-handler.js';
+import { registerRoutes } from './routes/index.js';
+import { logger } from './lib/logger.js';
+
+const app = express();
+const httpServer = createServer(app);
+
+// ── Middleware ────────────────────────────────────────────────
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production'
+    ? process.env.CLIENT_URL
+    : ['http://localhost:5173', 'http://localhost:4173'],
+  credentials: true,
+}));
+
+// Raw body capture MUST come before express.json()
+app.use(express.json({ verify: captureRawBody }));
+app.use(express.urlencoded({ extended: true }));
+
+// ── Socket.io ─────────────────────────────────────────────────
+initSocket(httpServer);
+
+// ── Routes ────────────────────────────────────────────────────
+registerRoutes(app);
+
+// ── Error Handler (must be last) ─────────────────────────────
+app.use(errorHandler);
+
+// ── Start ─────────────────────────────────────────────────────
+httpServer.listen(env.PORT, () => {
+  logger.info(`🚀 Server running on http://localhost:${env.PORT}`);
+  logger.info(`📡 Socket.io ready`);
+  logger.info(`🌍 Environment: ${env.NODE_ENV}`);
+});
+
+export { app, httpServer };

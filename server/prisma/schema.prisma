@@ -1,0 +1,161 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Customer {
+  id            String         @id @default(cuid())
+  phone         String         @unique
+  name          String?
+  email         String?
+  city          String?
+  tags          String[]       @default([])
+  source        CustomerSource @default(MANUAL)
+  shopifyId     String?        @unique
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  conversations Conversation[]
+}
+
+enum CustomerSource {
+  SHOPIFY
+  MANUAL
+}
+
+model Conversation {
+  id              String    @id @default(cuid())
+  customerId      String    @unique
+  customer        Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  lastMessageAt   DateTime?
+  lastMessageText String?
+  unreadCount     Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  messages        Message[]
+}
+
+model Message {
+  id             String           @id @default(cuid())
+  conversationId String
+  conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  waMessageId    String?          @unique
+  direction      MessageDirection
+  type           MessageType      @default(TEXT)
+  body           String?
+  mediaId        String?
+  mediaMimeType  String?
+  caption        String?
+  status         MessageStatus    @default(SENT)
+  statusUpdatedAt DateTime?
+  metadata       Json?
+  createdAt      DateTime         @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+  TEMPLATE
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+model Template {
+  id             String           @id @default(cuid())
+  name           String           @unique
+  language       String           @default("en")
+  category       TemplateCategory
+  status         TemplateStatus   @default(PENDING)
+  components     Json
+  rejectedReason String?
+  metaTemplateId String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  automations    Automation[]
+}
+
+enum TemplateCategory {
+  MARKETING
+  UTILITY
+  AUTHENTICATION
+}
+
+enum TemplateStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Automation {
+  id              String        @id @default(cuid())
+  name            String
+  shopifyEvent    ShopifyEvent
+  templateId      String
+  template        Template      @relation(fields: [templateId], references: [id])
+  variableMapping Json
+  isActive        Boolean       @default(true)
+  delayMinutes    Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  logs            AutomationLog[]
+}
+
+enum ShopifyEvent {
+  PREPAID_ORDER_CONFIRMED
+  COD_ORDER_CONFIRMED
+  ORDER_FULFILLED
+  ABANDONED_CART
+}
+
+model AutomationLog {
+  id            String              @id @default(cuid())
+  automationId  String
+  automation    Automation          @relation(fields: [automationId], references: [id])
+  customerPhone String
+  shopifyData   Json?
+  status        AutomationLogStatus @default(PENDING)
+  errorMessage  String?
+  waMessageId   String?
+  createdAt     DateTime            @default(now())
+
+  @@index([automationId, createdAt])
+}
+
+enum AutomationLogStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model CheckoutTracker {
+  id                String   @id @default(cuid())
+  shopifyCheckoutId String   @unique
+  customerPhone     String?
+  customerEmail     String?
+  checkoutData      Json
+  orderCreated      Boolean  @default(false)
+  abandonedNotified Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([orderCreated, abandonedNotified, createdAt])
+}

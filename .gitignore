@@ -1,0 +1,41 @@
+# Environment
+.env
+.env.local
+.env.production
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+client/dist/
+server/dist/
+
+# Prisma
+server/prisma/migrations/dev.db
+.prisma/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test coverage
+coverage/
+
+# Temp
+tmp/
+temp/
