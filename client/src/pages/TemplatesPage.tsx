@@ -11,11 +11,12 @@ import {
   Phone,
   Copy,
   MessageSquare,
+  AlertCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
@@ -360,6 +361,7 @@ interface NewTemplateDialogProps {
 function NewTemplateDialog({ open, onOpenChange, onSubmit }: NewTemplateDialogProps) {
   const [step, setStep] = useState<1 | 2>(1);
   const [submitting, setSubmitting] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   // Step 1
   const [name, setName] = useState('');
@@ -417,6 +419,7 @@ function NewTemplateDialog({ open, onOpenChange, onSubmit }: NewTemplateDialogPr
     setButtonsEnabled(false);
     setButtonGroup('QUICK_REPLY');
     setButtons([]);
+    setCreateError(null);
   };
 
   const handleOpenChange = (val: boolean) => {
@@ -525,6 +528,7 @@ function NewTemplateDialog({ open, onOpenChange, onSubmit }: NewTemplateDialogPr
       components.push({ type: 'BUTTONS', buttons: btnInputs });
     }
 
+    setCreateError(null);
     setSubmitting(true);
     try {
       await onSubmit({
@@ -534,6 +538,9 @@ function NewTemplateDialog({ open, onOpenChange, onSubmit }: NewTemplateDialogPr
         components,
       });
       handleOpenChange(false);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to create template';
+      setCreateError(msg);
     } finally {
       setSubmitting(false);
     }
@@ -962,6 +969,14 @@ function NewTemplateDialog({ open, onOpenChange, onSubmit }: NewTemplateDialogPr
           </div>
         )}
 
+        {createError && (
+          <Alert variant="destructive" className="mt-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Meta rejected this template</AlertTitle>
+            <AlertDescription>{createError}</AlertDescription>
+          </Alert>
+        )}
+
         <DialogFooter className="gap-2 pt-2">
           {step === 1 ? (
             <Button onClick={() => setStep(2)} disabled={!step1Valid}>
@@ -1043,12 +1058,10 @@ export default function TemplatesPage() {
       await createTemplate(input);
       toast({ title: 'Template created', description: 'Awaiting Meta approval.' });
     } catch (err) {
-      toast({
-        variant: 'destructive',
-        title: 'Failed to create template',
-        description: err instanceof Error ? err.message : 'Unknown error',
-      });
-      throw err;
+      // Show a brief toast notification; the dialog also displays the full
+      // error inline via createError state so the user can read and fix it.
+      toast({ variant: 'destructive', title: 'Failed to create template' });
+      throw err; // re-throw so the dialog's catch can set createError
     }
   };
 

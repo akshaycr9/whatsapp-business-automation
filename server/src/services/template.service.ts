@@ -220,6 +220,8 @@ export const create = async (input: CreateTemplateInput): Promise<Template> => {
         code?: number;
         error_subcode?: number;
         error_data?: string;
+        error_user_title?: string;
+        error_user_msg?: string;
         fbtrace_id?: string;
       };
     }
@@ -228,13 +230,17 @@ export const create = async (input: CreateTemplateInput): Promise<Template> => {
       ? (err.response?.data as MetaErrorBody | undefined)?.error
       : undefined;
 
-    // Build a useful error message that includes the subcode when available
-    let errorMessage = metaErr?.message ?? 'Meta API rejected the template';
-    if (metaErr?.error_subcode) {
-      errorMessage += ` (subcode: ${metaErr.error_subcode})`;
-    }
-    if (metaErr?.error_data) {
-      errorMessage += ` — ${metaErr.error_data}`;
+    // Prefer Meta's user-facing strings — plain English, written for template creators.
+    // Fall back to the technical message + subcode when user strings are absent.
+    let errorMessage: string;
+    if (metaErr?.error_user_msg) {
+      errorMessage = metaErr.error_user_title
+        ? `${metaErr.error_user_title}: ${metaErr.error_user_msg}`
+        : metaErr.error_user_msg;
+    } else {
+      errorMessage = metaErr?.message ?? 'Meta API rejected the template';
+      if (metaErr?.error_subcode) errorMessage += ` (subcode: ${metaErr.error_subcode})`;
+      if (metaErr?.error_data)    errorMessage += ` — ${metaErr.error_data}`;
     }
 
     throw badRequest(errorMessage);
