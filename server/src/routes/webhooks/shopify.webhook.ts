@@ -8,6 +8,10 @@ import { triggerForEvent } from '../../services/automation.service.js';
 
 const router = Router();
 
+// In-memory dedup set — prevents duplicate processing when Shopify retries the same
+// webhook (identified by X-Shopify-Webhook-Id). Sufficient for a single-process server.
+const processedWebhookIds = new Set<string>();
+
 // Apply HMAC verification to all Shopify webhook routes
 router.use(verifyShopifyHmac);
 
@@ -34,10 +38,22 @@ async function processShopifyWebhook(
   webhookId: string | undefined,
   body: Record<string, unknown>,
 ): Promise<void> {
+  // Idempotency — skip if we've already processed this webhook ID in this process lifetime
+  if (webhookId) {
+    if (processedWebhookIds.has(webhookId)) {
+      logger.info(`Shopify webhook duplicate skipped: ${webhookId} [${topic}]`);
+      return;
+    }
+    processedWebhookIds.add(webhookId);
+  }
+
   logger.info(`Shopify webhook: ${topic}`, { webhookId });
 
   switch (topic) {
     case 'orders/create':
+    // orders/updated fires when financial_status changes (e.g. COD → paid).
+    // handleOrderCreate() reads financial_status and triggers the correct automation.
+    case 'orders/updated':
       await handleOrderCreate(body);
       break;
     case 'fulfillments/create':

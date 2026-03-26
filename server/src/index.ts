@@ -12,6 +12,13 @@ import { logger } from './lib/logger.js';
 const app = express();
 const httpServer = createServer(app);
 
+// ── Request logger (first middleware — logs every incoming request path) ──────
+app.use((req, _res, next) => {
+  const topic = req.headers['x-shopify-topic'] ?? req.headers['x-hub-signature-256'] ? '(webhook)' : '';
+  logger.debug(`→ ${req.method} ${req.path} ${topic}`.trimEnd());
+  next();
+});
+
 // ── Middleware ────────────────────────────────────────────────
 app.use(cors({
   origin: process.env.NODE_ENV === 'production'

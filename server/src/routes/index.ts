@@ -16,9 +16,13 @@ export const registerRoutes = (app: Express): void => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
-  // Webhooks (no auth, raw body already captured by captureRawBody middleware)
-  app.use('/api/webhooks/meta', metaWebhookRoutes);
+  // Webhooks — registered at both /api/webhooks/* and /webhooks/* so the endpoint
+  // works regardless of whether the URL was configured with or without the /api/ prefix
+  // in Shopify Admin / Meta App settings.
+  app.use('/api/webhooks/meta',    metaWebhookRoutes);
+  app.use('/webhooks/meta',        metaWebhookRoutes);
   app.use('/api/webhooks/shopify', shopifyWebhookRoutes);
+  app.use('/webhooks/shopify',     shopifyWebhookRoutes);
 
   // API routes
   app.use('/api/customers', customerRoutes);
