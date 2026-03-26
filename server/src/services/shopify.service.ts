@@ -74,3 +74,59 @@ export const getCustomer = async (shopifyId: string): Promise<ShopifyCustomer> =
   );
   return response.data.customer;
 };
+
+// ── Webhook registration ───────────────────────────────────────────────────
+
+interface ShopifyWebhookRecord {
+  id: number;
+  topic: string;
+  address: string;
+}
+
+interface ShopifyWebhooksListResponse {
+  webhooks: ShopifyWebhookRecord[];
+}
+
+const REQUIRED_TOPICS = [
+  'orders/create',
+  'orders/updated',
+  'fulfillments/create',
+  'checkouts/create',
+] as const;
+
+/**
+ * Idempotently registers (or updates) all required Shopify webhook subscriptions
+ * so they point to `${publicUrl}/api/webhooks/shopify`.
+ *
+ * Safe to call on every server startup — existing webhooks pointing to the
+ * correct URL are left untouched; outdated URLs are updated in-place.
+ */
+export const registerWebhooks = async (publicUrl: string): Promise<void> => {
+  const webhookAddress = `${publicUrl}/api/webhooks/shopify`;
+
+  const { data } = await shopifyApi.get<ShopifyWebhooksListResponse>('/webhooks.json');
+  const existing = data.webhooks;
+
+  for (const topic of REQUIRED_TOPICS) {
+    const existingHook = existing.find((h) => h.topic === topic);
+
+    if (existingHook) {
+      if (existingHook.address === webhookAddress) {
+        logger.info(`✓ Shopify webhook already up-to-date: ${topic}`);
+      } else {
+        // URL changed (e.g. new ngrok domain) — update in-place
+        await shopifyApi.put(`/webhooks/${existingHook.id}.json`, {
+          webhook: { id: existingHook.id, address: webhookAddress },
+        });
+        logger.info(`↑ Shopify webhook updated: ${topic} → ${webhookAddress}`);
+      }
+    } else {
+      await shopifyApi.post('/webhooks.json', {
+        webhook: { topic, address: webhookAddress, format: 'json' },
+      });
+      logger.info(`+ Shopify webhook registered: ${topic} → ${webhookAddress}`);
+    }
+  }
+
+  logger.info('Shopify webhook registration complete ✅');
+};
