@@ -177,35 +177,67 @@ export const getById = async (id: string): Promise<Template> => {
 };
 
 export const create = async (input: CreateTemplateInput): Promise<Template> => {
-  if (!/^[a-z_]+$/.test(input.name)) {
-    throw badRequest('Template name must contain only lowercase letters and underscores');
+  if (!/^[a-z0-9_]+$/.test(input.name)) {
+    throw badRequest('Template name must contain only lowercase letters, numbers, and underscores');
   }
 
   const metaComponents = buildMetaComponents(input.components);
+
+  const payload = {
+    name: input.name,
+    language: input.language,
+    category: input.category,
+    allow_category_change: true,
+    components: metaComponents,
+  };
+
+  // Log the full payload so we can debug Meta rejections easily
+  logger.info('Sending template to Meta:', JSON.stringify(payload, null, 2));
 
   let metaResponse: MetaCreateResponse;
 
   try {
     const response = await metaApi.post<MetaCreateResponse>(
       `/${env.META_WABA_ID}/message_templates`,
-      {
-        name: input.name,
-        language: input.language,
-        category: input.category,
-        components: metaComponents,
-      },
+      payload,
     );
     metaResponse = response.data;
   } catch (err: unknown) {
     if (isAxiosError(err) && err.response?.status === 409) {
       throw duplicate('Template name already exists on Meta');
     }
-    // Extract Meta's human-readable error message and surface it as a 400
-    const metaMessage = isAxiosError(err)
-      ? (err.response?.data as { error?: { message?: string } } | undefined)?.error?.message
+
+    // Log the full Meta error response for debugging (subcode + error_data pinpoint the bad field)
+    if (isAxiosError(err) && err.response?.data) {
+      logger.error('Meta API error response:', JSON.stringify(err.response.data, null, 2));
+    } else {
+      logger.error('Meta create template error:', err);
+    }
+
+    interface MetaErrorBody {
+      error?: {
+        message?: string;
+        code?: number;
+        error_subcode?: number;
+        error_data?: string;
+        fbtrace_id?: string;
+      };
+    }
+
+    const metaErr = isAxiosError(err)
+      ? (err.response?.data as MetaErrorBody | undefined)?.error
       : undefined;
-    logger.error('Meta create template error:', err);
-    throw badRequest(metaMessage ?? 'Meta API rejected the template — check your token and payload');
+
+    // Build a useful error message that includes the subcode when available
+    let errorMessage = metaErr?.message ?? 'Meta API rejected the template';
+    if (metaErr?.error_subcode) {
+      errorMessage += ` (subcode: ${metaErr.error_subcode})`;
+    }
+    if (metaErr?.error_data) {
+      errorMessage += ` — ${metaErr.error_data}`;
+    }
+
+    throw badRequest(errorMessage);
   }
 
   const template = await prisma.template.create({

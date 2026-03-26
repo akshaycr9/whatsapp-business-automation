@@ -469,7 +469,7 @@ function NewTemplateDialog({ open, onOpenChange, onSubmit }: NewTemplateDialogPr
   // ── Validation ────────────────────────────────────────────────────────────
 
   const step1Valid =
-    name.trim() !== '' && /^[a-z_]+$/.test(name) && language !== '' && category !== '';
+    name.trim() !== '' && /^[a-z0-9_]+$/.test(name) && language !== '' && category !== '';
 
   const samplesValid =
     detectedVars.length === 0 || bodySamples.every((s) => s.trim() !== '');
@@ -579,8 +579,8 @@ function NewTemplateDialog({ open, onOpenChange, onSubmit }: NewTemplateDialogPr
                 Lowercase letters and underscores only, e.g.{' '}
                 <span className="font-mono">order_confirmed</span>
               </p>
-              {name && !/^[a-z_]+$/.test(name) && (
-                <p className="text-xs text-destructive">Only lowercase letters and underscores allowed</p>
+              {name && !/^[a-z0-9_]+$/.test(name) && (
+                <p className="text-xs text-destructive">Only lowercase letters, numbers, and underscores allowed</p>
               )}
             </div>
 

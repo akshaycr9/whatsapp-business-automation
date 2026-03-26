@@ -17,7 +17,7 @@ const createTemplateSchema = z.object({
   name: z
     .string()
     .min(1)
-    .regex(/^[a-z_]+$/, 'Name must be lowercase letters and underscores only'),
+    .regex(/^[a-z0-9_]+$/, 'Name must be lowercase letters, numbers, and underscores only'),
   language: z.string().min(2),
   category: z.enum(['MARKETING', 'UTILITY', 'AUTHENTICATION']),
   components: z
