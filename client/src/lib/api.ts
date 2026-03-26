@@ -1,7 +1,11 @@
 import axios from 'axios';
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api',
+  // Use a relative base URL so requests flow through Vite's proxy.
+  // This works on any device on the same network — the browser hits the Vite
+  // dev server (which is reachable via its LAN IP) and Vite forwards /api/*
+  // to localhost:3000 server-side. Set VITE_API_URL for production deployments.
+  baseURL: import.meta.env.VITE_API_URL ?? '/api',
   headers: { 'Content-Type': 'application/json' },
   timeout: 15000,
 });

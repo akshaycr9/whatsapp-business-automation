@@ -1,6 +1,10 @@
 import { io, type Socket } from 'socket.io-client';
 
-const WS_URL = import.meta.env.VITE_WS_URL ?? 'http://localhost:3000';
+// Empty string makes Socket.io connect to the current page origin.
+// Vite proxies /socket.io/* to localhost:3000 (with ws:true for WebSocket upgrades),
+// so this works on any device — desktop at localhost:5173 or mobile at 192.168.x.x:5173.
+// Set VITE_WS_URL to an absolute URL only for production deployments.
+const WS_URL = import.meta.env.VITE_WS_URL ?? '';
 
 export const socket: Socket = io(WS_URL, {
   autoConnect: false,
