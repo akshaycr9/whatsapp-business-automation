@@ -105,8 +105,25 @@ const REQUIRED_TOPICS = [
 export const registerWebhooks = async (publicUrl: string): Promise<void> => {
   const webhookAddress = `${publicUrl}/api/webhooks/shopify`;
 
-  const { data } = await shopifyApi.get<ShopifyWebhooksListResponse>('/webhooks.json');
-  const existing = data.webhooks;
+  logger.info(`Shopify webhook registration: token prefix = ${env.SHOPIFY_ACCESS_TOKEN.slice(0, 8)}…`);
+  logger.info(`Shopify webhook registration: store = ${env.SHOPIFY_STORE_URL}`);
+  logger.info(`Shopify webhook registration: target address = ${webhookAddress}`);
+
+  let listResponse;
+  try {
+    listResponse = await shopifyApi.get<ShopifyWebhooksListResponse>('/webhooks.json');
+  } catch (err: unknown) {
+    // Surface the Shopify error body so it's easy to diagnose token/scope issues
+    if (err && typeof err === 'object' && 'response' in err) {
+      const axiosErr = err as { response?: { status?: number; data?: unknown } };
+      logger.error(
+        `Shopify GET /webhooks.json failed — HTTP ${axiosErr.response?.status ?? '?'}:`,
+        axiosErr.response?.data,
+      );
+    }
+    throw err;
+  }
+  const existing = listResponse.data.webhooks;
 
   for (const topic of REQUIRED_TOPICS) {
     const existingHook = existing.find((h) => h.topic === topic);

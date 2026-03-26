@@ -44,7 +44,7 @@ export const registerRoutes = (app: Express): void => {
       ngrok_tip: 'Run: ngrok http 3000 — use the https:// URL as PUBLIC_URL in .env',
       shopify: {
         url: `${base}/api/webhooks/shopify`,
-        topics: ['orders/create', 'orders/updated', 'fulfillments/create', 'checkouts/create'],
+        topics: ['orders/create', 'orders/paid', 'orders/fulfilled', 'checkouts/create', 'checkouts/update'],
         format: 'JSON',
       },
       meta: {
