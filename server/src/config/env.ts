@@ -12,7 +12,12 @@ const envSchema = z.object({
   META_WABA_ID: z.string().min(1),
   META_APP_SECRET: z.string().min(1),
   META_VERIFY_TOKEN: z.string().min(1),
-  SHOPIFY_STORE_URL: z.string().min(1),
+  // Strip any protocol prefix and trailing slash so it's always a bare hostname
+  // e.g. "https://your-store.myshopify.com/" → "your-store.myshopify.com"
+  SHOPIFY_STORE_URL: z
+    .string()
+    .min(1)
+    .transform((val) => val.replace(/^https?:\/\//, '').replace(/\/$/, '')),
   SHOPIFY_ACCESS_TOKEN: z.string().min(1),
   SHOPIFY_WEBHOOK_SECRET: z.string().min(1),
 });
