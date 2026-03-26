@@ -3,7 +3,7 @@ import { type Prisma } from '@prisma/client';
 import { verifyShopifyHmac } from '../../middleware/shopify-hmac.js';
 import { logger } from '../../lib/logger.js';
 import { prisma } from '../../lib/prisma.js';
-import { normalizePhone } from '../../utils/phone.js';
+import { normalizePhone, extractShopifyPhone } from '../../utils/phone.js';
 import { triggerForEvent } from '../../services/automation.service.js';
 
 const router = Router();
@@ -82,10 +82,9 @@ async function processShopifyWebhook(
 async function handleOrderCreate(body: Record<string, unknown>): Promise<void> {
   const orderId = String(body['id'] ?? '');
   const financialStatus = body['financial_status'] as string | undefined;
-  const customer = body['customer'] as Record<string, unknown> | undefined;
-  const phone = customer?.['phone'] as string | null | undefined;
+  const phone = extractShopifyPhone(body);
 
-  logger.info(`Order created: ${orderId}, status: ${financialStatus}`);
+  logger.info(`Order created: ${orderId}, status: ${financialStatus}, phone: ${phone}`);
 
   if (phone) {
     const normalizedPhone = normalizePhone(phone);
@@ -102,18 +101,17 @@ async function handleOrderCreate(body: Record<string, unknown>): Promise<void> {
 }
 
 // Handles orders/fulfilled — payload is the full order object.
-// Phone is at customer.phone (NOT destination.phone which was the old fulfillments/create path).
+// Phone is extracted from shipping_address, billing_address, customer, or root body (in that order).
 async function handleOrderFulfilled(body: Record<string, unknown>): Promise<void> {
   const orderId = String(body['id'] ?? '');
   logger.info(`Order fulfilled: ${orderId}`);
 
-  const customer = body['customer'] as Record<string, unknown> | undefined;
-  const phone = customer?.['phone'] as string | null | undefined;
+  const phone = extractShopifyPhone(body);
 
   if (phone) {
     await triggerForEvent('ORDER_FULFILLED', body, normalizePhone(phone));
   } else {
-    logger.warn(`Order fulfilled ${orderId}: no customer phone, skipping automation`);
+    logger.warn(`Order fulfilled ${orderId}: no phone found in any payload field, skipping automation`);
   }
 }
 
@@ -121,7 +119,7 @@ async function handleOrderFulfilled(body: Record<string, unknown>): Promise<void
 // so the abandoned-cart job always has the latest checkout data.
 async function handleCheckoutUpsert(body: Record<string, unknown>): Promise<void> {
   const checkoutId = String(body['id'] ?? '');
-  const phone = body['phone'] as string | null | undefined;
+  const phone = extractShopifyPhone(body);
   const email = body['email'] as string | null | undefined;
 
   if (!checkoutId) return;
