@@ -1,4 +1,11 @@
-import 'dotenv/config';
+// Load the single root-level .env file regardless of working directory.
+// import.meta.url is always file:///…/server/src/index.ts, so ../../.env
+// resolves to the project root .env reliably — no matter where tsx is invoked from.
+import { config } from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+const __dirname = dirname(fileURLToPath(import.meta.url));
+config({ path: resolve(__dirname, '../../.env') });
 import { env } from './config/env.js';
 import express from 'express';
 import { createServer } from 'http';
