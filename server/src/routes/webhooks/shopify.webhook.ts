@@ -51,17 +51,29 @@ async function processShopifyWebhook(
 
   switch (topic) {
     case 'orders/create':
-    // orders/updated fires when financial_status changes (e.g. COD → paid).
-    // handleOrderCreate() reads financial_status and triggers the correct automation.
-    case 'orders/updated':
       await handleOrderCreate(body);
       break;
-    case 'fulfillments/create':
-      await handleFulfillmentCreate(body);
+
+    // orders/paid fires when a COD order's financial_status transitions to paid.
+    // We re-use handleOrderCreate since it reads financial_status and routes accordingly.
+    // The idempotency set ensures prepaid orders (already processed on orders/create) are skipped.
+    case 'orders/paid':
+      await handleOrderCreate(body);
       break;
+
+    // orders/fulfilled fires once when the entire order is marked fulfilled.
+    // Payload is the full order object — customer phone is at customer.phone.
+    case 'orders/fulfilled':
+      await handleOrderFulfilled(body);
+      break;
+
     case 'checkouts/create':
-      await handleCheckoutCreate(body);
+    // checkouts/update fires on cart changes — upsert keeps the tracker data fresh
+    // so the abandoned-cart job works with the latest item/price info.
+    case 'checkouts/update':
+      await handleCheckoutUpsert(body);
       break;
+
     default:
       logger.info(`Shopify webhook: unhandled topic ${topic}`);
   }
@@ -89,19 +101,25 @@ async function handleOrderCreate(body: Record<string, unknown>): Promise<void> {
   }
 }
 
-async function handleFulfillmentCreate(body: Record<string, unknown>): Promise<void> {
-  const fulfillmentId = String(body['id'] ?? '');
-  logger.info(`Fulfillment created: ${fulfillmentId}`);
+// Handles orders/fulfilled — payload is the full order object.
+// Phone is at customer.phone (NOT destination.phone which was the old fulfillments/create path).
+async function handleOrderFulfilled(body: Record<string, unknown>): Promise<void> {
+  const orderId = String(body['id'] ?? '');
+  logger.info(`Order fulfilled: ${orderId}`);
 
-  const destination = body['destination'] as Record<string, unknown> | undefined;
-  const fulfillmentPhone = destination?.['phone'] as string | null | undefined;
+  const customer = body['customer'] as Record<string, unknown> | undefined;
+  const phone = customer?.['phone'] as string | null | undefined;
 
-  if (fulfillmentPhone) {
-    await triggerForEvent('ORDER_FULFILLED', body, normalizePhone(fulfillmentPhone));
+  if (phone) {
+    await triggerForEvent('ORDER_FULFILLED', body, normalizePhone(phone));
+  } else {
+    logger.warn(`Order fulfilled ${orderId}: no customer phone, skipping automation`);
   }
 }
 
-async function handleCheckoutCreate(body: Record<string, unknown>): Promise<void> {
+// Handles both checkouts/create and checkouts/update — upserts the tracker
+// so the abandoned-cart job always has the latest checkout data.
+async function handleCheckoutUpsert(body: Record<string, unknown>): Promise<void> {
   const checkoutId = String(body['id'] ?? '');
   const phone = body['phone'] as string | null | undefined;
   const email = body['email'] as string | null | undefined;
@@ -109,7 +127,6 @@ async function handleCheckoutCreate(body: Record<string, unknown>): Promise<void
   if (!checkoutId) return;
 
   const customerPhone = phone ? normalizePhone(phone) : null;
-
   const checkoutDataJson = body as Prisma.InputJsonValue;
 
   await prisma.checkoutTracker.upsert({

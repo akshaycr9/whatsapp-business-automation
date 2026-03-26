@@ -15,7 +15,7 @@ export interface ShopifyCustomer {
 }
 
 const shopifyApi = axios.create({
-  baseURL: `https://${env.SHOPIFY_STORE_URL}/admin/api/2024-01`,
+  baseURL: `https://${env.SHOPIFY_STORE_URL}/admin/api/2025-01`,
   headers: {
     'X-Shopify-Access-Token': env.SHOPIFY_ACCESS_TOKEN,
     'Content-Type': 'application/json',
@@ -88,10 +88,11 @@ interface ShopifyWebhooksListResponse {
 }
 
 const REQUIRED_TOPICS = [
-  'orders/create',
-  'orders/updated',
-  'fulfillments/create',
-  'checkouts/create',
+  'orders/create',       // new order placed — triggers PREPAID or COD confirmation
+  'orders/fulfilled',    // order fully shipped — triggers ORDER_FULFILLED
+  'orders/paid',         // payment collected (COD orders going from pending → paid)
+  'checkouts/create',    // new checkout — start abandoned cart tracking
+  'checkouts/update',    // checkout updated — keep tracker in sync
 ] as const;
 
 /**
