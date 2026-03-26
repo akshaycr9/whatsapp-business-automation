@@ -1,9 +1,21 @@
 /**
- * Strips all non-digit characters and returns E.164 format without `+` prefix.
- * e.g. "+91 98765-43210" → "919876543210"
+ * Strips all non-digit characters and ensures the India country code (91) is
+ * present, returning E.164 format without `+` prefix.
+ *
+ * Examples:
+ *   "9876543210"        → "919876543210"  (bare 10-digit, prepend 91)
+ *   "+91 98765-43210"   → "919876543210"  (already has country code, strip formatting)
+ *   "919876543210"      → "919876543210"  (already correct, untouched)
+ *   "09876543210"       → "919876543210"  (leading 0 stripped, 91 prepended)
  */
-export const normalizePhone = (raw: string): string =>
-  raw.replace(/[^\d]/g, '');
+export const normalizePhone = (raw: string): string => {
+  const digits = raw.replace(/[^\d]/g, '');
+  // A bare 10-digit number has no country code — prepend India's dial code
+  if (digits.length === 10) return `91${digits}`;
+  // An 11-digit number starting with 0 is a local trunk-prefixed number — replace leading 0 with 91
+  if (digits.length === 11 && digits.startsWith('0')) return `91${digits.slice(1)}`;
+  return digits;
+};
 
 /**
  * A valid phone number is 10–15 digits after normalization.
