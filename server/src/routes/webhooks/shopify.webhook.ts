@@ -8,9 +8,15 @@ import { triggerForEvent } from '../../services/automation.service.js';
 
 const router = Router();
 
-// In-memory dedup set — prevents duplicate processing when Shopify retries the same
-// webhook (identified by X-Shopify-Webhook-Id). Sufficient for a single-process server.
+// In-memory dedup sets — survive only for the lifetime of the process, which is
+// sufficient because we respond 200 immediately (Shopify won't retry on success).
+//
+// processedWebhookIds: guards against Shopify re-delivering the exact same webhook ID.
+// processedOrderIds:   guards against the same order ID arriving via different webhook
+//                      topics (secondary safety net — primary fix is not subscribing to
+//                      both orders/create and orders/paid for the same handler).
 const processedWebhookIds = new Set<string>();
+const processedOrderIds = new Set<string>();
 
 // Apply HMAC verification to all Shopify webhook routes
 router.use(verifyShopifyHmac);
@@ -54,12 +60,10 @@ async function processShopifyWebhook(
       await handleOrderCreate(body);
       break;
 
-    // orders/paid fires when a COD order's financial_status transitions to paid.
-    // We re-use handleOrderCreate since it reads financial_status and routes accordingly.
-    // The idempotency set ensures prepaid orders (already processed on orders/create) are skipped.
-    case 'orders/paid':
-      await handleOrderCreate(body);
-      break;
+    // orders/paid is intentionally NOT subscribed — for prepaid orders Shopify fires
+    // both orders/create and orders/paid, which caused duplicate WhatsApp messages.
+    // orders/create alone handles prepaid (financial_status='paid') and COD
+    // (financial_status='pending') without any duplication.
 
     // orders/fulfilled fires once when the entire order is marked fulfilled.
     // Payload is the full order object — customer phone is at customer.phone.
@@ -83,6 +87,15 @@ async function handleOrderCreate(body: Record<string, unknown>): Promise<void> {
   const orderId = String(body['id'] ?? '');
   const financialStatus = body['financial_status'] as string | undefined;
   const phone = extractShopifyPhone(body);
+
+  // Secondary dedup: skip if this order ID was already processed in this process lifetime.
+  // Primary prevention is not subscribing to orders/paid, but this guards edge cases
+  // where the same order might arrive via different webhook deliveries.
+  if (processedOrderIds.has(orderId)) {
+    logger.info(`Order ${orderId} already processed — skipping duplicate`);
+    return;
+  }
+  processedOrderIds.add(orderId);
 
   logger.info(`Order created: ${orderId}, status: ${financialStatus}, phone: ${phone}`);
 

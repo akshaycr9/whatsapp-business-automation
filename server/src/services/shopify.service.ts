@@ -90,7 +90,10 @@ interface ShopifyWebhooksListResponse {
 const REQUIRED_TOPICS = [
   'orders/create',       // new order placed — triggers PREPAID or COD confirmation
   'orders/fulfilled',    // order fully shipped — triggers ORDER_FULFILLED
-  'orders/paid',         // payment collected (COD orders going from pending → paid)
+  // NOTE: orders/paid intentionally excluded — for prepaid orders Shopify fires BOTH
+  // orders/create (financial_status='paid') AND orders/paid, causing duplicate messages.
+  // orders/create alone is sufficient: it handles prepaid (status='paid') and COD
+  // (status='pending') in one webhook without any duplication.
   'checkouts/create',    // new checkout — start abandoned cart tracking
   'checkouts/update',    // checkout updated — keep tracker in sync
 ] as const;
@@ -125,6 +128,7 @@ export const registerWebhooks = async (publicUrl: string): Promise<void> => {
   }
   const existing = listResponse.data.webhooks;
 
+  // Register or update every required topic
   for (const topic of REQUIRED_TOPICS) {
     const existingHook = existing.find((h) => h.topic === topic);
 
@@ -143,6 +147,17 @@ export const registerWebhooks = async (publicUrl: string): Promise<void> => {
         webhook: { topic, address: webhookAddress, format: 'json' },
       });
       logger.info(`+ Shopify webhook registered: ${topic} → ${webhookAddress}`);
+    }
+  }
+
+  // Delete webhooks that are no longer in REQUIRED_TOPICS (e.g. orders/paid was removed
+  // to prevent duplicate messages on prepaid orders). Only cleans up webhooks pointing
+  // to our own address so we never accidentally delete another app's webhooks.
+  const requiredSet = new Set<string>(REQUIRED_TOPICS);
+  for (const hook of existing) {
+    if (!requiredSet.has(hook.topic) && hook.address === webhookAddress) {
+      await shopifyApi.delete(`/webhooks/${hook.id}.json`);
+      logger.info(`✕ Shopify webhook deleted (no longer required): ${hook.topic}`);
     }
   }
 
