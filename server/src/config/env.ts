@@ -3,6 +3,9 @@ import { z } from 'zod';
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().default(3000),
+  // Optional: set to your ngrok URL (e.g. https://xxx.ngrok-free.dev) so the server
+  // prints the exact webhook URLs to configure in Shopify Admin and Meta App dashboard.
+  PUBLIC_URL: z.string().url().optional(),
   DATABASE_URL: z.string().url(),
   META_ACCESS_TOKEN: z.string().min(1),
   META_PHONE_NUMBER_ID: z.string().min(1),
