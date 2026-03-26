@@ -1,3 +1,4 @@
+import { isAxiosError } from 'axios';
 import { type Template } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { notFound, duplicate, badRequest } from '../lib/app-error.js';
@@ -5,16 +6,24 @@ import { logger } from '../lib/logger.js';
 import { metaApi } from '../lib/meta-api.js';
 import { env } from '../config/env.js';
 
+// ── Types ────────────────────────────────────────────────────────────────────
+
+export interface TemplateButton {
+  type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER' | 'COPY_CODE';
+  text: string;
+  url?: string;
+  phone_number?: string;
+  /** Dynamic URL example value (for URL buttons with {{1}}) or copy code example */
+  example?: string;
+}
+
 export interface TemplateComponent {
   type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS';
   format?: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT';
   text?: string;
-  buttons?: Array<{
-    type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER';
-    text: string;
-    url?: string;
-    phone_number?: string;
-  }>;
+  /** Sample values for {{1}}, {{2}}, … — required by Meta when variables are present */
+  example?: string[];
+  buttons?: TemplateButton[];
 }
 
 export interface CreateTemplateInput {
@@ -59,6 +68,72 @@ interface MetaCreateResponse {
   status: string;
 }
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+const VARIABLE_RE = /\{\{\d+\}\}/;
+
+/** Convert our TemplateComponent[] into the shape Meta's API expects */
+function buildMetaComponents(components: TemplateComponent[]): unknown[] {
+  return components.map((c) => {
+    if (c.type === 'HEADER') {
+      const base: Record<string, unknown> = {
+        type: 'HEADER',
+        format: c.format ?? 'TEXT',
+      };
+      if (c.text !== undefined) base['text'] = c.text;
+      // Meta requires example when header text contains variables
+      if (c.text && VARIABLE_RE.test(c.text) && c.example && c.example.length > 0) {
+        base['example'] = { header_text: c.example };
+      }
+      return base;
+    }
+
+    if (c.type === 'BODY') {
+      const base: Record<string, unknown> = {
+        type: 'BODY',
+        text: c.text ?? '',
+      };
+      // Meta requires example when body contains variables
+      if (c.example && c.example.length > 0) {
+        base['example'] = { body_text: [c.example] };
+      }
+      return base;
+    }
+
+    if (c.type === 'FOOTER') {
+      return { type: 'FOOTER', text: c.text ?? '' };
+    }
+
+    // BUTTONS
+    const metaButtons = (c.buttons ?? []).map((btn) => {
+      if (btn.type === 'QUICK_REPLY') {
+        return { type: 'QUICK_REPLY', text: btn.text };
+      }
+      if (btn.type === 'URL') {
+        const b: Record<string, unknown> = {
+          type: 'URL',
+          text: btn.text,
+          url: btn.url ?? '',
+        };
+        // Dynamic URL with {{1}} requires an example
+        if (btn.url && VARIABLE_RE.test(btn.url) && btn.example) {
+          b['example'] = [btn.example];
+        }
+        return b;
+      }
+      if (btn.type === 'PHONE_NUMBER') {
+        return { type: 'PHONE_NUMBER', text: btn.text, phone_number: btn.phone_number ?? '' };
+      }
+      // COPY_CODE (AUTHENTICATION only)
+      return { type: 'COPY_CODE', example: btn.example ?? '' };
+    });
+
+    return { type: 'BUTTONS', buttons: metaButtons };
+  });
+}
+
+// ── Service functions ─────────────────────────────────────────────────────────
+
 export const list = async (params: ListParams): Promise<ListResult> => {
   const page = Math.max(1, params.page ?? 1);
   const limit = Math.min(100, Math.max(1, params.limit ?? 20));
@@ -102,48 +177,73 @@ export const getById = async (id: string): Promise<Template> => {
 };
 
 export const create = async (input: CreateTemplateInput): Promise<Template> => {
-  if (!/^[a-z_]+$/.test(input.name)) {
-    throw badRequest('Template name must contain only lowercase letters and underscores');
+  if (!/^[a-z0-9_]+$/.test(input.name)) {
+    throw badRequest('Template name must contain only lowercase letters, numbers, and underscores');
   }
 
-  const metaComponents = input.components.map((c) => {
-    if (c.type === 'HEADER') {
-      return { type: 'HEADER', format: c.format ?? 'TEXT', ...(c.text !== undefined && { text: c.text }) };
-    }
-    if (c.type === 'BODY') {
-      return { type: 'BODY', text: c.text ?? '' };
-    }
-    if (c.type === 'FOOTER') {
-      return { type: 'FOOTER', text: c.text ?? '' };
-    }
-    // BUTTONS
-    return { type: 'BUTTONS', buttons: c.buttons ?? [] };
-  });
+  const metaComponents = buildMetaComponents(input.components);
+
+  const payload = {
+    name: input.name,
+    language: input.language,
+    category: input.category,
+    allow_category_change: true,
+    components: metaComponents,
+  };
+
+  // Log the full payload so we can debug Meta rejections easily
+  logger.info('Sending template to Meta:', JSON.stringify(payload, null, 2));
 
   let metaResponse: MetaCreateResponse;
 
   try {
     const response = await metaApi.post<MetaCreateResponse>(
       `/${env.META_WABA_ID}/message_templates`,
-      {
-        name: input.name,
-        language: input.language,
-        category: input.category,
-        components: metaComponents,
-      },
+      payload,
     );
     metaResponse = response.data;
   } catch (err: unknown) {
-    if (
-      err !== null &&
-      typeof err === 'object' &&
-      'response' in err &&
-      (err as { response?: { status?: number } }).response?.status === 409
-    ) {
+    if (isAxiosError(err) && err.response?.status === 409) {
       throw duplicate('Template name already exists on Meta');
     }
-    logger.error('Meta create template error:', err);
-    throw err;
+
+    // Log the full Meta error response for debugging (subcode + error_data pinpoint the bad field)
+    if (isAxiosError(err) && err.response?.data) {
+      logger.error('Meta API error response:', JSON.stringify(err.response.data, null, 2));
+    } else {
+      logger.error('Meta create template error:', err);
+    }
+
+    interface MetaErrorBody {
+      error?: {
+        message?: string;
+        code?: number;
+        error_subcode?: number;
+        error_data?: string;
+        error_user_title?: string;
+        error_user_msg?: string;
+        fbtrace_id?: string;
+      };
+    }
+
+    const metaErr = isAxiosError(err)
+      ? (err.response?.data as MetaErrorBody | undefined)?.error
+      : undefined;
+
+    // Prefer Meta's user-facing strings — plain English, written for template creators.
+    // Fall back to the technical message + subcode when user strings are absent.
+    let errorMessage: string;
+    if (metaErr?.error_user_msg) {
+      errorMessage = metaErr.error_user_title
+        ? `${metaErr.error_user_title}: ${metaErr.error_user_msg}`
+        : metaErr.error_user_msg;
+    } else {
+      errorMessage = metaErr?.message ?? 'Meta API rejected the template';
+      if (metaErr?.error_subcode) errorMessage += ` (subcode: ${metaErr.error_subcode})`;
+      if (metaErr?.error_data)    errorMessage += ` — ${metaErr.error_data}`;
+    }
+
+    throw badRequest(errorMessage);
   }
 
   const template = await prisma.template.create({
@@ -238,7 +338,9 @@ export const remove = async (id: string): Promise<void> => {
 
   if (template.metaTemplateId) {
     try {
-      await metaApi.delete(`/${env.META_WABA_ID}/message_templates`, {
+      await metaApi({
+        method: 'DELETE',
+        url: `/${env.META_WABA_ID}/message_templates`,
         data: { name: template.name, hsm_id: template.metaTemplateId },
       });
     } catch (err: unknown) {
