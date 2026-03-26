@@ -11,16 +11,22 @@ interface TemplateMeta {
 
 export type StatusFilter = 'all' | 'PENDING' | 'APPROVED' | 'REJECTED';
 
+export interface TemplateButtonInput {
+  type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER' | 'COPY_CODE';
+  text: string;
+  url?: string;
+  phone_number?: string;
+  /** Example value for dynamic URL {{1}} or COPY_CODE */
+  example?: string;
+}
+
 export interface TemplateComponentInput {
   type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS';
   format?: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT';
   text?: string;
-  buttons?: Array<{
-    type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER';
-    text: string;
-    url?: string;
-    phone_number?: string;
-  }>;
+  /** Sample values for {{1}}, {{2}}, … — required by Meta when variables present */
+  example?: string[];
+  buttons?: TemplateButtonInput[];
 }
 
 export interface CreateTemplateInput {

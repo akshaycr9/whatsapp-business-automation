@@ -4,6 +4,15 @@ import * as templateService from '../services/template.service.js';
 
 const router = Router();
 
+const buttonSchema = z.object({
+  type: z.enum(['QUICK_REPLY', 'URL', 'PHONE_NUMBER', 'COPY_CODE']),
+  text: z.string().min(1).max(25),
+  url: z.string().url().optional(),
+  phone_number: z.string().optional(),
+  /** Example value for dynamic URL {{1}} or COPY_CODE */
+  example: z.string().optional(),
+});
+
 const createTemplateSchema = z.object({
   name: z
     .string()
@@ -17,16 +26,9 @@ const createTemplateSchema = z.object({
         type: z.enum(['HEADER', 'BODY', 'FOOTER', 'BUTTONS']),
         format: z.enum(['TEXT', 'IMAGE', 'VIDEO', 'DOCUMENT']).optional(),
         text: z.string().optional(),
-        buttons: z
-          .array(
-            z.object({
-              type: z.enum(['QUICK_REPLY', 'URL', 'PHONE_NUMBER']),
-              text: z.string(),
-              url: z.string().optional(),
-              phone_number: z.string().optional(),
-            }),
-          )
-          .optional(),
+        /** Sample values for {{1}}, {{2}}, … — required by Meta when variables are present */
+        example: z.array(z.string().min(1)).optional(),
+        buttons: z.array(buttonSchema).optional(),
       }),
     )
     .min(1),
