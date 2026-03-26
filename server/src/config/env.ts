@@ -18,8 +18,23 @@ const envSchema = z.object({
     .string()
     .min(1)
     .transform((val) => val.replace(/^https?:\/\//, '').replace(/\/$/, '')),
-  SHOPIFY_ACCESS_TOKEN: z.string().min(1),
-  SHOPIFY_WEBHOOK_SECRET: z.string().min(1),
+  // Shopify Admin API access token — starts with shpat_ (private app) or shpua_ (custom app).
+  // Find it in Shopify Admin → Apps → your app → API credentials.
+  SHOPIFY_ACCESS_TOKEN: z
+    .string()
+    .min(1)
+    .refine(
+      (val) => !val.startsWith('your_') && val !== '',
+      'SHOPIFY_ACCESS_TOKEN still contains a placeholder — set it to your real Shopify Admin API token',
+    ),
+  // Shopify webhook signing secret — find it in Shopify Admin → Settings → Notifications → Webhooks.
+  SHOPIFY_WEBHOOK_SECRET: z
+    .string()
+    .min(1)
+    .refine(
+      (val) => !val.startsWith('your_'),
+      'SHOPIFY_WEBHOOK_SECRET still contains a placeholder — set it to your real signing secret',
+    ),
 });
 
 const parsed = envSchema.safeParse(process.env);
