@@ -35,7 +35,9 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
@@ -198,21 +200,103 @@ function EventCards({ automations }: EventCardsProps) {
   );
 }
 
+// ── Shopify path options for variable mapping ──────────────────────────────
+
+interface ShopifyPathOption {
+  value: string;
+  label: string;
+  category: string;
+}
+
+const ORDER_PATHS: ShopifyPathOption[] = [
+  { value: 'name',                      label: 'Order Number',           category: 'Order' },
+  { value: 'order_number',              label: 'Order Number (numeric)', category: 'Order' },
+  { value: 'total_price',               label: 'Order Total',            category: 'Order' },
+  { value: 'subtotal_price',            label: 'Subtotal',               category: 'Order' },
+  { value: 'financial_status',          label: 'Payment Status',         category: 'Order' },
+  { value: 'fulfillment_status',        label: 'Fulfillment Status',     category: 'Order' },
+  { value: 'created_at',               label: 'Order Date',             category: 'Order' },
+  { value: 'customer.first_name',       label: 'Customer First Name',    category: 'Customer' },
+  { value: 'customer.last_name',        label: 'Customer Last Name',     category: 'Customer' },
+  { value: 'customer.email',            label: 'Customer Email',         category: 'Customer' },
+  { value: 'customer.phone',            label: 'Customer Phone',         category: 'Customer' },
+  { value: 'shipping_address.address1', label: 'Shipping Street',        category: 'Shipping' },
+  { value: 'shipping_address.city',     label: 'Shipping City',          category: 'Shipping' },
+  { value: 'shipping_address.province', label: 'Shipping State',         category: 'Shipping' },
+  { value: 'shipping_address.zip',      label: 'Shipping Postcode',      category: 'Shipping' },
+  { value: 'shipping_address.country',  label: 'Shipping Country',       category: 'Shipping' },
+  { value: 'line_items.0.name',         label: 'First Item Name',        category: 'Items' },
+  { value: 'line_items.0.quantity',     label: 'First Item Quantity',    category: 'Items' },
+  { value: 'line_items.0.price',        label: 'First Item Price',       category: 'Items' },
+];
+
+const CART_PATHS: ShopifyPathOption[] = [
+  { value: 'total_price',           label: 'Cart Total',          category: 'Cart' },
+  { value: 'email',                 label: 'Customer Email',       category: 'Customer' },
+  { value: 'phone',                 label: 'Customer Phone',       category: 'Customer' },
+  { value: 'customer.first_name',   label: 'Customer First Name',  category: 'Customer' },
+  { value: 'customer.last_name',    label: 'Customer Last Name',   category: 'Customer' },
+  { value: 'shipping_address.city', label: 'Shipping City',        category: 'Shipping' },
+];
+
+const CUSTOM_SENTINEL = '__custom__';
+
+function getPathOptions(event: string): ShopifyPathOption[] {
+  return event === 'ABANDONED_CART' ? CART_PATHS : ORDER_PATHS;
+}
+
+function groupByCategory(options: ShopifyPathOption[]): Map<string, ShopifyPathOption[]> {
+  const map = new Map<string, ShopifyPathOption[]>();
+  for (const opt of options) {
+    const group = map.get(opt.category) ?? [];
+    group.push(opt);
+    map.set(opt.category, group);
+  }
+  return map;
+}
+
 // ── Variable Mapping Section ───────────────────────────────────────────────
 
 interface VariableMappingProps {
   template: Template | null;
   mapping: Record<string, string>;
   onChange: (mapping: Record<string, string>) => void;
+  shopifyEvent: string;
 }
 
-function VariableMappingSection({ template, mapping, onChange }: VariableMappingProps) {
+function VariableMappingSection({ template, mapping, onChange, shopifyEvent }: VariableMappingProps) {
+  const [customPositions, setCustomPositions] = useState<Set<string>>(new Set());
+
   if (!template) return null;
 
   const bodyText = extractBodyText(template.components);
   const variables = detectVariables(bodyText);
 
   if (variables.length === 0) return null;
+
+  const pathOptions = getPathOptions(shopifyEvent);
+  const grouped = groupByCategory(pathOptions);
+  const knownValues = new Set(pathOptions.map((o) => o.value));
+
+  const handleSelectChange = (pos: string, selected: string) => {
+    if (selected === CUSTOM_SENTINEL) {
+      setCustomPositions((prev) => new Set(prev).add(pos));
+      onChange({ ...mapping, [pos]: '' });
+    } else {
+      setCustomPositions((prev) => {
+        const next = new Set(prev);
+        next.delete(pos);
+        return next;
+      });
+      onChange({ ...mapping, [pos]: selected });
+    }
+  };
+
+  const isCustom = (pos: string): boolean =>
+    customPositions.has(pos) || (!!mapping[pos] && !knownValues.has(mapping[pos]));
+
+  const selectValue = (pos: string): string =>
+    isCustom(pos) ? CUSTOM_SENTINEL : (mapping[pos] ?? '');
 
   return (
     <div className="space-y-3">
@@ -225,28 +309,50 @@ function VariableMappingSection({ template, mapping, onChange }: VariableMapping
         )}
       </div>
       <p className="text-xs text-muted-foreground">
-        Map each variable to a Shopify data path using dot notation.
+        Select the Shopify field to use for each template variable.
       </p>
-      <div className="text-xs text-muted-foreground space-y-0.5 bg-muted/50 rounded p-2">
-        <p className="font-medium text-foreground mb-1">Common paths:</p>
-        <p><span className="font-mono">order.name</span> → Order number (#1001)</p>
-        <p><span className="font-mono">order.total_price</span> → Order total</p>
-        <p><span className="font-mono">customer.first_name</span> → Customer first name</p>
-        <p><span className="font-mono">customer.last_name</span> → Customer last name</p>
-        <p><span className="font-mono">order.shipping_address.city</span> → Shipping city</p>
-      </div>
-      <div className="space-y-2">
+      <div className="space-y-3">
         {variables.map((pos) => (
-          <div key={pos} className="flex items-center gap-2">
-            <span className="text-sm font-mono text-muted-foreground w-10 shrink-0">
-              {`{{${pos}}}`}
-            </span>
-            <Input
-              placeholder="e.g. order.name"
-              value={mapping[pos] ?? ''}
-              onChange={(e) => onChange({ ...mapping, [pos]: e.target.value })}
-              className="text-sm"
-            />
+          <div key={pos} className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-mono text-muted-foreground w-10 shrink-0">
+                {`{{${pos}}}`}
+              </span>
+              <Select value={selectValue(pos)} onValueChange={(val) => handleSelectChange(pos, val)}>
+                <SelectTrigger className="text-sm">
+                  <SelectValue placeholder="Select a Shopify field…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from(grouped.entries()).map(([category, options]) => (
+                    <SelectGroup key={category}>
+                      <SelectLabel>{category}</SelectLabel>
+                      {options.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          <span>{opt.label}</span>
+                          <span className="ml-2 font-mono text-xs text-muted-foreground">
+                            {opt.value}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
+                  <SelectGroup>
+                    <SelectLabel>Advanced</SelectLabel>
+                    <SelectItem value={CUSTOM_SENTINEL}>Custom path…</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+            {isCustom(pos) && (
+              <div className="ml-12">
+                <Input
+                  placeholder="e.g. line_items.0.sku"
+                  value={mapping[pos] ?? ''}
+                  onChange={(e) => onChange({ ...mapping, [pos]: e.target.value })}
+                  className="text-sm font-mono"
+                />
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -432,6 +538,7 @@ function AutomationFormDialog({
             template={selectedTemplate}
             mapping={variableMapping}
             onChange={setVariableMapping}
+            shopifyEvent={shopifyEvent}
           />
 
           <DialogFooter>
