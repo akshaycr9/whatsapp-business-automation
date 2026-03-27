@@ -1,4 +1,4 @@
-import { Check, CheckCheck, AlertCircle, FileText, Image, Video, Music, File } from 'lucide-react';
+import { Check, CheckCheck, AlertCircle, Clock, FileText, Image, Video, Music, File } from 'lucide-react';
 import { cn, formatRelativeTime } from '@/lib/utils';
 import type { Message, MessageStatus } from '@/types';
 
@@ -9,12 +9,17 @@ interface Props {
 function StatusIcon({ status }: { status: MessageStatus }) {
   switch (status) {
     case 'PENDING':
+      // Clock: queued, not yet accepted by Meta servers
+      return <Clock className="h-3 w-3 opacity-50" />;
     case 'SENT':
-      return <Check className="h-3 w-3 text-current opacity-60" />;
+      // Single grey tick: accepted by Meta servers
+      return <Check className="h-3 w-3 opacity-60" />;
     case 'DELIVERED':
-      return <CheckCheck className="h-3 w-3 text-current opacity-60" />;
+      // Double grey tick: delivered to recipient's device
+      return <CheckCheck className="h-3 w-3 opacity-60" />;
     case 'READ':
-      return <CheckCheck className="h-3 w-3 text-primary" />;
+      // Double blue tick: recipient opened the message (#53BDEB — WhatsApp blue)
+      return <CheckCheck className="h-3 w-3 text-[#53BDEB]" />;
     case 'FAILED':
       return <AlertCircle className="h-3 w-3 text-destructive" />;
     default:
