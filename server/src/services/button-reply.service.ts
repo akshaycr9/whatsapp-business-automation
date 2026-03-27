@@ -17,14 +17,15 @@ export const processButtonReply = async (
   const matchingAutomations = await prisma.automation.findMany({
     where: {
       triggerType: 'BUTTON_REPLY',
-      buttonTriggerText: buttonTitle,
+      // Case-insensitive so minor capitalisation differences never cause a silent miss
+      buttonTriggerText: { equals: buttonTitle, mode: 'insensitive' },
       isActive: true,
     },
     take: 20,
   });
 
   if (matchingAutomations.length === 0) {
-    logger.debug(`processButtonReply: no active automations for button "${buttonTitle}"`);
+    logger.warn(`processButtonReply: no active BUTTON_REPLY automations for button "${buttonTitle}"`);
     return;
   }
 

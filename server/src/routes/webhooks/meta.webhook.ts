@@ -82,9 +82,11 @@ async function processWebhookPayload(body: unknown): Promise<void> {
 
       if (messages) {
         for (const message of messages) {
-          if (message.type === 'interactive') {
+          // "interactive" = customer tapped a button on an interactive message
+          // "button"      = customer tapped a quick-reply button on a template message
+          if (message.type === 'interactive' || message.type === 'button') {
             await processInteractiveMessage(message, phoneNumberId).catch((err: unknown) =>
-              logger.error('Failed to process interactive message:', err),
+              logger.error('Failed to process interactive/button message:', err),
             );
           } else {
             await processInboundMessage(message, phoneNumberId).catch((err: unknown) =>

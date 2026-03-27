@@ -21,7 +21,8 @@ export interface MetaMessagePayload {
   video?: { id: string; mime_type: string; caption?: string };
   audio?: { id: string; mime_type: string };
   document?: { id: string; mime_type: string; filename?: string; caption?: string };
-  interactive?: {
+  button?: { payload: string; text: string }; // template quick-reply tap (type: "button")
+  interactive?: {                              // interactive message button tap (type: "interactive")
     type: 'button_reply' | 'list_reply';
     button_reply?: { id: string; title: string };
     list_reply?: { id: string; title: string };
@@ -291,15 +292,23 @@ export const processInteractiveMessage = async (
   messagePayload: MetaMessagePayload,
   _phoneNumberId: string,
 ): Promise<void> => {
+  // Meta sends template quick-reply taps as type "button" (messagePayload.button.text)
+  // and interactive message button taps as type "interactive" (interactive.button_reply.title).
+  // Both paths extract the same button title and follow the same storage + automation flow.
   const interactive = messagePayload.interactive;
-  if (!interactive) {
-    logger.warn('processInteractiveMessage: no interactive payload found');
-    return;
-  }
+  const buttonTitle =
+    messagePayload.button?.text ??
+    interactive?.button_reply?.title ??
+    interactive?.list_reply?.title ??
+    '';
 
-  // Extract the button title — handles both button_reply and list_reply
-  const buttonReply = interactive.button_reply ?? interactive.list_reply;
-  const buttonTitle = buttonReply?.title ?? '';
+  if (!buttonTitle) {
+    logger.warn('processInteractiveMessage: could not extract button title — payload:', JSON.stringify({
+      type: messagePayload.type,
+      button: messagePayload.button,
+      interactive: messagePayload.interactive,
+    }));
+  }
 
   // Upsert customer by phone
   const customer = await prisma.customer.upsert({
@@ -321,8 +330,8 @@ export const processInteractiveMessage = async (
       body: buttonTitle,
       status: 'DELIVERED',
       metadata: {
-        interactiveType: interactive.type,
-        buttonId: buttonReply?.id,
+        interactiveType: interactive?.type ?? 'button_reply',
+        buttonId: interactive?.button_reply?.id ?? messagePayload.button?.payload,
       },
     },
   });
