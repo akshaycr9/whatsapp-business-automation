@@ -1,38 +1,58 @@
-/**
- * Plays a short two-tone notification sound using the Web Audio API.
- * No audio files required. Fails silently if AudioContext is unavailable
- * (e.g., before any user interaction on some browsers).
- */
-export function playNotificationSound(): void {
-  try {
-    const ctx = new AudioContext();
-    const gain = ctx.createGain();
-    gain.connect(ctx.destination);
-    gain.gain.setValueAtTime(0.25, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+// ── Audio ─────────────────────────────────────────────────────────────────────
 
-    // Two-tone ascending ding (similar to messaging app sounds)
-    const tones = [
-      { freq: 880, start: 0 },
-      { freq: 1100, start: 0.15 },
-    ];
+// Reuse one AudioContext across calls — browsers allow only a limited number
+// and creating a new one per notification can hit that limit quickly.
+let _audioCtx: AudioContext | null = null;
 
-    for (const { freq, start } of tones) {
-      const osc = ctx.createOscillator();
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      osc.connect(gain);
-      osc.start(ctx.currentTime + start);
-      osc.stop(ctx.currentTime + start + 0.3);
-    }
-  } catch {
-    // Silently ignore — AudioContext unavailable or suspended
+function getAudioContext(): AudioContext {
+  if (!_audioCtx || _audioCtx.state === 'closed') {
+    _audioCtx = new AudioContext();
+  }
+  return _audioCtx;
+}
+
+function doPlay(ctx: AudioContext): void {
+  const gain = ctx.createGain();
+  gain.connect(ctx.destination);
+  gain.gain.setValueAtTime(0.25, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+
+  // Two-tone ascending ding
+  for (const [i, freq] of ([880, 1100] as const).entries()) {
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    osc.connect(gain);
+    const t = ctx.currentTime + i * 0.15;
+    osc.start(t);
+    osc.stop(t + 0.3);
   }
 }
 
 /**
- * Requests browser notification permission. Should be called after a
- * user gesture (e.g., first click in the app) to maximise acceptance.
+ * Plays a short two-tone notification ding via the Web Audio API.
+ * Handles the "suspended" context state that browsers enforce until a
+ * user gesture has occurred — resumes the context before playing.
+ */
+export function playNotificationSound(): void {
+  try {
+    const ctx = getAudioContext();
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(() => doPlay(ctx)).catch(() => {});
+    } else {
+      doPlay(ctx);
+    }
+  } catch {
+    // Silently ignore (e.g. AudioContext not supported)
+  }
+}
+
+// ── Browser notifications ─────────────────────────────────────────────────────
+
+/**
+ * Requests browser notification permission.
+ * Must be called from within a user-gesture handler to reliably show
+ * the browser's permission dialog (not just the quiet address-bar bell).
  */
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
   if (!('Notification' in window)) return 'denied';
@@ -40,25 +60,23 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
   return Notification.requestPermission();
 }
 
-const NOTIFICATION_BODY_LIMIT = 100;
+const BODY_LIMIT = 100;
 
 /**
- * Shows a native browser notification if permission has been granted.
- * `body` is truncated to NOTIFICATION_BODY_LIMIT characters.
+ * Shows a native browser notification when permission is granted.
+ * Body is truncated to BODY_LIMIT characters.
  */
 export function showBrowserNotification(title: string, body: string): void {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
-  const truncated =
-    body.length > NOTIFICATION_BODY_LIMIT
-      ? `${body.slice(0, NOTIFICATION_BODY_LIMIT)}…`
-      : body;
+  const truncated = body.length > BODY_LIMIT ? `${body.slice(0, BODY_LIMIT)}…` : body;
 
   try {
     new Notification(title, {
       body: truncated,
       icon: '/favicon.svg',
-      tag: 'whatsapp-message', // replaces previous notification instead of stacking
+      // Replace previous notification instead of stacking
+      tag: 'wa-inbound-message',
     });
   } catch {
     // Silently ignore

@@ -1,6 +1,6 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MessageSquare, Search, RefreshCw, ArrowLeft, Loader2 } from 'lucide-react';
+import { MessageSquare, Search, RefreshCw, ArrowLeft, Loader2, Bell, BellOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,6 +13,7 @@ import { ChatInput } from '@/components/conversations/ChatInput';
 import { useConversations } from '@/hooks/use-conversations';
 import { useMessages } from '@/hooks/use-messages';
 import { api } from '@/lib/api';
+import { requestNotificationPermission } from '@/lib/notifications';
 import { formatPhoneDisplay, getInitials } from '@/lib/utils';
 import type { Message, Conversation } from '@/types';
 
@@ -287,6 +288,44 @@ function ChatPanel({ conversationId, conversations, onBack, onMarkRead }: ChatPa
   );
 }
 
+// ── Notification bell ─────────────────────────────────────────────────────────
+
+function NotificationBell() {
+  const [permission, setPermission] = useState<NotificationPermission>(
+    'Notification' in window ? Notification.permission : 'denied',
+  );
+
+  const handleClick = useCallback(async () => {
+    const result = await requestNotificationPermission();
+    setPermission(result);
+  }, []);
+
+  if (!('Notification' in window)) return null;
+
+  if (permission === 'granted') {
+    return (
+      <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-500" title="Notifications enabled" disabled>
+        <Bell className="h-4 w-4" />
+      </Button>
+    );
+  }
+
+  if (permission === 'denied') {
+    return (
+      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" title="Notifications blocked — enable in browser settings" disabled>
+        <BellOff className="h-4 w-4" />
+      </Button>
+    );
+  }
+
+  // 'default' — not yet asked
+  return (
+    <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-500" title="Click to enable notifications" onClick={() => void handleClick()}>
+      <Bell className="h-4 w-4" />
+    </Button>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function ConversationsPage() {
@@ -321,7 +360,10 @@ export default function ConversationsPage() {
       >
         {/* Header */}
         <div className="p-4 border-b flex-shrink-0">
-          <h1 className="text-lg font-semibold text-foreground mb-3">Conversations</h1>
+          <div className="flex items-center justify-between mb-3">
+            <h1 className="text-lg font-semibold text-foreground">Conversations</h1>
+            <NotificationBell />
+          </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input

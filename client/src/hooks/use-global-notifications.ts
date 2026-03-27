@@ -1,65 +1,71 @@
 import { useEffect, useRef } from 'react';
 import { socket } from '@/lib/socket';
-import { playNotificationSound, requestNotificationPermission, showBrowserNotification } from '@/lib/notifications';
+import {
+  playNotificationSound,
+  requestNotificationPermission,
+  showBrowserNotification,
+} from '@/lib/notifications';
 import { formatPhoneDisplay } from '@/lib/utils';
-import type { ConversationUpdatedEvent } from '@/types';
+import type { ConversationUpdatedEvent, NewMessageEvent } from '@/types';
 
 /**
- * Global hook — call once from App.tsx.
+ * Global hook — mounted once in App.tsx.
  *
- * Requests browser notification permission on mount, then listens for
- * conversation_updated socket events. When a conversation's unreadCount
- * increases it means a new inbound message arrived → plays a sound and
- * shows a browser notification with the customer name and message preview.
+ * Permission strategy
+ * ───────────────────
+ * Calling requestPermission() on mount (no user gesture) causes Chrome to
+ * silently show a tiny bell in the address bar instead of the real dialog.
+ * Instead we attach a one-shot click listener so the request fires on the
+ * very first interaction the user makes, which counts as a user gesture and
+ * reliably shows the modal permission dialog.
  *
- * Strategy for baseline detection: the first conversation_updated event
- * for each conversation establishes the baseline count. Only subsequent
- * increases above that baseline trigger notifications. This prevents
- * spurious alerts for existing unread messages when the app first loads.
+ * Notification trigger strategy
+ * ─────────────────────────────
+ * We listen for new_message events and check direction === 'INBOUND'.
+ * For the customer name we maintain a Map<conversationId, displayName>
+ * populated by conversation_updated events.  The server now emits
+ * conversation_updated BEFORE new_message (see processInboundMessage),
+ * so the name is always in the Map when new_message fires.
  */
 export function useGlobalNotifications(): void {
-  // Map<conversationId, lastSeenUnreadCount>
-  const unreadRef = useRef<Map<string, number>>(new Map());
-  const permissionRequestedRef = useRef(false);
+  // Map<conversationId, display name> — populated by conversation_updated
+  const customerNamesRef = useRef<Map<string, string>>(new Map());
 
-  // Request notification permission once after mount
+  // Request permission on the first user click (a real user gesture)
   useEffect(() => {
-    if (permissionRequestedRef.current) return;
-    permissionRequestedRef.current = true;
-    void requestNotificationPermission();
+    const handleFirstClick = () => {
+      void requestNotificationPermission();
+    };
+    document.addEventListener('click', handleFirstClick, { once: true });
+    return () => document.removeEventListener('click', handleFirstClick);
   }, []);
 
   useEffect(() => {
+    // Keep the name map up-to-date so notifications can show the customer name
     const handleConversationUpdated = (event: ConversationUpdatedEvent) => {
       const { conversation } = event;
-      const { id, unreadCount, customer, lastMessageText } = conversation;
+      const displayName =
+        conversation.customer.name ?? formatPhoneDisplay(conversation.customer.phone);
+      customerNamesRef.current.set(conversation.id, displayName);
+    };
 
-      const prev = unreadRef.current.get(id);
+    // Trigger on every new inbound message
+    const handleNewMessage = (event: NewMessageEvent) => {
+      if (event.message.direction !== 'INBOUND') return;
 
-      if (prev === undefined) {
-        // First time we've seen this conversation — establish baseline, no alert
-        unreadRef.current.set(id, unreadCount);
-        return;
-      }
+      playNotificationSound();
 
-      if (unreadCount > prev) {
-        // New inbound message arrived
-        unreadRef.current.set(id, unreadCount);
-
-        playNotificationSound();
-
-        const title = customer.name ?? formatPhoneDisplay(customer.phone);
-        const body = lastMessageText ?? 'New message';
-        showBrowserNotification(title, body);
-      } else {
-        // Count stayed same or decreased (e.g., marked as read) — update baseline
-        unreadRef.current.set(id, unreadCount);
-      }
+      const name = customerNamesRef.current.get(event.conversationId) ?? 'New message';
+      const body = event.message.body ?? 'Sent a media message';
+      showBrowserNotification(name, body);
     };
 
     socket.on('conversation_updated', handleConversationUpdated);
+    socket.on('new_message', handleNewMessage);
+
     return () => {
       socket.off('conversation_updated', handleConversationUpdated);
+      socket.off('new_message', handleNewMessage);
     };
   }, []);
 }

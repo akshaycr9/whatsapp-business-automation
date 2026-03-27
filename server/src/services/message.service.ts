@@ -274,6 +274,9 @@ export const processInboundMessage = async (
     include: { customer: true },
   });
 
-  emitNewMessage(conversationId, message);
+  // Emit conversation_updated BEFORE new_message so that clients which use
+  // the conversation_updated event to build a customer-name lookup (e.g. the
+  // global notification hook) have the name available when new_message fires.
   emitConversationUpdated(updatedConversation);
+  emitNewMessage(conversationId, message);
 };
