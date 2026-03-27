@@ -3,6 +3,8 @@ import { prisma } from '../lib/prisma.js';
 import { notFound } from '../lib/app-error.js';
 import { logger } from '../lib/logger.js';
 import * as whatsappService from './whatsapp.service.js';
+import { findOrCreateForCustomer } from './conversation.service.js';
+import { emitNewMessage, emitConversationUpdated } from '../socket/index.js';
 
 export interface VariableMapping {
   [variablePosition: string]: string;
@@ -270,6 +272,81 @@ export const executeAutomation = async (
     logger.info(
       `Automation executed: ${automationId} → ${customerPhone} (waMessageId: ${result.messageId})`,
     );
+
+    // Create/update customer, conversation, and message records so the send
+    // is visible in the chat UI immediately. Isolated in its own try/catch so
+    // any failure here does NOT retroactively mark the automation as FAILED.
+    try {
+      // 1. Upsert customer from Shopify order data
+      const shopifyCustomer = shopifyData.customer as Record<string, unknown> | undefined;
+      const shippingAddress = shopifyData.shipping_address as Record<string, unknown> | undefined;
+      const firstName = shopifyCustomer?.first_name ? String(shopifyCustomer.first_name) : undefined;
+      const lastName  = shopifyCustomer?.last_name  ? String(shopifyCustomer.last_name)  : undefined;
+      const fullName  = [firstName, lastName].filter(Boolean).join(' ').trim() || undefined;
+      const email     = shopifyCustomer?.email ? String(shopifyCustomer.email) : undefined;
+      const city      = shippingAddress?.city  ? String(shippingAddress.city)  : undefined;
+      const shopifyId = shopifyCustomer?.id    ? String(shopifyCustomer.id)    : undefined;
+
+      await prisma.customer.upsert({
+        where: { phone: customerPhone },
+        create: { phone: customerPhone, name: fullName, email, city, shopifyId, source: 'SHOPIFY' },
+        update: {
+          ...(fullName  && { name: fullName }),
+          ...(email     && { email }),
+          ...(city      && { city }),
+          ...(shopifyId && { shopifyId }),
+          source: 'SHOPIFY',
+        },
+      });
+
+      // 2. Find or create conversation (customer now guaranteed to exist)
+      const { conversationId } = await findOrCreateForCustomer(customerPhone);
+
+      // 3. Build resolved body text: replace {{N}} with actual values for display
+      const bodyComp = templateComponents.find((c) => c.type === 'BODY');
+      let resolvedBody = automation.template.name;
+      if (bodyComp?.text) {
+        let text = bodyComp.text;
+        for (const [pos, value] of Object.entries(resolvedVars)) {
+          text = text.split(`{{${pos}}}`).join(value);
+        }
+        resolvedBody = text;
+      }
+
+      // 4. Save the outbound template message to the conversation
+      const message = await prisma.message.create({
+        data: {
+          conversationId,
+          waMessageId: result.messageId,
+          direction: 'OUTBOUND',
+          type: 'TEMPLATE',
+          body: resolvedBody,
+          status: 'SENT',
+          metadata: { templateName: automation.template.name },
+        },
+      });
+
+      // 5. Update conversation preview fields
+      await prisma.conversation.update({
+        where: { id: conversationId },
+        data: { lastMessageAt: message.createdAt, lastMessageText: resolvedBody },
+      });
+
+      // 6. Emit real-time events so the frontend updates immediately
+      const updatedConversation = await prisma.conversation.findUnique({
+        where: { id: conversationId },
+        include: { customer: true },
+      });
+      emitNewMessage(conversationId, message);
+      emitConversationUpdated(updatedConversation);
+
+      logger.info(`Post-send: customer/conversation/message created for ${customerPhone}`);
+    } catch (postSendErr) {
+      logger.error(
+        `Post-send customer/conversation/message creation failed for ${customerPhone}:`,
+        postSendErr,
+      );
+    }
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : 'Unknown error';
     logger.error(`executeAutomation failed for ${automationId} → ${customerPhone}:`, err);

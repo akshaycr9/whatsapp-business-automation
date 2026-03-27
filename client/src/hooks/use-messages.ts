@@ -40,7 +40,8 @@ export function useMessages(conversationId: string | undefined): UseMessagesRetu
         data: Message[];
         meta: { cursor: string | null; hasMore: boolean };
       }>(`/conversations/${convId}/messages`, { params: { limit: 50 } });
-      setMessages(response.data.data);
+      // Backend returns newest-first (DESC); reverse to oldest-first for chat display
+      setMessages([...response.data.data].reverse());
       setMeta({ cursor: response.data.meta.cursor, hasMore: response.data.meta.hasMore });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load messages');
@@ -51,10 +52,10 @@ export function useMessages(conversationId: string | undefined): UseMessagesRetu
 
   const checkWindow = useCallback(async (convId: string) => {
     try {
-      const response = await api.get<{ data: { isWithin24HourWindow: boolean } }>(
+      const response = await api.get<{ data: { isOpen: boolean } }>(
         `/conversations/${convId}/window`,
       );
-      setIsWithin24HourWindow(response.data.data.isWithin24HourWindow);
+      setIsWithin24HourWindow(response.data.data.isOpen);
     } catch {
       setIsWithin24HourWindow(false);
     }
@@ -104,7 +105,14 @@ export function useMessages(conversationId: string | undefined): UseMessagesRetu
           const newPriority = statusPriority[event.status] ?? 0;
           // Only upgrade status (except FAILED which can always be set)
           if (event.status === 'FAILED' || newPriority > currentPriority) {
-            return { ...m, status: event.status };
+            return {
+              ...m,
+              status: event.status,
+              // Merge timestamp into metadata so the tooltip can display it immediately
+              ...(event.timestamps && {
+                metadata: { ...(m.metadata ?? {}), ...event.timestamps },
+              }),
+            };
           }
           return m;
         }),
@@ -133,8 +141,8 @@ export function useMessages(conversationId: string | undefined): UseMessagesRetu
       }>(`/conversations/${conversationId}/messages`, {
         params: { limit: 50, cursor: oldestMessage.createdAt },
       });
-      // Prepend older messages
-      setMessages((prev) => [...response.data.data, ...prev]);
+      // Prepend older messages (reverse DESC response to oldest-first before prepending)
+      setMessages((prev) => [...[...response.data.data].reverse(), ...prev]);
       setMeta({ cursor: response.data.meta.cursor, hasMore: response.data.meta.hasMore });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load older messages');

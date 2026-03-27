@@ -19,6 +19,8 @@ export interface UseConversationsReturn {
   search: string;
   setSearch: (value: string) => void;
   refetch: () => void;
+  /** Optimistically clears the unread badge for a conversation (call when opening it). */
+  markConversationRead: (id: string) => void;
 }
 
 export function useConversations(): UseConversationsReturn {
@@ -113,5 +115,16 @@ export function useConversations(): UseConversationsReturn {
     void fetchConversations(searchRef.current);
   }, [fetchConversations]);
 
-  return { conversations, loading, isFetching, error, search, setSearch, refetch };
+  const markConversationRead = useCallback((id: string) => {
+    setConversations((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, unreadCount: 0 } : c)),
+    );
+    if (cachedConversations) {
+      cachedConversations = cachedConversations.map((c) =>
+        c.id === id ? { ...c, unreadCount: 0 } : c,
+      );
+    }
+  }, []);
+
+  return { conversations, loading, isFetching, error, search, setSearch, refetch, markConversationRead };
 }

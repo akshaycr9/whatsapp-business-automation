@@ -1,6 +1,6 @@
 import { type Message, type MessageType, type MessageStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
-import { notFound } from '../lib/app-error.js';
+import { notFound, badRequest } from '../lib/app-error.js';
 import { logger } from '../lib/logger.js';
 import * as whatsappService from './whatsapp.service.js';
 import { findOrCreateForCustomer } from './conversation.service.js';
@@ -78,6 +78,85 @@ export const sendTextReply = async (conversationId: string, text: string): Promi
   return message;
 };
 
+interface TemplateComponent {
+  type: string;
+  text?: string;
+}
+
+export const sendTemplateReply = async (
+  conversationId: string,
+  templateId: string,
+  variables: Record<string, string>,
+): Promise<Message> => {
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    include: { customer: true },
+  });
+  if (!conversation) throw notFound('Conversation');
+
+  const template = await prisma.template.findUnique({ where: { id: templateId } });
+  if (!template) throw notFound('Template');
+  if (template.status !== 'APPROVED') throw badRequest('Template is not approved');
+
+  const templateComponents = template.components as unknown as TemplateComponent[];
+
+  // Build body parameters in position order
+  const sortedPositions = Object.keys(variables).sort((a, b) => Number(a) - Number(b));
+  const bodyParameters = sortedPositions.map((pos) => ({
+    type: 'text' as const,
+    text: variables[pos] ?? '',
+  }));
+
+  const hasBody = templateComponents.some((c) => c.type === 'BODY');
+  const components: whatsappService.TemplateComponent[] = [];
+  if (hasBody && bodyParameters.length > 0) {
+    components.push({ type: 'body', parameters: bodyParameters });
+  }
+
+  const result = await whatsappService.sendTemplateMessage(conversation.customer.phone, {
+    type: 'template',
+    templateName: template.name,
+    languageCode: template.language,
+    components,
+  });
+
+  // Build resolved body for display (replace {{N}} with actual values)
+  const bodyComp = templateComponents.find((c) => c.type === 'BODY');
+  let resolvedBody = template.name;
+  if (bodyComp?.text) {
+    let text = bodyComp.text;
+    for (const [pos, value] of Object.entries(variables)) {
+      text = text.split(`{{${pos}}}`).join(value);
+    }
+    resolvedBody = text;
+  }
+
+  const now = new Date();
+  const message = await prisma.message.create({
+    data: {
+      conversationId,
+      waMessageId: result.messageId,
+      direction: 'OUTBOUND',
+      type: 'TEMPLATE',
+      body: resolvedBody,
+      status: 'SENT',
+      metadata: { templateName: template.name },
+    },
+  });
+
+  const updatedConversation = await prisma.conversation.update({
+    where: { id: conversationId },
+    data: { lastMessageAt: now, lastMessageText: resolvedBody },
+    include: { customer: true },
+  });
+
+  emitNewMessage(conversationId, message);
+  emitConversationUpdated(updatedConversation);
+
+  logger.info(`Template reply sent: conversation=${conversationId} template=${templateId}`);
+  return message;
+};
+
 export const updateMessageStatus = async (
   waMessageId: string,
   newStatus: 'SENT' | 'DELIVERED' | 'READ' | 'FAILED',
@@ -99,12 +178,28 @@ export const updateMessageStatus = async (
     return;
   }
 
+  // Persist a timestamp for DELIVERED and READ into metadata so the UI can
+  // display per-status timestamps in the message tooltip.
+  const now = new Date();
+  const tsKey = newStatus === 'DELIVERED' ? 'deliveredAt' : newStatus === 'READ' ? 'readAt' : null;
+  const existingMeta = (message.metadata as Record<string, unknown>) ?? {};
+  const newMetadata = tsKey
+    ? ({ ...existingMeta, [tsKey]: now.toISOString() } as import('@prisma/client').Prisma.InputJsonValue)
+    : undefined;
+
   await prisma.message.update({
     where: { id: message.id },
-    data: { status: newStatus, statusUpdatedAt: new Date() },
+    data: {
+      status: newStatus,
+      statusUpdatedAt: now,
+      ...(newMetadata !== undefined && { metadata: newMetadata }),
+    },
   });
 
-  emitMessageStatusUpdate(message.id, newStatus);
+  // Include timestamps in the socket event so the frontend can update
+  // the tooltip display in real-time without re-fetching.
+  const timestamps = tsKey ? { [tsKey]: now.toISOString() } : undefined;
+  emitMessageStatusUpdate(message.id, newStatus, timestamps);
 };
 
 export const processInboundMessage = async (
@@ -179,6 +274,9 @@ export const processInboundMessage = async (
     include: { customer: true },
   });
 
-  emitNewMessage(conversationId, message);
+  // Emit conversation_updated BEFORE new_message so that clients which use
+  // the conversation_updated event to build a customer-name lookup (e.g. the
+  // global notification hook) have the name available when new_message fires.
   emitConversationUpdated(updatedConversation);
+  emitNewMessage(conversationId, message);
 };

@@ -41,6 +41,7 @@ export interface Message {
   caption: string | null;
   status: MessageStatus;
   statusUpdatedAt: string | null;
+  metadata: Record<string, unknown> | null;
   createdAt: string;
 }
 
@@ -119,6 +120,8 @@ export interface NewMessageEvent {
 export interface MessageStatusUpdateEvent {
   messageId: string;
   status: MessageStatus;
+  /** ISO timestamp strings keyed by 'deliveredAt' or 'readAt' */
+  timestamps?: Record<string, string>;
 }
 
 export interface ConversationUpdatedEvent {
