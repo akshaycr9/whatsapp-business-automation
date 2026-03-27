@@ -9,6 +9,11 @@ const sendTextSchema = z.object({
   text: z.string().min(1),
 });
 
+const sendTemplateSchema = z.object({
+  templateId: z.string().min(1),
+  variables: z.record(z.string(), z.string()).optional().default({}),
+});
+
 // GET /api/conversations
 router.get('/', async (req, res, next) => {
   try {
@@ -54,6 +59,18 @@ router.post('/:id/messages', async (req, res, next) => {
     const conversationId = req.params['id'] as string;
     const { text } = sendTextSchema.parse(req.body);
     const message = await messageService.sendTextReply(conversationId, text);
+    res.status(201).json({ data: message });
+  } catch (err: unknown) {
+    next(err);
+  }
+});
+
+// POST /api/conversations/:id/messages/template — send template message
+router.post('/:id/messages/template', async (req, res, next) => {
+  try {
+    const conversationId = req.params['id'] as string;
+    const { templateId, variables } = sendTemplateSchema.parse(req.body);
+    const message = await messageService.sendTemplateReply(conversationId, templateId, variables);
     res.status(201).json({ data: message });
   } catch (err: unknown) {
     next(err);

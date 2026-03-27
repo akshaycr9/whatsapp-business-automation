@@ -51,10 +51,10 @@ export function useMessages(conversationId: string | undefined): UseMessagesRetu
 
   const checkWindow = useCallback(async (convId: string) => {
     try {
-      const response = await api.get<{ data: { isWithin24HourWindow: boolean } }>(
+      const response = await api.get<{ data: { isOpen: boolean } }>(
         `/conversations/${convId}/window`,
       );
-      setIsWithin24HourWindow(response.data.data.isWithin24HourWindow);
+      setIsWithin24HourWindow(response.data.data.isOpen);
     } catch {
       setIsWithin24HourWindow(false);
     }
