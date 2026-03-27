@@ -26,7 +26,7 @@ export interface Conversation {
 
 // ── Message ──────────────────────────────────────────────────
 export type MessageDirection = 'INBOUND' | 'OUTBOUND';
-export type MessageType = 'TEXT' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT' | 'TEMPLATE';
+export type MessageType = 'TEXT' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT' | 'TEMPLATE' | 'INTERACTIVE';
 export type MessageStatus = 'PENDING' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED';
 
 export interface Message {
@@ -69,6 +69,18 @@ export type ShopifyEvent =
   | 'ORDER_FULFILLED'
   | 'ABANDONED_CART';
 
+// ── AutomationButtonReply ─────────────────────────────────────
+export interface AutomationButtonReply {
+  id: string;
+  automationId: string;
+  buttonText: string;
+  replyTemplateId: string;
+  replyTemplate: Template;
+  variableMapping: Record<string, string>;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Automation {
   id: string;
   name: string;
@@ -78,6 +90,7 @@ export interface Automation {
   variableMapping: Record<string, string>;
   isActive: boolean;
   delayMinutes: number;
+  buttonReplies?: AutomationButtonReply[];
   createdAt: string;
   updatedAt: string;
 }

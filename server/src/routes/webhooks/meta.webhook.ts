@@ -4,6 +4,7 @@ import { env } from '../../config/env.js';
 import { logger } from '../../lib/logger.js';
 import {
   processInboundMessage,
+  processInteractiveMessage,
   updateMessageStatus,
   type MetaMessagePayload,
 } from '../../services/message.service.js';
@@ -81,9 +82,15 @@ async function processWebhookPayload(body: unknown): Promise<void> {
 
       if (messages) {
         for (const message of messages) {
-          await processInboundMessage(message, phoneNumberId).catch((err: unknown) =>
-            logger.error('Failed to process inbound message:', err),
-          );
+          if (message.type === 'interactive') {
+            await processInteractiveMessage(message, phoneNumberId).catch((err: unknown) =>
+              logger.error('Failed to process interactive message:', err),
+            );
+          } else {
+            await processInboundMessage(message, phoneNumberId).catch((err: unknown) =>
+              logger.error('Failed to process inbound message:', err),
+            );
+          }
         }
       }
 

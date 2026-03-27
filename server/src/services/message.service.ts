@@ -4,6 +4,7 @@ import { notFound, badRequest } from '../lib/app-error.js';
 import { logger } from '../lib/logger.js';
 import * as whatsappService from './whatsapp.service.js';
 import { findOrCreateForCustomer } from './conversation.service.js';
+import { processButtonReply } from './button-reply.service.js';
 import {
   emitNewMessage,
   emitConversationUpdated,
@@ -20,6 +21,11 @@ export interface MetaMessagePayload {
   video?: { id: string; mime_type: string; caption?: string };
   audio?: { id: string; mime_type: string };
   document?: { id: string; mime_type: string; filename?: string; caption?: string };
+  interactive?: {
+    type: 'button_reply' | 'list_reply';
+    button_reply?: { id: string; title: string };
+    list_reply?: { id: string; title: string };
+  };
 }
 
 const STATUS_RANK: Record<MessageStatus, number> = {
@@ -279,4 +285,66 @@ export const processInboundMessage = async (
   // global notification hook) have the name available when new_message fires.
   emitConversationUpdated(updatedConversation);
   emitNewMessage(conversationId, message);
+};
+
+export const processInteractiveMessage = async (
+  messagePayload: MetaMessagePayload,
+  _phoneNumberId: string,
+): Promise<void> => {
+  const interactive = messagePayload.interactive;
+  if (!interactive) {
+    logger.warn('processInteractiveMessage: no interactive payload found');
+    return;
+  }
+
+  // Extract the button title — handles both button_reply and list_reply
+  const buttonReply = interactive.button_reply ?? interactive.list_reply;
+  const buttonTitle = buttonReply?.title ?? '';
+
+  // Upsert customer by phone
+  const customer = await prisma.customer.upsert({
+    where: { phone: messagePayload.from },
+    create: { phone: messagePayload.from, source: 'SHOPIFY' },
+    update: {},
+  });
+
+  const { conversationId } = await findOrCreateForCustomer(customer.phone);
+
+  const now = new Date();
+
+  const message = await prisma.message.create({
+    data: {
+      conversationId,
+      waMessageId: messagePayload.id,
+      direction: 'INBOUND',
+      type: 'INTERACTIVE',
+      body: buttonTitle,
+      status: 'DELIVERED',
+      metadata: {
+        interactiveType: interactive.type,
+        buttonId: buttonReply?.id,
+      },
+    },
+  });
+
+  const updatedConversation = await prisma.conversation.update({
+    where: { id: conversationId },
+    data: {
+      lastMessageAt: now,
+      lastMessageText: buttonTitle,
+      lastInboundMessageAt: now,
+      unreadCount: { increment: 1 },
+    },
+    include: { customer: true },
+  });
+
+  emitConversationUpdated(updatedConversation);
+  emitNewMessage(conversationId, message);
+
+  // Trigger follow-up automations — decoupled so failures never affect message storage
+  if (buttonTitle) {
+    processButtonReply(messagePayload.from, buttonTitle).catch((err: unknown) => {
+      logger.error(`processInteractiveMessage: button reply processing failed for "${buttonTitle}":`, err);
+    });
+  }
 };

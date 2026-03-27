@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import * as automationService from '../services/automation.service.js';
+import * as buttonReplyService from '../services/button-reply.service.js';
 
 const router = Router();
 
@@ -91,6 +92,36 @@ router.get('/:id/logs', async (req, res, next) => {
 
     const result = await automationService.getLogs(req.params['id'] as string, { page, limit });
     res.json({ data: result.items, meta: result.meta });
+  } catch (err: unknown) {
+    next(err);
+  }
+});
+
+const buttonReplyItemSchema = z.object({
+  buttonText: z.string().min(1).max(20),
+  replyTemplateId: z.string().cuid(),
+  variableMapping: z.record(z.string()),
+});
+
+const buttonRepliesSchema = z.array(buttonReplyItemSchema);
+
+// GET /api/automations/:id/button-replies
+router.get('/:id/button-replies', async (req, res, next) => {
+  try {
+    const result = await buttonReplyService.listForAutomation(req.params['id'] as string);
+    res.json({ data: result });
+  } catch (err: unknown) {
+    next(err);
+  }
+});
+
+// PUT /api/automations/:id/button-replies
+router.put('/:id/button-replies', async (req, res, next) => {
+  try {
+    const inputs = buttonRepliesSchema.parse(req.body);
+    await buttonReplyService.upsertButtonReplies(req.params['id'] as string, inputs);
+    const result = await buttonReplyService.listForAutomation(req.params['id'] as string);
+    res.json({ data: result });
   } catch (err: unknown) {
     next(err);
   }

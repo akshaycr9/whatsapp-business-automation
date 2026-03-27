@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '@/lib/api';
-import type { Automation, AutomationLog, Template, PaginatedResponse, ApiResponse } from '@/types';
+import type { Automation, AutomationButtonReply, AutomationLog, Template, PaginatedResponse, ApiResponse } from '@/types';
+
+export interface ButtonReplyInput {
+  buttonText: string;
+  replyTemplateId: string;
+  variableMapping: Record<string, string>;
+}
 
 interface AutomationMeta {
   total: number;
@@ -144,6 +150,20 @@ export function useAutomations() {
     [],
   );
 
+  const fetchButtonReplies = useCallback(async (automationId: string): Promise<AutomationButtonReply[]> => {
+    const response = await api.get<ApiResponse<AutomationButtonReply[]>>(
+      `/automations/${automationId}/button-replies`,
+    );
+    return response.data.data;
+  }, []);
+
+  const saveButtonReplies = useCallback(
+    async (automationId: string, rules: ButtonReplyInput[]): Promise<void> => {
+      await api.put(`/automations/${automationId}/button-replies`, rules);
+    },
+    [],
+  );
+
   const refetch = useCallback(() => {
     void fetchAutomations(page);
   }, [fetchAutomations, page]);
@@ -162,6 +182,8 @@ export function useAutomations() {
     removeAutomation,
     toggleAutomation,
     fetchLogs,
+    fetchButtonReplies,
+    saveButtonReplies,
     refetch,
   };
 }

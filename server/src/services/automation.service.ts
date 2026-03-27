@@ -1,4 +1,4 @@
-import { type Automation, type AutomationLog, type ShopifyEvent } from '@prisma/client';
+import { type Automation, type AutomationLog, type AutomationButtonReply, type ShopifyEvent } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { notFound } from '../lib/app-error.js';
 import { logger } from '../lib/logger.js';
@@ -31,19 +31,22 @@ interface ListMeta {
   totalPages: number;
 }
 
-type AutomationWithTemplate = Automation & {
-  template: {
-    id: string;
-    name: string;
-    language: string;
-    category: string;
-    status: string;
-    components: unknown;
-    rejectedReason: string | null;
-    metaTemplateId: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-  };
+interface TemplateShape {
+  id: string;
+  name: string;
+  language: string;
+  category: string;
+  status: string;
+  components: unknown;
+  rejectedReason: string | null;
+  metaTemplateId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type AutomationWithTemplate = Automation & {
+  template: TemplateShape;
+  buttonReplies?: (AutomationButtonReply & { replyTemplate: TemplateShape })[];
 };
 
 interface TemplateComponent {
@@ -53,7 +56,7 @@ interface TemplateComponent {
   buttons?: unknown[];
 }
 
-function resolvePath(data: Record<string, unknown>, path: string): string {
+export function resolvePath(data: Record<string, unknown>, path: string): string {
   const parts = path.split('.');
   let current: unknown = data;
 
@@ -94,7 +97,10 @@ export const list = async (
 export const getById = async (id: string): Promise<AutomationWithTemplate> => {
   const automation = await prisma.automation.findUnique({
     where: { id },
-    include: { template: true },
+    include: {
+      template: true,
+      buttonReplies: { include: { replyTemplate: true } },
+    },
   });
   if (!automation) throw notFound('Automation');
   return automation;

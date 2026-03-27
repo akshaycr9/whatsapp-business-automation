@@ -27,15 +27,16 @@ enum CustomerSource {
 }
 
 model Conversation {
-  id              String    @id @default(cuid())
-  customerId      String    @unique
-  customer        Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  lastMessageAt   DateTime?
-  lastMessageText String?
-  unreadCount     Int       @default(0)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  messages        Message[]
+  id                   String    @id @default(cuid())
+  customerId           String    @unique
+  customer             Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  lastMessageAt        DateTime?
+  lastMessageText      String?
+  lastInboundMessageAt DateTime?
+  unreadCount          Int       @default(0)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  messages             Message[]
 }
 
 model Message {
@@ -69,6 +70,7 @@ enum MessageType {
   AUDIO
   DOCUMENT
   TEMPLATE
+  INTERACTIVE
 }
 
 enum MessageStatus {
@@ -80,17 +82,18 @@ enum MessageStatus {
 }
 
 model Template {
-  id             String           @id @default(cuid())
-  name           String           @unique
-  language       String           @default("en")
+  id             String                  @id @default(cuid())
+  name           String                  @unique
+  language       String                  @default("en")
   category       TemplateCategory
-  status         TemplateStatus   @default(PENDING)
+  status         TemplateStatus          @default(PENDING)
   components     Json
   rejectedReason String?
   metaTemplateId String?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
   automations    Automation[]
+  buttonReplies  AutomationButtonReply[] @relation("ButtonReplyTemplate")
 }
 
 enum TemplateCategory {
@@ -106,17 +109,33 @@ enum TemplateStatus {
 }
 
 model Automation {
-  id              String        @id @default(cuid())
+  id              String                  @id @default(cuid())
   name            String
   shopifyEvent    ShopifyEvent
   templateId      String
-  template        Template      @relation(fields: [templateId], references: [id])
+  template        Template                @relation(fields: [templateId], references: [id])
   variableMapping Json
-  isActive        Boolean       @default(true)
-  delayMinutes    Int           @default(0)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  isActive        Boolean                 @default(true)
+  delayMinutes    Int                     @default(0)
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
   logs            AutomationLog[]
+  buttonReplies   AutomationButtonReply[]
+}
+
+model AutomationButtonReply {
+  id              String     @id @default(cuid())
+  automationId    String
+  automation      Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  buttonText      String
+  replyTemplateId String
+  replyTemplate   Template   @relation("ButtonReplyTemplate", fields: [replyTemplateId], references: [id])
+  variableMapping Json       @default("{}")
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@unique([automationId, buttonText])
+  @@index([automationId])
 }
 
 enum ShopifyEvent {
