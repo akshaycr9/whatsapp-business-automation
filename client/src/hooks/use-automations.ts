@@ -11,7 +11,9 @@ interface AutomationMeta {
 
 export interface CreateAutomationInput {
   name: string;
-  shopifyEvent: 'PREPAID_ORDER_CONFIRMED' | 'COD_ORDER_CONFIRMED' | 'ORDER_FULFILLED' | 'ABANDONED_CART';
+  triggerType: 'SHOPIFY_EVENT' | 'BUTTON_REPLY';
+  shopifyEvent?: 'PREPAID_ORDER_CONFIRMED' | 'COD_ORDER_CONFIRMED' | 'ORDER_FULFILLED' | 'ABANDONED_CART';
+  buttonTriggerText?: string;
   templateId: string;
   variableMapping: Record<string, string>;
   isActive: boolean;

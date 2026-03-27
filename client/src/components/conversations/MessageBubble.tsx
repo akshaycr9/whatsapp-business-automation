@@ -1,4 +1,4 @@
-import { Check, CheckCheck, AlertCircle, Clock, FileText, Image, Video, Music, File } from 'lucide-react';
+import { Check, CheckCheck, AlertCircle, Clock, FileText, Image, Video, Music, File, MousePointerClick } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn, formatRelativeTime } from '@/lib/utils';
 import type { Message, MessageStatus } from '@/types';
@@ -109,6 +109,7 @@ function StatusTooltipContent({ message }: { message: Message }) {
 export function MessageBubble({ message }: Props) {
   const isOutbound = message.direction === 'OUTBOUND';
   const isTemplate = message.type === 'TEMPLATE';
+  const isInteractive = message.type === 'INTERACTIVE';
   const isMedia = ['IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT'].includes(message.type);
 
   const bubble = (
@@ -122,6 +123,14 @@ export function MessageBubble({ message }: Props) {
       {isTemplate && (
         <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
           {String(message.metadata?.templateName ?? 'Template')}
+        </span>
+      )}
+
+      {/* Interactive / button reply label */}
+      {isInteractive && (
+        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 flex items-center gap-1">
+          <MousePointerClick className="h-2.5 w-2.5" />
+          Button tap
         </span>
       )}
 

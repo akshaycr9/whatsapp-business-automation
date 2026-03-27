@@ -1,4 +1,4 @@
-import { type Automation, type AutomationLog, type ShopifyEvent } from '@prisma/client';
+import { type Automation, type AutomationLog, type AutomationTrigger, type ShopifyEvent } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { notFound } from '../lib/app-error.js';
 import { logger } from '../lib/logger.js';
@@ -12,7 +12,9 @@ export interface VariableMapping {
 
 export interface CreateAutomationInput {
   name: string;
-  shopifyEvent: 'PREPAID_ORDER_CONFIRMED' | 'COD_ORDER_CONFIRMED' | 'ORDER_FULFILLED' | 'ABANDONED_CART';
+  triggerType: 'SHOPIFY_EVENT' | 'BUTTON_REPLY';
+  shopifyEvent?: 'PREPAID_ORDER_CONFIRMED' | 'COD_ORDER_CONFIRMED' | 'ORDER_FULFILLED' | 'ABANDONED_CART';
+  buttonTriggerText?: string;
   templateId: string;
   variableMapping: VariableMapping;
   isActive: boolean;
@@ -31,19 +33,21 @@ interface ListMeta {
   totalPages: number;
 }
 
-type AutomationWithTemplate = Automation & {
-  template: {
-    id: string;
-    name: string;
-    language: string;
-    category: string;
-    status: string;
-    components: unknown;
-    rejectedReason: string | null;
-    metaTemplateId: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-  };
+interface TemplateShape {
+  id: string;
+  name: string;
+  language: string;
+  category: string;
+  status: string;
+  components: unknown;
+  rejectedReason: string | null;
+  metaTemplateId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type AutomationWithTemplate = Automation & {
+  template: TemplateShape;
 };
 
 interface TemplateComponent {
@@ -53,7 +57,7 @@ interface TemplateComponent {
   buttons?: unknown[];
 }
 
-function resolvePath(data: Record<string, unknown>, path: string): string {
+export function resolvePath(data: Record<string, unknown>, path: string): string {
   const parts = path.split('.');
   let current: unknown = data;
 
@@ -107,7 +111,9 @@ export const create = async (input: CreateAutomationInput): Promise<Automation> 
   const automation = await prisma.automation.create({
     data: {
       name: input.name,
-      shopifyEvent: input.shopifyEvent,
+      triggerType: input.triggerType,
+      shopifyEvent: input.triggerType === 'SHOPIFY_EVENT' ? (input.shopifyEvent ?? null) : null,
+      buttonTriggerText: input.triggerType === 'BUTTON_REPLY' ? (input.buttonTriggerText ?? null) : null,
       templateId: input.templateId,
       variableMapping: input.variableMapping,
       isActive: input.isActive,
@@ -115,7 +121,7 @@ export const create = async (input: CreateAutomationInput): Promise<Automation> 
     },
   });
 
-  logger.info(`Automation created: ${automation.id}`);
+  logger.info(`Automation created: ${automation.id} (${automation.triggerType})`);
   return automation;
 };
 
@@ -131,11 +137,23 @@ export const update = async (
     if (!template) throw notFound('Template');
   }
 
+  // Determine effective triggerType for field nulling logic
+  const effectiveTriggerType = input.triggerType ?? existing.triggerType;
+
   const automation = await prisma.automation.update({
     where: { id },
     data: {
       ...(input.name !== undefined && { name: input.name }),
-      ...(input.shopifyEvent !== undefined && { shopifyEvent: input.shopifyEvent }),
+      ...(input.triggerType !== undefined && { triggerType: input.triggerType }),
+      // When triggerType changes or shopifyEvent is explicitly set, update accordingly
+      shopifyEvent:
+        effectiveTriggerType === 'SHOPIFY_EVENT'
+          ? (input.shopifyEvent !== undefined ? input.shopifyEvent : existing.shopifyEvent)
+          : null,
+      buttonTriggerText:
+        effectiveTriggerType === 'BUTTON_REPLY'
+          ? (input.buttonTriggerText !== undefined ? input.buttonTriggerText : existing.buttonTriggerText)
+          : null,
       ...(input.templateId !== undefined && { templateId: input.templateId }),
       ...(input.variableMapping !== undefined && { variableMapping: input.variableMapping }),
       ...(input.isActive !== undefined && { isActive: input.isActive }),
@@ -239,7 +257,6 @@ export const executeAutomation = async (
     }));
 
     // Find the BODY component in the template
-    // Prisma returns Json as unknown — cast via unknown first for type safety
     const templateComponents = automation.template.components as unknown as TemplateComponent[];
     const hasBody = templateComponents.some((c) => c.type === 'BODY');
 
@@ -369,7 +386,7 @@ export const triggerForEvent = async (
   customerPhone: string,
 ): Promise<void> => {
   const automations = await prisma.automation.findMany({
-    where: { shopifyEvent: event, isActive: true },
+    where: { triggerType: 'SHOPIFY_EVENT', shopifyEvent: event, isActive: true },
   });
 
   if (automations.length === 0) {
@@ -394,3 +411,6 @@ export const triggerForEvent = async (
     }
   }
 };
+
+// Unused import kept for type safety — AutomationTrigger is used by Prisma generated types
+export type { AutomationTrigger };

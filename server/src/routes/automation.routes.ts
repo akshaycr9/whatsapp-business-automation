@@ -4,19 +4,36 @@ import * as automationService from '../services/automation.service.js';
 
 const router = Router();
 
-const automationSchema = z.object({
+const shopifyEventEnum = z.enum([
+  'PREPAID_ORDER_CONFIRMED',
+  'COD_ORDER_CONFIRMED',
+  'ORDER_FULFILLED',
+  'ABANDONED_CART',
+]);
+
+const automationBaseObject = z.object({
   name: z.string().min(1),
-  shopifyEvent: z.enum([
-    'PREPAID_ORDER_CONFIRMED',
-    'COD_ORDER_CONFIRMED',
-    'ORDER_FULFILLED',
-    'ABANDONED_CART',
-  ]),
+  triggerType: z.enum(['SHOPIFY_EVENT', 'BUTTON_REPLY']).default('SHOPIFY_EVENT'),
+  shopifyEvent: shopifyEventEnum.optional(),
+  buttonTriggerText: z.string().min(1).max(20).optional(),
   templateId: z.string().cuid(),
   variableMapping: z.record(z.string()),
   isActive: z.boolean().default(true),
   delayMinutes: z.number().int().min(0).default(0),
 });
+
+// Full schema (POST) — cross-field validation requires the refine on the base object
+const automationSchema = automationBaseObject.refine(
+  (d) =>
+    d.triggerType === 'SHOPIFY_EVENT' ? d.shopifyEvent !== undefined : d.buttonTriggerText !== undefined,
+  {
+    message:
+      'shopifyEvent is required for SHOPIFY_EVENT automations; buttonTriggerText is required for BUTTON_REPLY automations',
+  },
+);
+
+// Partial schema for PUT — .partial() must be called before .refine() (ZodEffects has no .partial())
+const automationUpdateSchema = automationBaseObject.partial();
 
 // GET /api/automations
 router.get('/', async (req, res, next) => {
@@ -55,7 +72,7 @@ router.post('/', async (req, res, next) => {
 // PUT /api/automations/:id
 router.put('/:id', async (req, res, next) => {
   try {
-    const body = automationSchema.partial().parse(req.body);
+    const body = automationUpdateSchema.parse(req.body);
     const result = await automationService.update(req.params['id'] as string, body);
     res.json({ data: result });
   } catch (err: unknown) {

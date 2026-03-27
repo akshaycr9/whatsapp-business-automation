@@ -26,7 +26,7 @@ export interface Conversation {
 
 // ── Message ──────────────────────────────────────────────────
 export type MessageDirection = 'INBOUND' | 'OUTBOUND';
-export type MessageType = 'TEXT' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT' | 'TEMPLATE';
+export type MessageType = 'TEXT' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT' | 'TEMPLATE' | 'INTERACTIVE';
 export type MessageStatus = 'PENDING' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED';
 
 export interface Message {
@@ -63,6 +63,8 @@ export interface Template {
 }
 
 // ── Automation ───────────────────────────────────────────────
+export type AutomationTrigger = 'SHOPIFY_EVENT' | 'BUTTON_REPLY';
+
 export type ShopifyEvent =
   | 'PREPAID_ORDER_CONFIRMED'
   | 'COD_ORDER_CONFIRMED'
@@ -72,7 +74,9 @@ export type ShopifyEvent =
 export interface Automation {
   id: string;
   name: string;
-  shopifyEvent: ShopifyEvent;
+  triggerType: AutomationTrigger;
+  shopifyEvent: ShopifyEvent | null;
+  buttonTriggerText: string | null;
   templateId: string;
   template: Template;
   variableMapping: Record<string, string>;
