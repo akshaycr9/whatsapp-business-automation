@@ -6,32 +6,64 @@ import {
   showBrowserNotification,
 } from '@/lib/notifications';
 import { formatPhoneDisplay } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 import type { ConversationUpdatedEvent, NewMessageEvent } from '@/types';
 
 /**
  * Global hook — mounted once in App.tsx.
  *
- * Permission strategy
- * ───────────────────
- * Calling requestPermission() on mount (no user gesture) causes Chrome to
- * silently show a tiny bell in the address bar instead of the real dialog.
- * Instead we attach a one-shot click listener so the request fires on the
- * very first interaction the user makes, which counts as a user gesture and
- * reliably shows the modal permission dialog.
+ * Notification permission
+ * ───────────────────────
+ * • On mount: if permission is 'default' (never asked), show a toast
+ *   pointing the user to the bell icon so they can enable notifications.
+ * • If permission is 'denied', show a toast with browser-settings guidance.
+ * • The first-click handler requests permission on the first user gesture,
+ *   which reliably shows the browser's modal dialog.
  *
- * Notification trigger strategy
- * ─────────────────────────────
- * We listen for new_message events and check direction === 'INBOUND'.
- * For the customer name we maintain a Map<conversationId, displayName>
- * populated by conversation_updated events.  The server now emits
- * conversation_updated BEFORE new_message (see processInboundMessage),
- * so the name is always in the Map when new_message fires.
+ * Inbound message handling
+ * ────────────────────────
+ * • Plays a sound (Web Audio API — always works once user has interacted).
+ * • Shows a native browser notification when permission is granted.
+ * • Always shows an in-app toast as a fallback — this guarantees the user
+ *   sees something even if browser/OS notifications are blocked.
+ *
+ * Customer name lookup
+ * ────────────────────
+ * conversation_updated is emitted by the server BEFORE new_message, so
+ * the name Map is populated before the notification handler fires.
  */
 export function useGlobalNotifications(): void {
-  // Map<conversationId, display name> — populated by conversation_updated
+  const { toast } = useToast();
+  // Map<conversationId, display name>
   const customerNamesRef = useRef<Map<string, string>>(new Map());
+  const permissionToastShownRef = useRef(false);
 
-  // Request permission on the first user click (a real user gesture)
+  // On mount: guide the user if notifications are not yet enabled
+  useEffect(() => {
+    if (permissionToastShownRef.current) return;
+    permissionToastShownRef.current = true;
+
+    if (!('Notification' in window)) return;
+
+    if (Notification.permission === 'default') {
+      toast({
+        title: '🔔 Enable notifications',
+        description: 'Click the bell icon in the sidebar to receive alerts for new messages.',
+        duration: 8000,
+      });
+    } else if (Notification.permission === 'denied') {
+      toast({
+        title: 'Notifications are blocked',
+        description:
+          'Go to your browser site settings and allow notifications for this site, then refresh.',
+        variant: 'destructive',
+        duration: 10000,
+      });
+    }
+  }, [toast]);
+
+  // Request permission on the first user click (a real user gesture so the
+  // browser shows the modal dialog, not the quiet address-bar bell)
   useEffect(() => {
     const handleFirstClick = () => {
       void requestNotificationPermission();
@@ -41,7 +73,7 @@ export function useGlobalNotifications(): void {
   }, []);
 
   useEffect(() => {
-    // Keep the name map up-to-date so notifications can show the customer name
+    // Keep name map current (server emits this BEFORE new_message)
     const handleConversationUpdated = (event: ConversationUpdatedEvent) => {
       const { conversation } = event;
       const displayName =
@@ -49,7 +81,6 @@ export function useGlobalNotifications(): void {
       customerNamesRef.current.set(conversation.id, displayName);
     };
 
-    // Trigger on every new inbound message
     const handleNewMessage = (event: NewMessageEvent) => {
       if (event.message.direction !== 'INBOUND') return;
 
@@ -57,7 +88,17 @@ export function useGlobalNotifications(): void {
 
       const name = customerNamesRef.current.get(event.conversationId) ?? 'New message';
       const body = event.message.body ?? 'Sent a media message';
+
+      // Try native browser notification
       showBrowserNotification(name, body);
+
+      // Always show an in-app toast as well — this ensures the user sees
+      // something even when browser/OS notifications are blocked.
+      toast({
+        title: name,
+        description: body.length > 80 ? `${body.slice(0, 80)}…` : body,
+        duration: 5000,
+      });
     };
 
     socket.on('conversation_updated', handleConversationUpdated);
@@ -67,5 +108,5 @@ export function useGlobalNotifications(): void {
       socket.off('conversation_updated', handleConversationUpdated);
       socket.off('new_message', handleNewMessage);
     };
-  }, []);
+  }, [toast]);
 }
