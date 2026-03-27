@@ -75,7 +75,7 @@ export function MessageBubble({ message }: Props) {
         {/* Template label */}
         {isTemplate && (
           <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-            Template
+            {String(message.metadata?.templateName ?? 'Template')}
           </span>
         )}
 

@@ -41,6 +41,7 @@ export interface Message {
   caption: string | null;
   status: MessageStatus;
   statusUpdatedAt: string | null;
+  metadata: Record<string, unknown> | null;
   createdAt: string;
 }
 
