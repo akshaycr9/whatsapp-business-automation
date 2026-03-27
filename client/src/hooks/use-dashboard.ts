@@ -4,16 +4,22 @@ import { socket } from '@/lib/socket';
 import type { ApiResponse } from '@/types';
 import type { DashboardStats, ActivityItem } from '@/types/dashboard';
 
+// Module-level cache — persists across component mounts for instant re-navigation
+let cachedStats: DashboardStats | null = null;
+let cachedActivity: ActivityItem[] = [];
+
 export function useDashboard() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [activity, setActivity] = useState<ActivityItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats | null>(cachedStats);
+  const [activity, setActivity] = useState<ActivityItem[]>(cachedActivity);
+  const [loading, setLoading] = useState(cachedStats === null);
+  const [isFetching, setIsFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchStats = useCallback(async (): Promise<void> => {
     try {
       const response = await api.get<ApiResponse<DashboardStats>>('/dashboard/stats');
+      cachedStats = response.data.data;
       setStats(response.data.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load dashboard stats');
@@ -23,6 +29,7 @@ export function useDashboard() {
   const fetchActivity = useCallback(async (): Promise<void> => {
     try {
       const response = await api.get<ApiResponse<ActivityItem[]>>('/dashboard/activity?limit=20');
+      cachedActivity = response.data.data;
       setActivity(response.data.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load recent activity');
@@ -31,14 +38,21 @@ export function useDashboard() {
 
   const refetch = useCallback(async (): Promise<void> => {
     setError(null);
-    await Promise.all([fetchStats(), fetchActivity()]);
+    setIsFetching(true);
+    try {
+      await Promise.all([fetchStats(), fetchActivity()]);
+    } finally {
+      setIsFetching(false);
+    }
   }, [fetchStats, fetchActivity]);
 
-  // Initial load
+  // Initial load — background-refresh even if cache exists (stale-while-revalidate)
   useEffect(() => {
-    setLoading(true);
+    if (cachedStats === null) setLoading(true);
+    setIsFetching(true);
     Promise.all([fetchStats(), fetchActivity()]).finally(() => {
       setLoading(false);
+      setIsFetching(false);
     });
   }, [fetchStats, fetchActivity]);
 
@@ -70,5 +84,5 @@ export function useDashboard() {
     };
   }, [fetchStats]);
 
-  return { stats, activity, loading, error, refetch };
+  return { stats, activity, loading, isFetching, error, refetch };
 }

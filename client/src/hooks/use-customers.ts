@@ -30,10 +30,16 @@ interface UpdateCustomerInput {
   tags?: string[];
 }
 
+const DEFAULT_META: CustomerMeta = { total: 0, page: 1, limit: 20, totalPages: 0 };
+
+// Module-level cache — persists across component mounts for instant re-navigation
+let cache: { customers: Customer[]; meta: CustomerMeta } | null = null;
+
 export function useCustomers() {
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [meta, setMeta] = useState<CustomerMeta>({ total: 0, page: 1, limit: 20, totalPages: 0 });
-  const [loading, setLoading] = useState(true);
+  const [customers, setCustomers] = useState<Customer[]>(cache?.customers ?? []);
+  const [meta, setMeta] = useState<CustomerMeta>(cache?.meta ?? DEFAULT_META);
+  const [loading, setLoading] = useState(cache === null);
+  const [isFetching, setIsFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -41,19 +47,26 @@ export function useCustomers() {
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchCustomers = useCallback(async (searchTerm: string, pageNum: number) => {
-    setLoading(true);
+    setIsFetching(true);
     setError(null);
     try {
       const params: Record<string, string | number> = { page: pageNum, limit: 20 };
       if (searchTerm.trim()) params.search = searchTerm.trim();
 
       const response = await api.get<PaginatedResponse<Customer>>('/customers', { params });
-      setCustomers(response.data.data);
-      setMeta(response.data.meta);
+      const newCustomers = response.data.data;
+      const newMeta = response.data.meta;
+      setCustomers(newCustomers);
+      setMeta(newMeta);
+      // Only cache the default view (no search, page 1)
+      if (!searchTerm.trim() && pageNum === 1) {
+        cache = { customers: newCustomers, meta: newMeta };
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load customers');
     } finally {
       setLoading(false);
+      setIsFetching(false);
     }
   }, []);
 
@@ -82,6 +95,7 @@ export function useCustomers() {
 
   const createCustomer = useCallback(async (input: CreateCustomerInput): Promise<Customer> => {
     const response = await api.post<ApiResponse<Customer>>('/customers', input);
+    cache = null; // Invalidate cache on mutation
     await fetchCustomers(search, page);
     return response.data.data;
   }, [fetchCustomers, search, page]);
@@ -90,6 +104,7 @@ export function useCustomers() {
     async (id: string, input: UpdateCustomerInput): Promise<Customer> => {
       const response = await api.put<ApiResponse<Customer>>(`/customers/${id}`, input);
       setCustomers((prev) => prev.map((c) => (c.id === id ? response.data.data : c)));
+      cache = null; // Invalidate cache on mutation
       return response.data.data;
     },
     [],
@@ -98,6 +113,7 @@ export function useCustomers() {
   const deleteCustomer = useCallback(
     async (id: string): Promise<void> => {
       await api.delete(`/customers/${id}`);
+      cache = null; // Invalidate cache on mutation
       setCustomers((prev) => prev.filter((c) => c.id !== id));
       setMeta((prev) => ({ ...prev, total: Math.max(0, prev.total - 1) }));
     },
@@ -106,6 +122,7 @@ export function useCustomers() {
 
   const syncFromShopify = useCallback(async (): Promise<SyncResult> => {
     const response = await api.post<ApiResponse<SyncResult>>('/customers/sync-shopify');
+    cache = null; // Invalidate cache on sync
     await fetchCustomers(search, page);
     return response.data.data;
   }, [fetchCustomers, search, page]);
@@ -118,6 +135,7 @@ export function useCustomers() {
     customers,
     meta,
     loading,
+    isFetching,
     error,
     search,
     setSearch,

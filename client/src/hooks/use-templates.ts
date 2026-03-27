@@ -40,10 +40,16 @@ interface SyncAllResult {
   synced: number;
 }
 
+const DEFAULT_META: TemplateMeta = { total: 0, page: 1, limit: 20, totalPages: 0 };
+
+// Module-level cache — persists across component mounts for instant re-navigation
+let cache: { templates: Template[]; meta: TemplateMeta } | null = null;
+
 export function useTemplates() {
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [meta, setMeta] = useState<TemplateMeta>({ total: 0, page: 1, limit: 20, totalPages: 0 });
-  const [loading, setLoading] = useState(true);
+  const [templates, setTemplates] = useState<Template[]>(cache?.templates ?? []);
+  const [meta, setMeta] = useState<TemplateMeta>(cache?.meta ?? DEFAULT_META);
+  const [loading, setLoading] = useState(cache === null);
+  const [isFetching, setIsFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [search, setSearch] = useState('');
@@ -53,7 +59,7 @@ export function useTemplates() {
 
   const fetchTemplates = useCallback(
     async (searchTerm: string, pageNum: number, status: StatusFilter) => {
-      setLoading(true);
+      setIsFetching(true);
       setError(null);
       try {
         const params: Record<string, string | number> = { page: pageNum, limit: 20 };
@@ -61,12 +67,19 @@ export function useTemplates() {
         if (status !== 'all') params['status'] = status;
 
         const response = await api.get<PaginatedResponse<Template>>('/templates', { params });
-        setTemplates(response.data.data);
-        setMeta(response.data.meta);
+        const newTemplates = response.data.data;
+        const newMeta = response.data.meta;
+        setTemplates(newTemplates);
+        setMeta(newMeta);
+        // Only cache the default view (no filters/search) so navigation back shows stale-while-revalidate
+        if (!searchTerm.trim() && status === 'all' && pageNum === 1) {
+          cache = { templates: newTemplates, meta: newMeta };
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load templates');
       } finally {
         setLoading(false);
+        setIsFetching(false);
       }
     },
     [],
@@ -98,6 +111,7 @@ export function useTemplates() {
   const createTemplate = useCallback(
     async (input: CreateTemplateInput): Promise<Template> => {
       const response = await api.post<ApiResponse<Template>>('/templates', input);
+      cache = null; // Invalidate cache on mutation
       await fetchTemplates(search, page, statusFilter);
       return response.data.data;
     },
@@ -107,6 +121,7 @@ export function useTemplates() {
   const removeTemplate = useCallback(
     async (id: string): Promise<void> => {
       await api.delete(`/templates/${id}`);
+      cache = null; // Invalidate cache on mutation
       setTemplates((prev) => prev.filter((t) => t.id !== id));
       setMeta((prev) => ({ ...prev, total: Math.max(0, prev.total - 1) }));
     },
@@ -117,11 +132,13 @@ export function useTemplates() {
     const response = await api.post<ApiResponse<Template>>(`/templates/${id}/sync`);
     const updated = response.data.data;
     setTemplates((prev) => prev.map((t) => (t.id === id ? updated : t)));
+    cache = null; // Invalidate cache on sync
     return updated;
   }, []);
 
   const syncAll = useCallback(async (): Promise<SyncAllResult> => {
     const response = await api.post<ApiResponse<SyncAllResult>>('/templates/sync-all');
+    cache = null; // Invalidate cache on sync
     await fetchTemplates(search, page, statusFilter);
     return response.data.data;
   }, [fetchTemplates, search, page, statusFilter]);
@@ -134,6 +151,7 @@ export function useTemplates() {
     templates,
     meta,
     loading,
+    isFetching,
     error,
     statusFilter,
     setStatusFilter,

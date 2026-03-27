@@ -104,13 +104,10 @@ function ActivityItemSkeleton() {
 
 export default function DashboardPage() {
   const { stats, activity, loading, error, refetch } = useDashboard();
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const lastUpdated = useLastUpdated();
 
   const handleRefresh = async () => {
-    setIsRefreshing(true);
     await refetch();
-    setIsRefreshing(false);
   };
 
   if (error && !stats) {
@@ -147,9 +144,8 @@ export default function DashboardPage() {
             variant="outline"
             size="sm"
             onClick={() => void handleRefresh()}
-            disabled={isRefreshing}
           >
-            <RefreshCw className={cn('h-3.5 w-3.5 mr-1.5', isRefreshing && 'animate-spin')} />
+            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
             Refresh
           </Button>
         </div>
