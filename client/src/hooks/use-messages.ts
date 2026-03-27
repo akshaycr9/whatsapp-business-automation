@@ -40,7 +40,8 @@ export function useMessages(conversationId: string | undefined): UseMessagesRetu
         data: Message[];
         meta: { cursor: string | null; hasMore: boolean };
       }>(`/conversations/${convId}/messages`, { params: { limit: 50 } });
-      setMessages(response.data.data);
+      // Backend returns newest-first (DESC); reverse to oldest-first for chat display
+      setMessages([...response.data.data].reverse());
       setMeta({ cursor: response.data.meta.cursor, hasMore: response.data.meta.hasMore });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load messages');
@@ -133,8 +134,8 @@ export function useMessages(conversationId: string | undefined): UseMessagesRetu
       }>(`/conversations/${conversationId}/messages`, {
         params: { limit: 50, cursor: oldestMessage.createdAt },
       });
-      // Prepend older messages
-      setMessages((prev) => [...response.data.data, ...prev]);
+      // Prepend older messages (reverse DESC response to oldest-first before prepending)
+      setMessages((prev) => [...[...response.data.data].reverse(), ...prev]);
       setMeta({ cursor: response.data.meta.cursor, hasMore: response.data.meta.hasMore });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load older messages');
