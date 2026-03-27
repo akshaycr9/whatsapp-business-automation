@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { connectSocket, disconnectSocket } from '@/lib/socket';
 import DashboardPage from '@/pages/DashboardPage';
 import ConversationsPage from '@/pages/ConversationsPage';
@@ -15,6 +16,7 @@ export default function App() {
   }, []);
 
   return (
+    <TooltipProvider delayDuration={300}>
     <BrowserRouter>
       <AppShell>
         <Routes>
@@ -29,5 +31,6 @@ export default function App() {
         </Routes>
       </AppShell>
     </BrowserRouter>
+    </TooltipProvider>
   );
 }

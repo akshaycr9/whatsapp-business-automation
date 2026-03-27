@@ -178,12 +178,28 @@ export const updateMessageStatus = async (
     return;
   }
 
+  // Persist a timestamp for DELIVERED and READ into metadata so the UI can
+  // display per-status timestamps in the message tooltip.
+  const now = new Date();
+  const tsKey = newStatus === 'DELIVERED' ? 'deliveredAt' : newStatus === 'READ' ? 'readAt' : null;
+  const existingMeta = (message.metadata as Record<string, unknown>) ?? {};
+  const newMetadata = tsKey
+    ? ({ ...existingMeta, [tsKey]: now.toISOString() } as import('@prisma/client').Prisma.InputJsonValue)
+    : undefined;
+
   await prisma.message.update({
     where: { id: message.id },
-    data: { status: newStatus, statusUpdatedAt: new Date() },
+    data: {
+      status: newStatus,
+      statusUpdatedAt: now,
+      ...(newMetadata !== undefined && { metadata: newMetadata }),
+    },
   });
 
-  emitMessageStatusUpdate(message.id, newStatus);
+  // Include timestamps in the socket event so the frontend can update
+  // the tooltip display in real-time without re-fetching.
+  const timestamps = tsKey ? { [tsKey]: now.toISOString() } : undefined;
+  emitMessageStatusUpdate(message.id, newStatus, timestamps);
 };
 
 export const processInboundMessage = async (

@@ -120,6 +120,8 @@ export interface NewMessageEvent {
 export interface MessageStatusUpdateEvent {
   messageId: string;
   status: MessageStatus;
+  /** ISO timestamp strings keyed by 'deliveredAt' or 'readAt' */
+  timestamps?: Record<string, string>;
 }
 
 export interface ConversationUpdatedEvent {

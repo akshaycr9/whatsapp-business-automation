@@ -105,7 +105,14 @@ export function useMessages(conversationId: string | undefined): UseMessagesRetu
           const newPriority = statusPriority[event.status] ?? 0;
           // Only upgrade status (except FAILED which can always be set)
           if (event.status === 'FAILED' || newPriority > currentPriority) {
-            return { ...m, status: event.status };
+            return {
+              ...m,
+              status: event.status,
+              // Merge timestamp into metadata so the tooltip can display it immediately
+              ...(event.timestamps && {
+                metadata: { ...(m.metadata ?? {}), ...event.timestamps },
+              }),
+            };
           }
           return m;
         }),

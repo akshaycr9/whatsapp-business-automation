@@ -33,8 +33,12 @@ export const emitNewMessage = (conversationId: string, message: unknown): void =
   getIO().emit('new_message', { conversationId, message });
 };
 
-export const emitMessageStatusUpdate = (messageId: string, status: string): void => {
-  getIO().emit('message_status_update', { messageId, status });
+export const emitMessageStatusUpdate = (
+  messageId: string,
+  status: string,
+  timestamps?: Record<string, string>,
+): void => {
+  getIO().emit('message_status_update', { messageId, status, timestamps });
 };
 
 export const emitAutomationTriggered = (automationId: string, log: unknown): void => {
