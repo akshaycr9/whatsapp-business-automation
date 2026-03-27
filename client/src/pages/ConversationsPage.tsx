@@ -81,9 +81,10 @@ interface ChatPanelProps {
   conversationId: string;
   conversations: Conversation[];
   onBack: () => void;
+  onMarkRead: (id: string) => void;
 }
 
-function ChatPanel({ conversationId, conversations, onBack }: ChatPanelProps) {
+function ChatPanel({ conversationId, conversations, onBack, onMarkRead }: ChatPanelProps) {
   const {
     messages,
     hasMore,
@@ -136,10 +137,12 @@ function ChatPanel({ conversationId, conversations, onBack }: ChatPanelProps) {
   // Mark conversation as read when it becomes active
   useEffect(() => {
     if (!conversationId) return;
+    // Optimistically clear the unread badge immediately
+    onMarkRead(conversationId);
     void api.patch(`/conversations/${conversationId}/read`).catch(() => {
       // Ignore errors for read marking
     });
-  }, [conversationId]);
+  }, [conversationId, onMarkRead]);
 
   const handleMessageSent = useCallback(
     (message: Message) => {
@@ -289,7 +292,7 @@ function ChatPanel({ conversationId, conversations, onBack }: ChatPanelProps) {
 export default function ConversationsPage() {
   const { id: activeId } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { conversations, loading, error, search, setSearch, refetch } = useConversations();
+  const { conversations, loading, error, search, setSearch, refetch, markConversationRead } = useConversations();
 
   const handleSelectConversation = useCallback(
     (id: string) => {
@@ -390,6 +393,7 @@ export default function ConversationsPage() {
             conversationId={activeId}
             conversations={conversations}
             onBack={handleBack}
+            onMarkRead={markConversationRead}
           />
         ) : (
           <div className="hidden md:flex flex-col flex-1 items-center justify-center p-8 text-center">

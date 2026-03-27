@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { useGlobalNotifications } from '@/hooks/use-global-notifications';
 import { connectSocket, disconnectSocket } from '@/lib/socket';
 import DashboardPage from '@/pages/DashboardPage';
 import ConversationsPage from '@/pages/ConversationsPage';
@@ -14,6 +15,8 @@ export default function App() {
     connectSocket();
     return () => disconnectSocket();
   }, []);
+
+  useGlobalNotifications();
 
   return (
     <TooltipProvider delayDuration={300}>
