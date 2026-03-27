@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '@/lib/api';
 import type { Automation, AutomationLog, Template, PaginatedResponse, ApiResponse } from '@/types';
 
@@ -18,27 +18,41 @@ export interface CreateAutomationInput {
   delayMinutes: number;
 }
 
+// Module-level cache — persists across component mounts for instant re-navigation
+let cache: { automations: Automation[]; meta: AutomationMeta } | null = null;
+let cachedApprovedTemplates: Template[] | null = null;
+
 export function useAutomations() {
-  const [automations, setAutomations] = useState<Automation[]>([]);
-  const [approvedTemplates, setApprovedTemplates] = useState<Template[]>([]);
-  const [meta, setMeta] = useState<AutomationMeta>({ total: 0, page: 1, limit: 20, totalPages: 0 });
-  const [loading, setLoading] = useState(true);
+  const [automations, setAutomations] = useState<Automation[]>(cache?.automations ?? []);
+  const [approvedTemplates, setApprovedTemplates] = useState<Template[]>(cachedApprovedTemplates ?? []);
+  const [meta, setMeta] = useState<AutomationMeta>(
+    cache?.meta ?? { total: 0, page: 1, limit: 20, totalPages: 0 },
+  );
+  const [loading, setLoading] = useState(cache === null);
+  const [isFetching, setIsFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const isFirstPageEffect = useRef(true);
 
   const fetchAutomations = useCallback(async (pageNum: number): Promise<void> => {
-    setLoading(true);
+    setIsFetching(true);
     setError(null);
     try {
       const response = await api.get<PaginatedResponse<Automation>>('/automations', {
         params: { page: pageNum, limit: 20 },
       });
-      setAutomations(response.data.data);
-      setMeta(response.data.meta);
+      const newAutomations = response.data.data;
+      const newMeta = response.data.meta;
+      setAutomations(newAutomations);
+      setMeta(newMeta);
+      if (pageNum === 1) {
+        cache = { automations: newAutomations, meta: newMeta };
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load automations');
     } finally {
       setLoading(false);
+      setIsFetching(false);
     }
   }, []);
 
@@ -47,6 +61,7 @@ export function useAutomations() {
       const response = await api.get<PaginatedResponse<Template>>('/templates', {
         params: { status: 'APPROVED', limit: 100 },
       });
+      cachedApprovedTemplates = response.data.data;
       setApprovedTemplates(response.data.data);
     } catch {
       // Non-critical — templates list failing shouldn't block the page
@@ -59,6 +74,10 @@ export function useAutomations() {
   }, [fetchAutomations, fetchApprovedTemplates]);
 
   useEffect(() => {
+    if (isFirstPageEffect.current) {
+      isFirstPageEffect.current = false;
+      return;
+    }
     void fetchAutomations(page);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
@@ -66,6 +85,7 @@ export function useAutomations() {
   const createAutomation = useCallback(
     async (input: CreateAutomationInput): Promise<Automation> => {
       const response = await api.post<ApiResponse<Automation>>('/automations', input);
+      cache = null; // Invalidate cache on mutation
       await fetchAutomations(page);
       return response.data.data;
     },
@@ -77,6 +97,7 @@ export function useAutomations() {
       const response = await api.put<ApiResponse<Automation>>(`/automations/${id}`, input);
       const updated = response.data.data;
       setAutomations((prev) => prev.map((a) => (a.id === id ? { ...a, ...updated } : a)));
+      cache = null; // Invalidate cache on mutation
       return updated;
     },
     [],
@@ -84,6 +105,7 @@ export function useAutomations() {
 
   const removeAutomation = useCallback(async (id: string): Promise<void> => {
     await api.delete(`/automations/${id}`);
+    cache = null; // Invalidate cache on mutation
     setAutomations((prev) => prev.filter((a) => a.id !== id));
     setMeta((prev) => ({ ...prev, total: Math.max(0, prev.total - 1) }));
   }, []);
@@ -97,6 +119,7 @@ export function useAutomations() {
       const response = await api.patch<ApiResponse<Automation>>(`/automations/${id}/toggle`);
       const updated = response.data.data;
       setAutomations((prev) => prev.map((a) => (a.id === id ? { ...a, ...updated } : a)));
+      cache = null; // Invalidate cache on toggle
       return updated;
     } catch (err) {
       // Revert optimistic update on failure
@@ -130,6 +153,7 @@ export function useAutomations() {
     approvedTemplates,
     meta,
     loading,
+    isFetching,
     error,
     page,
     setPage,

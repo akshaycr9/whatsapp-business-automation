@@ -8,9 +8,13 @@ import type {
   ConversationUpdatedEvent,
 } from '@/types';
 
+// Module-level cache — persists across component mounts for instant re-navigation
+let cachedConversations: Conversation[] | null = null;
+
 export interface UseConversationsReturn {
   conversations: Conversation[];
   loading: boolean;
+  isFetching: boolean;
   error: string | null;
   search: string;
   setSearch: (value: string) => void;
@@ -18,8 +22,9 @@ export interface UseConversationsReturn {
 }
 
 export function useConversations(): UseConversationsReturn {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [conversations, setConversations] = useState<Conversation[]>(cachedConversations ?? []);
+  const [loading, setLoading] = useState(cachedConversations === null);
+  const [isFetching, setIsFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
@@ -28,17 +33,23 @@ export function useConversations(): UseConversationsReturn {
   searchRef.current = search;
 
   const fetchConversations = useCallback(async (searchTerm: string) => {
-    setLoading(true);
+    setIsFetching(true);
     setError(null);
     try {
       const params: Record<string, string> = {};
       if (searchTerm.trim()) params.search = searchTerm.trim();
       const response = await api.get<PaginatedResponse<Conversation>>('/conversations', { params });
-      setConversations(response.data.data);
+      const newConversations = response.data.data;
+      setConversations(newConversations);
+      // Only cache the default (non-search) view
+      if (!searchTerm.trim()) {
+        cachedConversations = newConversations;
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load conversations');
     } finally {
       setLoading(false);
+      setIsFetching(false);
     }
   }, []);
 
@@ -64,6 +75,12 @@ export function useConversations(): UseConversationsReturn {
       setConversations((prev) =>
         prev.map((c) => (c.id === event.conversation.id ? event.conversation : c)),
       );
+      // Update cache too
+      if (cachedConversations) {
+        cachedConversations = cachedConversations.map((c) =>
+          c.id === event.conversation.id ? event.conversation : c,
+        );
+      }
     };
 
     const handleNewMessage = (event: NewMessageEvent) => {
@@ -77,7 +94,9 @@ export function useConversations(): UseConversationsReturn {
         };
         // Move to top
         const rest = prev.filter((c) => c.id !== event.conversationId);
-        return [updated, ...rest];
+        const newList = [updated, ...rest];
+        cachedConversations = newList;
+        return newList;
       });
     };
 
@@ -94,5 +113,5 @@ export function useConversations(): UseConversationsReturn {
     void fetchConversations(searchRef.current);
   }, [fetchConversations]);
 
-  return { conversations, loading, error, search, setSearch, refetch };
+  return { conversations, loading, isFetching, error, search, setSearch, refetch };
 }
