@@ -40,20 +40,20 @@ model Conversation {
 }
 
 model Message {
-  id             String           @id @default(cuid())
-  conversationId String
-  conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  waMessageId    String?          @unique
-  direction      MessageDirection
-  type           MessageType      @default(TEXT)
-  body           String?
-  mediaId        String?
-  mediaMimeType  String?
-  caption        String?
-  status         MessageStatus    @default(SENT)
+  id              String           @id @default(cuid())
+  conversationId  String
+  conversation    Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  waMessageId     String?          @unique
+  direction       MessageDirection
+  type            MessageType      @default(TEXT)
+  body            String?
+  mediaId         String?
+  mediaMimeType   String?
+  caption         String?
+  status          MessageStatus    @default(SENT)
   statusUpdatedAt DateTime?
-  metadata       Json?
-  createdAt      DateTime         @default(now())
+  metadata        Json?
+  createdAt       DateTime         @default(now())
 
   @@index([conversationId, createdAt])
 }
@@ -82,18 +82,17 @@ enum MessageStatus {
 }
 
 model Template {
-  id             String                  @id @default(cuid())
-  name           String                  @unique
-  language       String                  @default("en")
+  id             String           @id @default(cuid())
+  name           String           @unique
+  language       String           @default("en")
   category       TemplateCategory
-  status         TemplateStatus          @default(PENDING)
+  status         TemplateStatus   @default(PENDING)
   components     Json
   rejectedReason String?
   metaTemplateId String?
-  createdAt      DateTime                @default(now())
-  updatedAt      DateTime                @updatedAt
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
   automations    Automation[]
-  buttonReplies  AutomationButtonReply[] @relation("ButtonReplyTemplate")
 }
 
 enum TemplateCategory {
@@ -108,34 +107,25 @@ enum TemplateStatus {
   REJECTED
 }
 
-model Automation {
-  id              String                  @id @default(cuid())
-  name            String
-  shopifyEvent    ShopifyEvent
-  templateId      String
-  template        Template                @relation(fields: [templateId], references: [id])
-  variableMapping Json
-  isActive        Boolean                 @default(true)
-  delayMinutes    Int                     @default(0)
-  createdAt       DateTime                @default(now())
-  updatedAt       DateTime                @updatedAt
-  logs            AutomationLog[]
-  buttonReplies   AutomationButtonReply[]
+enum AutomationTrigger {
+  SHOPIFY_EVENT
+  BUTTON_REPLY
 }
 
-model AutomationButtonReply {
-  id              String     @id @default(cuid())
-  automationId    String
-  automation      Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
-  buttonText      String
-  replyTemplateId String
-  replyTemplate   Template   @relation("ButtonReplyTemplate", fields: [replyTemplateId], references: [id])
-  variableMapping Json       @default("{}")
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-
-  @@unique([automationId, buttonText])
-  @@index([automationId])
+model Automation {
+  id                String            @id @default(cuid())
+  name              String
+  triggerType       AutomationTrigger @default(SHOPIFY_EVENT)
+  shopifyEvent      ShopifyEvent?
+  buttonTriggerText String?
+  templateId        String
+  template          Template          @relation(fields: [templateId], references: [id])
+  variableMapping   Json
+  isActive          Boolean           @default(true)
+  delayMinutes      Int               @default(0)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  logs              AutomationLog[]
 }
 
 enum ShopifyEvent {
@@ -157,6 +147,7 @@ model AutomationLog {
   createdAt     DateTime            @default(now())
 
   @@index([automationId, createdAt])
+  @@index([customerPhone, createdAt])
 }
 
 enum AutomationLogStatus {

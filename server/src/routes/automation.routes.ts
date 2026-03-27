@@ -1,23 +1,35 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import * as automationService from '../services/automation.service.js';
-import * as buttonReplyService from '../services/button-reply.service.js';
 
 const router = Router();
 
-const automationSchema = z.object({
-  name: z.string().min(1),
-  shopifyEvent: z.enum([
-    'PREPAID_ORDER_CONFIRMED',
-    'COD_ORDER_CONFIRMED',
-    'ORDER_FULFILLED',
-    'ABANDONED_CART',
-  ]),
-  templateId: z.string().cuid(),
-  variableMapping: z.record(z.string()),
-  isActive: z.boolean().default(true),
-  delayMinutes: z.number().int().min(0).default(0),
-});
+const shopifyEventEnum = z.enum([
+  'PREPAID_ORDER_CONFIRMED',
+  'COD_ORDER_CONFIRMED',
+  'ORDER_FULFILLED',
+  'ABANDONED_CART',
+]);
+
+const automationSchema = z
+  .object({
+    name: z.string().min(1),
+    triggerType: z.enum(['SHOPIFY_EVENT', 'BUTTON_REPLY']).default('SHOPIFY_EVENT'),
+    shopifyEvent: shopifyEventEnum.optional(),
+    buttonTriggerText: z.string().min(1).max(20).optional(),
+    templateId: z.string().cuid(),
+    variableMapping: z.record(z.string()),
+    isActive: z.boolean().default(true),
+    delayMinutes: z.number().int().min(0).default(0),
+  })
+  .refine(
+    (d) =>
+      d.triggerType === 'SHOPIFY_EVENT' ? d.shopifyEvent !== undefined : d.buttonTriggerText !== undefined,
+    {
+      message:
+        'shopifyEvent is required for SHOPIFY_EVENT automations; buttonTriggerText is required for BUTTON_REPLY automations',
+    },
+  );
 
 // GET /api/automations
 router.get('/', async (req, res, next) => {
@@ -92,36 +104,6 @@ router.get('/:id/logs', async (req, res, next) => {
 
     const result = await automationService.getLogs(req.params['id'] as string, { page, limit });
     res.json({ data: result.items, meta: result.meta });
-  } catch (err: unknown) {
-    next(err);
-  }
-});
-
-const buttonReplyItemSchema = z.object({
-  buttonText: z.string().min(1).max(20),
-  replyTemplateId: z.string().cuid(),
-  variableMapping: z.record(z.string()),
-});
-
-const buttonRepliesSchema = z.array(buttonReplyItemSchema);
-
-// GET /api/automations/:id/button-replies
-router.get('/:id/button-replies', async (req, res, next) => {
-  try {
-    const result = await buttonReplyService.listForAutomation(req.params['id'] as string);
-    res.json({ data: result });
-  } catch (err: unknown) {
-    next(err);
-  }
-});
-
-// PUT /api/automations/:id/button-replies
-router.put('/:id/button-replies', async (req, res, next) => {
-  try {
-    const inputs = buttonRepliesSchema.parse(req.body);
-    await buttonReplyService.upsertButtonReplies(req.params['id'] as string, inputs);
-    const result = await buttonReplyService.listForAutomation(req.params['id'] as string);
-    res.json({ data: result });
   } catch (err: unknown) {
     next(err);
   }

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import {
   Plus,
   CreditCard,
@@ -50,9 +50,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useAutomations, type CreateAutomationInput, type ButtonReplyInput } from '@/hooks/use-automations';
+import { useAutomations, type CreateAutomationInput } from '@/hooks/use-automations';
 import { useToast } from '@/hooks/use-toast';
-import type { Automation, AutomationButtonReply, AutomationLog, ShopifyEvent, Template } from '@/types';
+import type { Automation, AutomationLog, ShopifyEvent, Template } from '@/types';
 import { cn } from '@/lib/utils';
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -97,6 +97,12 @@ const EVENT_ICON_BG: Record<ShopifyEventKey, string> = {
 
 const SHOPIFY_EVENTS = Object.keys(EVENT_CONFIG) as ShopifyEventKey[];
 
+const BUTTON_REPLY_CONFIG: EventConfig = {
+  label: 'Button Reply',
+  icon: <MousePointerClick className="h-4 w-4" />,
+  badgeClass: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+};
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function extractBodyText(components: unknown): string {
@@ -105,14 +111,6 @@ function extractBodyText(components: unknown): string {
     (c) => c.type === 'BODY',
   );
   return body?.text ?? '';
-}
-
-function extractButtonTexts(components: unknown): string[] {
-  if (!Array.isArray(components)) return [];
-  const buttonsComp = (
-    components as Array<{ type: string; buttons?: Array<{ text: string }> }>
-  ).find((c) => c.type === 'BUTTONS');
-  return buttonsComp?.buttons?.map((b) => b.text) ?? [];
 }
 
 function detectVariables(text: string): string[] {
@@ -369,122 +367,12 @@ function VariableMappingSection({ template, mapping, onChange, shopifyEvent }: V
   );
 }
 
-// ── Button Reply Section ───────────────────────────────────────────────────
-
-interface ButtonReplySectionProps {
-  template: Template | null;
-  rules: ButtonReplyInput[];
-  approvedTemplates: Template[];
-  shopifyEvent: string;
-  onChange: (rules: ButtonReplyInput[]) => void;
-}
-
-function ButtonReplySection({
-  template,
-  rules,
-  approvedTemplates,
-  shopifyEvent,
-  onChange,
-}: ButtonReplySectionProps) {
-  const buttonTexts = template ? extractButtonTexts(template.components) : [];
-  if (buttonTexts.length === 0) return null;
-
-  const getRule = (buttonText: string): ButtonReplyInput | undefined =>
-    rules.find((r) => r.buttonText === buttonText);
-
-  const updateRule = (
-    buttonText: string,
-    updates: Partial<Omit<ButtonReplyInput, 'buttonText'>>,
-  ) => {
-    const existing = rules.find((r) => r.buttonText === buttonText);
-    if (existing) {
-      onChange(
-        rules.map((r) => (r.buttonText === buttonText ? { ...r, ...updates } : r)),
-      );
-    } else {
-      onChange([
-        ...rules,
-        { buttonText, replyTemplateId: '', variableMapping: {}, ...updates },
-      ]);
-    }
-  };
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2 pt-1">
-        <hr className="flex-1 border-border" />
-        <p className="text-xs font-medium text-muted-foreground shrink-0 uppercase tracking-wide">
-          Button Reply Automations
-        </p>
-        <hr className="flex-1 border-border" />
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Send a follow-up template automatically when the customer taps a quick reply button.
-      </p>
-      <div className="space-y-3">
-        {buttonTexts.map((buttonText) => {
-          const rule = getRule(buttonText);
-          const selectedReplyTemplate =
-            approvedTemplates.find((t) => t.id === rule?.replyTemplateId) ?? null;
-
-          return (
-            <div key={buttonText} className="border border-border rounded-lg p-3 space-y-3">
-              <div className="flex items-center gap-2">
-                <MousePointerClick className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                <Badge variant="secondary" className="text-xs font-medium">
-                  {buttonText}
-                </Badge>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Follow-up Template (optional)</Label>
-                <Select
-                  value={rule?.replyTemplateId ?? ''}
-                  onValueChange={(id) =>
-                    updateRule(buttonText, {
-                      replyTemplateId: id === '__none__' ? '' : id,
-                      variableMapping: {},
-                    })
-                  }
-                >
-                  <SelectTrigger className="text-sm">
-                    <SelectValue placeholder="No follow-up" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">No follow-up</SelectItem>
-                    {approvedTemplates.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {selectedReplyTemplate && (
-                <VariableMappingSection
-                  template={selectedReplyTemplate}
-                  mapping={rule?.variableMapping ?? {}}
-                  onChange={(mapping) => updateRule(buttonText, { variableMapping: mapping })}
-                  shopifyEvent={shopifyEvent}
-                />
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 // ── Automation Form Dialog ─────────────────────────────────────────────────
 
 interface AutomationFormDialogProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (input: CreateAutomationInput) => Promise<Automation>;
-  onFetchButtonReplies: (id: string) => Promise<AutomationButtonReply[]>;
-  onSaveButtonReplies: (id: string, rules: ButtonReplyInput[]) => Promise<void>;
+  onSubmit: (input: CreateAutomationInput) => Promise<void>;
   initialData?: Automation | null;
   approvedTemplates: Template[];
 }
@@ -493,16 +381,20 @@ function AutomationFormDialog({
   open,
   onClose,
   onSubmit,
-  onFetchButtonReplies,
-  onSaveButtonReplies,
   initialData,
   approvedTemplates,
 }: AutomationFormDialogProps) {
   const isEdit = initialData !== null && initialData !== undefined;
 
   const [name, setName] = useState(initialData?.name ?? '');
+  const [triggerType, setTriggerType] = useState<'SHOPIFY_EVENT' | 'BUTTON_REPLY'>(
+    initialData?.triggerType ?? 'SHOPIFY_EVENT',
+  );
   const [shopifyEvent, setShopifyEvent] = useState<ShopifyEvent>(
     initialData?.shopifyEvent ?? 'PREPAID_ORDER_CONFIRMED',
+  );
+  const [buttonTriggerText, setButtonTriggerText] = useState(
+    initialData?.buttonTriggerText ?? '',
   );
   const [templateId, setTemplateId] = useState(initialData?.templateId ?? '');
   const [delayMinutes, setDelayMinutes] = useState(String(initialData?.delayMinutes ?? 0));
@@ -510,31 +402,11 @@ function AutomationFormDialog({
   const [variableMapping, setVariableMapping] = useState<Record<string, string>>(
     initialData?.variableMapping ?? {},
   );
-  const [buttonRules, setButtonRules] = useState<ButtonReplyInput[]>([]);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const selectedTemplate = approvedTemplates.find((t) => t.id === templateId) ?? null;
 
-  // Load existing button reply rules when editing
-  useEffect(() => {
-    if (!open || !isEdit || !initialData?.id) {
-      setButtonRules([]);
-      return;
-    }
-    void onFetchButtonReplies(initialData.id).then((existing) => {
-      setButtonRules(
-        existing.map((r) => ({
-          buttonText: r.buttonText,
-          replyTemplateId: r.replyTemplateId,
-          variableMapping: r.variableMapping,
-        })),
-      );
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, initialData?.id]);
-
-  // Reset form when dialog opens
   const handleOpenChange = (o: boolean) => {
     if (!o) {
       onClose();
@@ -545,7 +417,6 @@ function AutomationFormDialog({
   const handleTemplateChange = (id: string) => {
     setTemplateId(id);
     setVariableMapping({});
-    setButtonRules([]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -554,6 +425,10 @@ function AutomationFormDialog({
 
     if (!name.trim()) {
       setFormError('Name is required');
+      return;
+    }
+    if (triggerType === 'BUTTON_REPLY' && !buttonTriggerText.trim()) {
+      setFormError('Button trigger text is required');
       return;
     }
     if (!templateId) {
@@ -568,19 +443,17 @@ function AutomationFormDialog({
 
     setSaving(true);
     try {
-      const saved = await onSubmit({
+      await onSubmit({
         name: name.trim(),
-        shopifyEvent,
+        triggerType,
+        ...(triggerType === 'SHOPIFY_EVENT'
+          ? { shopifyEvent }
+          : { buttonTriggerText: buttonTriggerText.trim() }),
         templateId,
         variableMapping,
         isActive,
         delayMinutes: delay,
       });
-
-      // Save button reply rules (filter out rules with no template selected)
-      const validRules = buttonRules.filter((r) => r.replyTemplateId !== '');
-      await onSaveButtonReplies(saved.id, validRules);
-
       onClose();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Failed to save automation');
@@ -597,7 +470,7 @@ function AutomationFormDialog({
           <DialogDescription>
             {isEdit
               ? 'Update the automation configuration.'
-              : 'Set up a WhatsApp message to send automatically on a Shopify event.'}
+              : 'Configure a WhatsApp message sent automatically on a trigger.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -612,30 +485,62 @@ function AutomationFormDialog({
             <Label htmlFor="automation-name">Name</Label>
             <Input
               id="automation-name"
-              placeholder="e.g. Prepaid Order Confirmation"
+              placeholder="e.g. COD Order Confirmation"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="shopify-event">Shopify Event</Label>
+            <Label htmlFor="trigger-type">Trigger Type</Label>
             <Select
-              value={shopifyEvent}
-              onValueChange={(v) => setShopifyEvent(v as ShopifyEvent)}
+              value={triggerType}
+              onValueChange={(v) => setTriggerType(v as 'SHOPIFY_EVENT' | 'BUTTON_REPLY')}
             >
-              <SelectTrigger id="shopify-event">
+              <SelectTrigger id="trigger-type">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {SHOPIFY_EVENTS.map((ev) => (
-                  <SelectItem key={ev} value={ev}>
-                    {EVENT_CONFIG[ev].label}
-                  </SelectItem>
-                ))}
+                <SelectItem value="SHOPIFY_EVENT">Shopify Event</SelectItem>
+                <SelectItem value="BUTTON_REPLY">WhatsApp Button Reply</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {triggerType === 'SHOPIFY_EVENT' ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="shopify-event">Shopify Event</Label>
+              <Select
+                value={shopifyEvent}
+                onValueChange={(v) => setShopifyEvent(v as ShopifyEvent)}
+              >
+                <SelectTrigger id="shopify-event">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SHOPIFY_EVENTS.map((ev) => (
+                    <SelectItem key={ev} value={ev}>
+                      {EVENT_CONFIG[ev].label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <Label htmlFor="button-trigger-text">Button Text (exact match)</Label>
+              <Input
+                id="button-trigger-text"
+                placeholder="e.g. Confirm My Order"
+                value={buttonTriggerText}
+                onChange={(e) => setButtonTriggerText(e.target.value)}
+                maxLength={20}
+              />
+              <p className="text-xs text-muted-foreground">
+                Must match the quick reply button label exactly (max 20 characters).
+              </p>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="template-select">Template</Label>
@@ -684,15 +589,7 @@ function AutomationFormDialog({
             template={selectedTemplate}
             mapping={variableMapping}
             onChange={setVariableMapping}
-            shopifyEvent={shopifyEvent}
-          />
-
-          <ButtonReplySection
-            template={selectedTemplate}
-            rules={buttonRules}
-            approvedTemplates={approvedTemplates}
-            shopifyEvent={shopifyEvent}
-            onChange={setButtonRules}
+            shopifyEvent={triggerType === 'SHOPIFY_EVENT' ? shopifyEvent : 'PREPAID_ORDER_CONFIRMED'}
           />
 
           <DialogFooter>
@@ -940,8 +837,6 @@ export default function AutomationsPage() {
     removeAutomation,
     toggleAutomation,
     fetchLogs,
-    fetchButtonReplies,
-    saveButtonReplies,
     refetch,
   } = useAutomations();
 
@@ -953,17 +848,15 @@ export default function AutomationsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Automation | null>(null);
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
 
-  const handleCreate = async (input: CreateAutomationInput): Promise<Automation> => {
-    const automation = await createAutomation(input);
+  const handleCreate = async (input: CreateAutomationInput): Promise<void> => {
+    await createAutomation(input);
     toast({ title: 'Automation created', description: input.name });
-    return automation;
   };
 
-  const handleUpdate = async (input: CreateAutomationInput): Promise<Automation> => {
+  const handleUpdate = async (input: CreateAutomationInput): Promise<void> => {
     if (!editTarget) throw new Error('No automation selected');
-    const automation = await updateAutomation(editTarget.id, input);
+    await updateAutomation(editTarget.id, input);
     toast({ title: 'Automation updated', description: input.name });
-    return automation;
   };
 
   const handleDelete = async (id: string) => {
@@ -1070,7 +963,10 @@ export default function AutomationsPage() {
             </TableHeader>
             <TableBody>
               {automations.map((automation) => {
-                const cfg = EVENT_CONFIG[automation.shopifyEvent];
+                const cfg =
+                  automation.triggerType === 'SHOPIFY_EVENT' && automation.shopifyEvent
+                    ? EVENT_CONFIG[automation.shopifyEvent]
+                    : BUTTON_REPLY_CONFIG;
                 return (
                   <TableRow key={automation.id}>
                     <TableCell className="font-medium text-sm">{automation.name}</TableCell>
@@ -1083,6 +979,11 @@ export default function AutomationsPage() {
                       >
                         {cfg.label}
                       </Badge>
+                      {automation.triggerType === 'BUTTON_REPLY' && automation.buttonTriggerText && (
+                        <p className="text-xs text-muted-foreground mt-0.5 font-mono">
+                          &ldquo;{automation.buttonTriggerText}&rdquo;
+                        </p>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {automation.template.name}
@@ -1139,8 +1040,6 @@ export default function AutomationsPage() {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onSubmit={handleCreate}
-        onFetchButtonReplies={fetchButtonReplies}
-        onSaveButtonReplies={saveButtonReplies}
         initialData={null}
         approvedTemplates={approvedTemplates}
       />
@@ -1150,8 +1049,6 @@ export default function AutomationsPage() {
         open={editTarget !== null}
         onClose={() => setEditTarget(null)}
         onSubmit={handleUpdate}
-        onFetchButtonReplies={fetchButtonReplies}
-        onSaveButtonReplies={saveButtonReplies}
         initialData={editTarget}
         approvedTemplates={approvedTemplates}
       />

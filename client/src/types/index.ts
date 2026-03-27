@@ -63,34 +63,25 @@ export interface Template {
 }
 
 // ── Automation ───────────────────────────────────────────────
+export type AutomationTrigger = 'SHOPIFY_EVENT' | 'BUTTON_REPLY';
+
 export type ShopifyEvent =
   | 'PREPAID_ORDER_CONFIRMED'
   | 'COD_ORDER_CONFIRMED'
   | 'ORDER_FULFILLED'
   | 'ABANDONED_CART';
 
-// ── AutomationButtonReply ─────────────────────────────────────
-export interface AutomationButtonReply {
-  id: string;
-  automationId: string;
-  buttonText: string;
-  replyTemplateId: string;
-  replyTemplate: Template;
-  variableMapping: Record<string, string>;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface Automation {
   id: string;
   name: string;
-  shopifyEvent: ShopifyEvent;
+  triggerType: AutomationTrigger;
+  shopifyEvent: ShopifyEvent | null;
+  buttonTriggerText: string | null;
   templateId: string;
   template: Template;
   variableMapping: Record<string, string>;
   isActive: boolean;
   delayMinutes: number;
-  buttonReplies?: AutomationButtonReply[];
   createdAt: string;
   updatedAt: string;
 }

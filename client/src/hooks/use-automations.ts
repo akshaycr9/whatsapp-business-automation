@@ -1,12 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '@/lib/api';
-import type { Automation, AutomationButtonReply, AutomationLog, Template, PaginatedResponse, ApiResponse } from '@/types';
-
-export interface ButtonReplyInput {
-  buttonText: string;
-  replyTemplateId: string;
-  variableMapping: Record<string, string>;
-}
+import type { Automation, AutomationLog, Template, PaginatedResponse, ApiResponse } from '@/types';
 
 interface AutomationMeta {
   total: number;
@@ -17,7 +11,9 @@ interface AutomationMeta {
 
 export interface CreateAutomationInput {
   name: string;
-  shopifyEvent: 'PREPAID_ORDER_CONFIRMED' | 'COD_ORDER_CONFIRMED' | 'ORDER_FULFILLED' | 'ABANDONED_CART';
+  triggerType: 'SHOPIFY_EVENT' | 'BUTTON_REPLY';
+  shopifyEvent?: 'PREPAID_ORDER_CONFIRMED' | 'COD_ORDER_CONFIRMED' | 'ORDER_FULFILLED' | 'ABANDONED_CART';
+  buttonTriggerText?: string;
   templateId: string;
   variableMapping: Record<string, string>;
   isActive: boolean;
@@ -150,20 +146,6 @@ export function useAutomations() {
     [],
   );
 
-  const fetchButtonReplies = useCallback(async (automationId: string): Promise<AutomationButtonReply[]> => {
-    const response = await api.get<ApiResponse<AutomationButtonReply[]>>(
-      `/automations/${automationId}/button-replies`,
-    );
-    return response.data.data;
-  }, []);
-
-  const saveButtonReplies = useCallback(
-    async (automationId: string, rules: ButtonReplyInput[]): Promise<void> => {
-      await api.put(`/automations/${automationId}/button-replies`, rules);
-    },
-    [],
-  );
-
   const refetch = useCallback(() => {
     void fetchAutomations(page);
   }, [fetchAutomations, page]);
@@ -182,8 +164,6 @@ export function useAutomations() {
     removeAutomation,
     toggleAutomation,
     fetchLogs,
-    fetchButtonReplies,
-    saveButtonReplies,
     refetch,
   };
 }
