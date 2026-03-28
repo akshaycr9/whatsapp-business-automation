@@ -72,11 +72,23 @@ export type AutomationWithTemplate = Automation & {
   template: TemplateShape;
 };
 
+interface TemplateButton {
+  type: string;
+  text: string;
+  url?: string;
+  phone_number?: string;
+}
+
 interface TemplateComponent {
   type: string;
   text?: string;
   format?: string;
-  buttons?: unknown[];
+  buttons?: TemplateButton[];
+}
+
+function extractButtons(components: TemplateComponent[]): TemplateButton[] {
+  const buttonsComp = components.find((c) => c.type === 'BUTTONS');
+  return buttonsComp?.buttons ?? [];
 }
 
 export function resolvePath(data: Record<string, unknown>, path: string): string {
@@ -343,6 +355,7 @@ export const executeAutomation = async (
       }
 
       // 4. Save the outbound template message to the conversation
+      const buttons = extractButtons(templateComponents);
       const message = await prisma.message.create({
         data: {
           conversationId,
@@ -351,7 +364,10 @@ export const executeAutomation = async (
           type: 'TEMPLATE',
           body: resolvedBody,
           status: 'SENT',
-          metadata: { templateName: automation.template.name },
+          metadata: {
+            templateName: automation.template.name,
+            ...(buttons.length > 0 && { buttons }),
+          } as unknown as import('@prisma/client').Prisma.InputJsonValue,
         },
       });
 

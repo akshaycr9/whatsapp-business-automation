@@ -84,9 +84,22 @@ export const sendTextReply = async (conversationId: string, text: string): Promi
   return message;
 };
 
+interface TemplateButton {
+  type: string;   // 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER'
+  text: string;
+  url?: string;
+  phone_number?: string;
+}
+
 interface TemplateComponent {
   type: string;
   text?: string;
+  buttons?: TemplateButton[];
+}
+
+function extractButtons(components: TemplateComponent[]): TemplateButton[] {
+  const buttonsComp = components.find((c) => c.type === 'BUTTONS');
+  return buttonsComp?.buttons ?? [];
 }
 
 export const sendTemplateReply = async (
@@ -137,6 +150,7 @@ export const sendTemplateReply = async (
     resolvedBody = text;
   }
 
+  const buttons = extractButtons(templateComponents);
   const now = new Date();
   const message = await prisma.message.create({
     data: {
@@ -146,7 +160,10 @@ export const sendTemplateReply = async (
       type: 'TEMPLATE',
       body: resolvedBody,
       status: 'SENT',
-      metadata: { templateName: template.name },
+      metadata: {
+        templateName: template.name,
+        ...(buttons.length > 0 && { buttons }),
+      } as unknown as import('@prisma/client').Prisma.InputJsonValue,
     },
   });
 
@@ -339,6 +356,13 @@ export const processInteractiveMessage = async (
 
   const { conversationId } = await findOrCreateForCustomer(customer.phone);
 
+  // Find the most recent outbound TEMPLATE message so we can show reply context in the UI
+  const lastTemplateMsg = await prisma.message.findFirst({
+    where: { conversationId, direction: 'OUTBOUND', type: 'TEMPLATE' },
+    orderBy: { createdAt: 'desc' },
+  });
+  const lastTemplateMeta = lastTemplateMsg?.metadata as Record<string, unknown> | null;
+
   const now = new Date();
 
   const message = await prisma.message.create({
@@ -352,6 +376,10 @@ export const processInteractiveMessage = async (
       metadata: {
         interactiveType: interactive?.type ?? 'button_reply',
         buttonId: interactive?.button_reply?.id ?? messagePayload.button?.payload,
+        ...(lastTemplateMsg && {
+          replyToBody: lastTemplateMsg.body,
+          replyToTemplateName: lastTemplateMeta?.templateName ?? null,
+        }),
       },
     },
   });

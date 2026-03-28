@@ -1,4 +1,4 @@
-import { Check, CheckCheck, AlertCircle, Clock, FileText, Image, Video, Music, File, MousePointerClick } from 'lucide-react';
+import { Check, CheckCheck, AlertCircle, Clock, FileText, Image, Video, Music, File, MousePointerClick, ExternalLink, Phone } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn, formatRelativeTime } from '@/lib/utils';
 import type { Message, MessageStatus } from '@/types';
@@ -106,11 +106,67 @@ function StatusTooltipContent({ message }: { message: Message }) {
   );
 }
 
+// ── Template buttons ────────────────────────────────────────────────────────
+
+interface StoredButton {
+  type: string;
+  text: string;
+  url?: string;
+  phone_number?: string;
+}
+
+function TemplateButtons({ buttons }: { buttons: StoredButton[] }) {
+  return (
+    <div className="flex flex-col gap-1 mt-2 pt-2 border-t border-primary-foreground/20">
+      {buttons.map((btn, i) => {
+        const isUrl = btn.type === 'URL';
+        const isPhone = btn.type === 'PHONE_NUMBER';
+        return (
+          <div
+            key={i}
+            className="flex items-center justify-center gap-1.5 text-xs font-medium text-primary-foreground/90 py-0.5"
+          >
+            {isUrl && <ExternalLink className="h-3 w-3 flex-shrink-0" />}
+            {isPhone && <Phone className="h-3 w-3 flex-shrink-0" />}
+            {!isUrl && !isPhone && <MousePointerClick className="h-3 w-3 flex-shrink-0 opacity-70" />}
+            <span>{btn.text}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Reply context (shown on inbound button-reply bubbles) ───────────────────
+
+function ReplyContext({ body, templateName }: { body: string; templateName?: string }) {
+  return (
+    <div className="flex items-stretch gap-1.5 mb-1.5 rounded-lg bg-black/10 dark:bg-white/10 px-2 py-1.5 overflow-hidden">
+      <div className="w-0.5 rounded-full bg-muted-foreground/50 flex-shrink-0" />
+      <div className="flex flex-col gap-0.5 min-w-0">
+        {templateName && (
+          <span className="text-[10px] font-semibold text-muted-foreground truncate">
+            {templateName}
+          </span>
+        )}
+        <p className="text-xs text-muted-foreground line-clamp-2 break-words">{body}</p>
+      </div>
+    </div>
+  );
+}
+
+// ── Main bubble ─────────────────────────────────────────────────────────────
+
 export function MessageBubble({ message }: Props) {
   const isOutbound = message.direction === 'OUTBOUND';
   const isTemplate = message.type === 'TEMPLATE';
   const isInteractive = message.type === 'INTERACTIVE';
   const isMedia = ['IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT'].includes(message.type);
+
+  const meta = message.metadata as Record<string, unknown> | null;
+  const templateButtons = (meta?.buttons ?? []) as StoredButton[];
+  const replyToBody = meta?.replyToBody as string | undefined;
+  const replyToTemplateName = meta?.replyToTemplateName as string | undefined;
 
   const bubble = (
     <div
@@ -144,6 +200,11 @@ export function MessageBubble({ message }: Props) {
           isTemplate && isOutbound && 'rounded-tr-sm',
         )}
       >
+        {/* Reply-to context for inbound button replies */}
+        {isInteractive && !isOutbound && replyToBody && (
+          <ReplyContext body={replyToBody} templateName={replyToTemplateName} />
+        )}
+
         {/* Message body */}
         {isMedia ? (
           <MediaPlaceholder message={message} />
@@ -151,6 +212,11 @@ export function MessageBubble({ message }: Props) {
           <p className="whitespace-pre-wrap break-words">
             {message.body ?? ''}
           </p>
+        )}
+
+        {/* Template buttons */}
+        {isTemplate && templateButtons.length > 0 && (
+          <TemplateButtons buttons={templateButtons} />
         )}
 
         {/* Timestamp + status row */}
