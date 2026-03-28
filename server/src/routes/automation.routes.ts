@@ -44,6 +44,19 @@ const automationUpdateSchema = z.object({
   delayMinutes: z.number().int().min(0).optional(),
 });
 
+// Full schema (POST) — cross-field validation requires the refine on the base object
+const automationSchema = automationBaseObject.refine(
+  (d) =>
+    d.triggerType === 'SHOPIFY_EVENT' ? d.shopifyEvent !== undefined : d.buttonTriggerText !== undefined,
+  {
+    message:
+      'shopifyEvent is required for SHOPIFY_EVENT automations; buttonTriggerText is required for BUTTON_REPLY automations',
+  },
+);
+
+// Partial schema for PUT — .partial() must be called before .refine() (ZodEffects has no .partial())
+const automationUpdateSchema = automationBaseObject.partial();
+
 // GET /api/automations
 router.get('/', async (req, res, next) => {
   try {

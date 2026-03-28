@@ -40,20 +40,20 @@ model Conversation {
 }
 
 model Message {
-  id             String           @id @default(cuid())
-  conversationId String
-  conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  waMessageId    String?          @unique
-  direction      MessageDirection
-  type           MessageType      @default(TEXT)
-  body           String?
-  mediaId        String?
-  mediaMimeType  String?
-  caption        String?
-  status         MessageStatus    @default(SENT)
+  id              String           @id @default(cuid())
+  conversationId  String
+  conversation    Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  waMessageId     String?          @unique
+  direction       MessageDirection
+  type            MessageType      @default(TEXT)
+  body            String?
+  mediaId         String?
+  mediaMimeType   String?
+  caption         String?
+  status          MessageStatus    @default(SENT)
   statusUpdatedAt DateTime?
-  metadata       Json?
-  createdAt      DateTime         @default(now())
+  metadata        Json?
+  createdAt       DateTime         @default(now())
 
   @@index([conversationId, createdAt])
 }
@@ -105,6 +105,11 @@ enum TemplateStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+enum AutomationTrigger {
+  SHOPIFY_EVENT
+  BUTTON_REPLY
 }
 
 model Automation {

@@ -63,6 +63,8 @@ export interface Template {
 }
 
 // ── Automation ───────────────────────────────────────────────
+export type AutomationTrigger = 'SHOPIFY_EVENT' | 'BUTTON_REPLY';
+
 export type ShopifyEvent =
   | 'PREPAID_ORDER_CONFIRMED'
   | 'COD_ORDER_CONFIRMED'

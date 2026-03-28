@@ -12,6 +12,7 @@ import {
   ScrollText,
   RefreshCw,
   Loader2,
+  MousePointerClick,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -394,8 +395,14 @@ function AutomationFormDialog({
   const isEdit = initialData !== null && initialData !== undefined;
 
   const [name, setName] = useState(initialData?.name ?? '');
+  const [triggerType, setTriggerType] = useState<'SHOPIFY_EVENT' | 'BUTTON_REPLY'>(
+    initialData?.triggerType ?? 'SHOPIFY_EVENT',
+  );
   const [shopifyEvent, setShopifyEvent] = useState<ShopifyEvent>(
     initialData?.shopifyEvent ?? 'PREPAID_ORDER_CONFIRMED',
+  );
+  const [buttonTriggerText, setButtonTriggerText] = useState(
+    initialData?.buttonTriggerText ?? '',
   );
   const [templateId, setTemplateId] = useState(initialData?.templateId ?? '');
   const [delayMinutes, setDelayMinutes] = useState(String(initialData?.delayMinutes ?? 0));
@@ -408,7 +415,6 @@ function AutomationFormDialog({
 
   const selectedTemplate = approvedTemplates.find((t) => t.id === templateId) ?? null;
 
-  // Reset form when dialog opens
   const handleOpenChange = (o: boolean) => {
     if (!o) {
       onClose();
@@ -429,6 +435,10 @@ function AutomationFormDialog({
       setFormError('Name is required');
       return;
     }
+    if (triggerType === 'BUTTON_REPLY' && !buttonTriggerText.trim()) {
+      setFormError('Button trigger text is required');
+      return;
+    }
     if (!templateId) {
       setFormError('Please select a template');
       return;
@@ -443,7 +453,10 @@ function AutomationFormDialog({
     try {
       await onSubmit({
         name: name.trim(),
-        shopifyEvent,
+        triggerType,
+        ...(triggerType === 'SHOPIFY_EVENT'
+          ? { shopifyEvent }
+          : { buttonTriggerText: buttonTriggerText.trim() }),
         templateId,
         variableMapping,
         isActive,
@@ -465,7 +478,7 @@ function AutomationFormDialog({
           <DialogDescription>
             {isEdit
               ? 'Update the automation configuration.'
-              : 'Set up a WhatsApp message to send automatically on a Shopify event.'}
+              : 'Configure a WhatsApp message sent automatically on a trigger.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -480,30 +493,62 @@ function AutomationFormDialog({
             <Label htmlFor="automation-name">Name</Label>
             <Input
               id="automation-name"
-              placeholder="e.g. Prepaid Order Confirmation"
+              placeholder="e.g. COD Order Confirmation"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="shopify-event">Shopify Event</Label>
+            <Label htmlFor="trigger-type">Trigger Type</Label>
             <Select
-              value={shopifyEvent}
-              onValueChange={(v) => setShopifyEvent(v as ShopifyEvent)}
+              value={triggerType}
+              onValueChange={(v) => setTriggerType(v as 'SHOPIFY_EVENT' | 'BUTTON_REPLY')}
             >
-              <SelectTrigger id="shopify-event">
+              <SelectTrigger id="trigger-type">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {SHOPIFY_EVENTS.map((ev) => (
-                  <SelectItem key={ev} value={ev}>
-                    {EVENT_CONFIG[ev].label}
-                  </SelectItem>
-                ))}
+                <SelectItem value="SHOPIFY_EVENT">Shopify Event</SelectItem>
+                <SelectItem value="BUTTON_REPLY">WhatsApp Button Reply</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {triggerType === 'SHOPIFY_EVENT' ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="shopify-event">Shopify Event</Label>
+              <Select
+                value={shopifyEvent}
+                onValueChange={(v) => setShopifyEvent(v as ShopifyEvent)}
+              >
+                <SelectTrigger id="shopify-event">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SHOPIFY_EVENTS.map((ev) => (
+                    <SelectItem key={ev} value={ev}>
+                      {EVENT_CONFIG[ev].label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <Label htmlFor="button-trigger-text">Button Text (exact match)</Label>
+              <Input
+                id="button-trigger-text"
+                placeholder="e.g. Confirm My Order"
+                value={buttonTriggerText}
+                onChange={(e) => setButtonTriggerText(e.target.value)}
+                maxLength={20}
+              />
+              <p className="text-xs text-muted-foreground">
+                Must match the quick reply button label exactly (max 20 characters).
+              </p>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="template-select">Template</Label>
@@ -552,7 +597,7 @@ function AutomationFormDialog({
             template={selectedTemplate}
             mapping={variableMapping}
             onChange={setVariableMapping}
-            shopifyEvent={shopifyEvent}
+            shopifyEvent={triggerType === 'SHOPIFY_EVENT' ? shopifyEvent : 'PREPAID_ORDER_CONFIRMED'}
           />
 
           <DialogFooter>
@@ -811,16 +856,15 @@ export default function AutomationsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Automation | null>(null);
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
 
-  const handleCreate = async (input: CreateAutomationInput) => {
+  const handleCreate = async (input: CreateAutomationInput): Promise<void> => {
     await createAutomation(input);
     toast({ title: 'Automation created', description: input.name });
   };
 
-  const handleUpdate = async (input: CreateAutomationInput) => {
-    if (!editTarget) return;
+  const handleUpdate = async (input: CreateAutomationInput): Promise<void> => {
+    if (!editTarget) throw new Error('No automation selected');
     await updateAutomation(editTarget.id, input);
     toast({ title: 'Automation updated', description: input.name });
-    setEditTarget(null);
   };
 
   const handleDelete = async (id: string) => {
@@ -940,6 +984,11 @@ export default function AutomationsPage() {
                       >
                         {cfg.label}
                       </Badge>
+                      {automation.triggerType === 'BUTTON_REPLY' && automation.buttonTriggerText && (
+                        <p className="text-xs text-muted-foreground mt-0.5 font-mono">
+                          &ldquo;{automation.buttonTriggerText}&rdquo;
+                        </p>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {automation.template.name}

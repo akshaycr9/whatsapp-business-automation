@@ -1,4 +1,4 @@
-import { Check, CheckCheck, AlertCircle, Clock, FileText, Image, Video, Music, File } from 'lucide-react';
+import { Check, CheckCheck, AlertCircle, Clock, FileText, Image, Video, Music, File, MousePointerClick } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn, formatRelativeTime } from '@/lib/utils';
 import type { Message, MessageStatus } from '@/types';

@@ -55,19 +55,21 @@ interface ListMeta {
   totalPages: number;
 }
 
-type AutomationWithTemplate = Automation & {
-  template: {
-    id: string;
-    name: string;
-    language: string;
-    category: string;
-    status: string;
-    components: unknown;
-    rejectedReason: string | null;
-    metaTemplateId: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-  };
+interface TemplateShape {
+  id: string;
+  name: string;
+  language: string;
+  category: string;
+  status: string;
+  components: unknown;
+  rejectedReason: string | null;
+  metaTemplateId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type AutomationWithTemplate = Automation & {
+  template: TemplateShape;
 };
 
 interface TemplateComponent {
@@ -77,7 +79,7 @@ interface TemplateComponent {
   buttons?: unknown[];
 }
 
-function resolvePath(data: Record<string, unknown>, path: string): string {
+export function resolvePath(data: Record<string, unknown>, path: string): string {
   const parts = path.split('.');
   let current: unknown = data;
 
@@ -141,7 +143,7 @@ export const create = async (input: CreateAutomationInput): Promise<Automation> 
     },
   });
 
-  logger.info(`Automation created: ${automation.id}`);
+  logger.info(`Automation created: ${automation.id} (${automation.triggerType})`);
   return automation;
 };
 
@@ -156,6 +158,9 @@ export const update = async (
     const template = await prisma.template.findUnique({ where: { id: input.templateId } });
     if (!template) throw notFound('Template');
   }
+
+  // Determine effective triggerType for field nulling logic
+  const effectiveTriggerType = input.triggerType ?? existing.triggerType;
 
   const automation = await prisma.automation.update({
     where: { id },
@@ -267,7 +272,6 @@ export const executeAutomation = async (
     }));
 
     // Find the BODY component in the template
-    // Prisma returns Json as unknown — cast via unknown first for type safety
     const templateComponents = automation.template.components as unknown as TemplateComponent[];
     const hasBody = templateComponents.some((c) => c.type === 'BODY');
 
@@ -433,7 +437,7 @@ export const triggerForEvent = async (
   customerPhone: string,
 ): Promise<void> => {
   const automations = await prisma.automation.findMany({
-    where: { shopifyEvent: event, isActive: true },
+    where: { triggerType: 'SHOPIFY_EVENT', shopifyEvent: event, isActive: true },
   });
 
   if (automations.length === 0) {
@@ -458,3 +462,6 @@ export const triggerForEvent = async (
     }
   }
 };
+
+// Unused import kept for type safety — AutomationTrigger is used by Prisma generated types
+export type { AutomationTrigger };
