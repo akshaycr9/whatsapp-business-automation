@@ -4,7 +4,7 @@ import { notFound, badRequest } from '../lib/app-error.js';
 import { logger } from '../lib/logger.js';
 import * as whatsappService from './whatsapp.service.js';
 import { findOrCreateForCustomer } from './conversation.service.js';
-import { processButtonReply } from './button-reply.service.js';
+import { triggerForButtonReply } from './automation.service.js';
 import {
   emitNewMessage,
   emitConversationUpdated,
@@ -21,12 +21,8 @@ export interface MetaMessagePayload {
   video?: { id: string; mime_type: string; caption?: string };
   audio?: { id: string; mime_type: string };
   document?: { id: string; mime_type: string; filename?: string; caption?: string };
-  button?: { payload: string; text: string }; // template quick-reply tap (type: "button")
-  interactive?: {                              // interactive message button tap (type: "interactive")
-    type: 'button_reply' | 'list_reply';
-    button_reply?: { id: string; title: string };
-    list_reply?: { id: string; title: string };
-  };
+  button?: { text: string; payload?: string };
+  interactive?: { type: string; button_reply?: { id: string; title: string }; list_reply?: { id: string; title: string } };
 }
 
 const STATUS_RANK: Record<MessageStatus, number> = {
@@ -47,7 +43,10 @@ function resolveMessageType(payloadType: string): MessageType {
       return 'AUDIO';
     case 'document':
       return 'DOCUMENT';
+    case 'interactive':
+      return 'INTERACTIVE';
     default:
+      // 'text', 'button' (quick-reply taps), and anything unknown → TEXT
       return 'TEXT';
   }
 }
@@ -233,6 +232,16 @@ export const processInboundMessage = async (
     case 'text':
       body = messagePayload.text?.body;
       break;
+    case 'button':
+      // Quick-reply button tap (legacy template button)
+      body = messagePayload.button?.text;
+      break;
+    case 'interactive':
+      // Interactive button/list reply
+      body =
+        messagePayload.interactive?.button_reply?.title ??
+        messagePayload.interactive?.list_reply?.title;
+      break;
     case 'image':
       mediaId = messagePayload.image?.id;
       mediaMimeType = messagePayload.image?.mime_type;
@@ -286,6 +295,17 @@ export const processInboundMessage = async (
   // global notification hook) have the name available when new_message fires.
   emitConversationUpdated(updatedConversation);
   emitNewMessage(conversationId, message);
+
+  // Fire button-reply automations if this is a button/interactive reply.
+  // Runs async after the response is already emitted — failures are logged only.
+  if (
+    (messagePayload.type === 'button' || messagePayload.type === 'interactive') &&
+    body
+  ) {
+    triggerForButtonReply(messagePayload.from, body).catch((err: unknown) => {
+      logger.error('triggerForButtonReply failed:', err);
+    });
+  }
 };
 
 export const processInteractiveMessage = async (

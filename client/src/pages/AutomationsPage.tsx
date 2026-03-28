@@ -5,6 +5,7 @@ import {
   Banknote,
   Package,
   ShoppingCart,
+  MessageSquare,
   MoreVertical,
   Pencil,
   Trash2,
@@ -99,9 +100,16 @@ const SHOPIFY_EVENTS = Object.keys(EVENT_CONFIG) as ShopifyEventKey[];
 
 const BUTTON_REPLY_CONFIG: EventConfig = {
   label: 'Button Reply',
-  icon: <MousePointerClick className="h-4 w-4" />,
-  badgeClass: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+  icon: <MessageSquare className="h-4 w-4" />,
+  badgeClass: 'bg-slate-100 text-slate-800 dark:bg-slate-800/40 dark:text-slate-300',
 };
+
+function getEventConfig(automation: Automation): EventConfig {
+  if (automation.triggerType === 'BUTTON_REPLY' || !automation.shopifyEvent) {
+    return BUTTON_REPLY_CONFIG;
+  }
+  return EVENT_CONFIG[automation.shopifyEvent] ?? BUTTON_REPLY_CONFIG;
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -963,10 +971,7 @@ export default function AutomationsPage() {
             </TableHeader>
             <TableBody>
               {automations.map((automation) => {
-                const cfg =
-                  automation.triggerType === 'SHOPIFY_EVENT' && automation.shopifyEvent
-                    ? EVENT_CONFIG[automation.shopifyEvent]
-                    : BUTTON_REPLY_CONFIG;
+                const cfg = getEventConfig(automation);
                 return (
                   <TableRow key={automation.id}>
                     <TableCell className="font-medium text-sm">{automation.name}</TableCell>

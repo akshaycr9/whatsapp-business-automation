@@ -4,22 +4,44 @@ import * as automationService from '../services/automation.service.js';
 
 const router = Router();
 
-const shopifyEventEnum = z.enum([
-  'PREPAID_ORDER_CONFIRMED',
-  'COD_ORDER_CONFIRMED',
-  'ORDER_FULFILLED',
-  'ABANDONED_CART',
+const automationSchema = z.discriminatedUnion('triggerType', [
+  z.object({
+    triggerType: z.literal('SHOPIFY_EVENT'),
+    name: z.string().min(1),
+    shopifyEvent: z.enum([
+      'PREPAID_ORDER_CONFIRMED',
+      'COD_ORDER_CONFIRMED',
+      'ORDER_FULFILLED',
+      'ABANDONED_CART',
+    ]),
+    templateId: z.string().cuid(),
+    variableMapping: z.record(z.string()),
+    isActive: z.boolean().default(true),
+    delayMinutes: z.number().int().min(0).default(0),
+  }),
+  z.object({
+    triggerType: z.literal('BUTTON_REPLY'),
+    name: z.string().min(1),
+    buttonTriggerText: z.string().min(1),
+    templateId: z.string().cuid(),
+    variableMapping: z.record(z.string()),
+    isActive: z.boolean().default(true),
+    delayMinutes: z.number().int().min(0).default(0),
+  }),
 ]);
 
-const automationBaseObject = z.object({
-  name: z.string().min(1),
-  triggerType: z.enum(['SHOPIFY_EVENT', 'BUTTON_REPLY']).default('SHOPIFY_EVENT'),
-  shopifyEvent: shopifyEventEnum.optional(),
-  buttonTriggerText: z.string().min(1).max(20).optional(),
-  templateId: z.string().cuid(),
-  variableMapping: z.record(z.string()),
-  isActive: z.boolean().default(true),
-  delayMinutes: z.number().int().min(0).default(0),
+// Partial update schema — all fields optional, triggerType not required
+const automationUpdateSchema = z.object({
+  triggerType: z.enum(['SHOPIFY_EVENT', 'BUTTON_REPLY']).optional(),
+  name: z.string().min(1).optional(),
+  shopifyEvent: z
+    .enum(['PREPAID_ORDER_CONFIRMED', 'COD_ORDER_CONFIRMED', 'ORDER_FULFILLED', 'ABANDONED_CART'])
+    .optional(),
+  buttonTriggerText: z.string().min(1).optional(),
+  templateId: z.string().cuid().optional(),
+  variableMapping: z.record(z.string()).optional(),
+  isActive: z.boolean().optional(),
+  delayMinutes: z.number().int().min(0).optional(),
 });
 
 // Full schema (POST) — cross-field validation requires the refine on the base object

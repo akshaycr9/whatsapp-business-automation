@@ -126,11 +126,10 @@ export function MessageBubble({ message }: Props) {
         </span>
       )}
 
-      {/* Interactive / button reply label */}
+      {/* Interactive / button-reply label */}
       {isInteractive && (
-        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 flex items-center gap-1">
-          <MousePointerClick className="h-2.5 w-2.5" />
-          Button tap
+        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800/50 dark:text-slate-400">
+          Button reply
         </span>
       )}
 

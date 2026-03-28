@@ -128,6 +128,11 @@ model Automation {
   logs              AutomationLog[]
 }
 
+enum AutomationTrigger {
+  SHOPIFY_EVENT
+  BUTTON_REPLY
+}
+
 enum ShopifyEvent {
   PREPAID_ORDER_CONFIRMED
   COD_ORDER_CONFIRMED
