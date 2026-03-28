@@ -155,6 +155,15 @@ export const create = async (input: CreateAutomationInput): Promise<Automation> 
     },
   });
 
+  await prisma.activityLog.create({
+    data: {
+      type: 'AUTOMATION_CREATED',
+      entityId: automation.id,
+      entityName: automation.name,
+      description: `Automation '${automation.name}' created`,
+    },
+  });
+
   logger.info(`Automation created: ${automation.id} (${automation.triggerType})`);
   return automation;
 };
@@ -185,6 +194,15 @@ export const update = async (
     },
   });
 
+  await prisma.activityLog.create({
+    data: {
+      type: 'AUTOMATION_UPDATED',
+      entityId: automation.id,
+      entityName: automation.name,
+      description: `Automation '${automation.name}' updated`,
+    },
+  });
+
   logger.info(`Automation updated: ${id}`);
   return automation;
 };
@@ -198,6 +216,15 @@ export const toggle = async (id: string): Promise<Automation> => {
     data: { isActive: !existing.isActive },
   });
 
+  await prisma.activityLog.create({
+    data: {
+      type: automation.isActive ? 'AUTOMATION_ENABLED' : 'AUTOMATION_DISABLED',
+      entityId: automation.id,
+      entityName: automation.name,
+      description: `Automation '${automation.name}' ${automation.isActive ? 'enabled' : 'disabled'}`,
+    },
+  });
+
   logger.info(`Automation toggled: ${id} — isActive: ${automation.isActive}`);
   return automation;
 };
@@ -207,6 +234,16 @@ export const remove = async (id: string): Promise<void> => {
   if (!existing) throw notFound('Automation');
 
   await prisma.automation.delete({ where: { id } });
+
+  await prisma.activityLog.create({
+    data: {
+      type: 'AUTOMATION_DELETED',
+      entityId: id,
+      entityName: existing.name,
+      description: `Automation '${existing.name}' deleted`,
+    },
+  });
+
   logger.info(`Automation deleted: ${id}`);
 };
 

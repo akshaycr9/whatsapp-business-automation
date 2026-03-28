@@ -128,11 +128,6 @@ model Automation {
   logs              AutomationLog[]
 }
 
-enum AutomationTrigger {
-  SHOPIFY_EVENT
-  BUTTON_REPLY
-}
-
 enum ShopifyEvent {
   PREPAID_ORDER_CONFIRMED
   COD_ORDER_CONFIRMED
@@ -159,6 +154,30 @@ enum AutomationLogStatus {
   PENDING
   SENT
   FAILED
+}
+
+model ActivityLog {
+  id          String          @id @default(cuid())
+  type        ActivityLogType
+  entityId    String
+  entityName  String
+  description String
+  createdAt   DateTime        @default(now())
+
+  @@index([createdAt])
+}
+
+enum ActivityLogType {
+  TEMPLATE_CREATED
+  TEMPLATE_UPDATED
+  TEMPLATE_APPROVED
+  TEMPLATE_REJECTED
+  TEMPLATE_DELETED
+  AUTOMATION_CREATED
+  AUTOMATION_UPDATED
+  AUTOMATION_ENABLED
+  AUTOMATION_DISABLED
+  AUTOMATION_DELETED
 }
 
 model CheckoutTracker {
