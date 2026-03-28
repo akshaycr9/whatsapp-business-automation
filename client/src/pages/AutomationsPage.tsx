@@ -127,6 +127,36 @@ function detectVariables(text: string): string[] {
   return positions.sort((a, b) => Number(a) - Number(b));
 }
 
+interface UrlButtonVar {
+  /** mapping key, e.g. "btn_0_1" */
+  key: string;
+  /** 0-based index of the button in the BUTTONS list */
+  buttonIndex: number;
+  /** variable position within the URL, e.g. "1" */
+  varPos: string;
+  /** display label from button text, e.g. "Track Order" */
+  buttonLabel: string;
+}
+
+function extractUrlButtonVars(components: unknown): UrlButtonVar[] {
+  if (!Array.isArray(components)) return [];
+  const buttonsComp = (
+    components as Array<{ type: string; buttons?: Array<{ type: string; text: string; url?: string }> }>
+  ).find((c) => c.type === 'BUTTONS');
+  if (!buttonsComp?.buttons) return [];
+
+  const result: UrlButtonVar[] = [];
+  buttonsComp.buttons.forEach((btn, buttonIndex) => {
+    if (btn.type !== 'URL' || !btn.url) return;
+    const matches = btn.url.match(/\{\{(\d+)\}\}/g) ?? [];
+    const positions = [...new Set(matches.map((m) => m.replace(/\{\{|\}\}/g, '')))];
+    positions.sort((a, b) => Number(a) - Number(b)).forEach((varPos) => {
+      result.push({ key: `btn_${buttonIndex}_${varPos}`, buttonIndex, varPos, buttonLabel: btn.text });
+    });
+  });
+  return result;
+}
+
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString('en-IN', {
     day: 'numeric',
@@ -280,97 +310,113 @@ interface VariableMappingProps {
 }
 
 function VariableMappingSection({ template, mapping, onChange, shopifyEvent }: VariableMappingProps) {
-  const [customPositions, setCustomPositions] = useState<Set<string>>(new Set());
+  const [customKeys, setCustomKeys] = useState<Set<string>>(new Set());
 
   if (!template) return null;
 
   const bodyText = extractBodyText(template.components);
-  const variables = detectVariables(bodyText);
+  const bodyVars = detectVariables(bodyText);
+  const urlButtonVars = extractUrlButtonVars(template.components);
 
-  if (variables.length === 0) return null;
+  if (bodyVars.length === 0 && urlButtonVars.length === 0) return null;
 
   const pathOptions = getPathOptions(shopifyEvent);
   const grouped = groupByCategory(pathOptions);
   const knownValues = new Set(pathOptions.map((o) => o.value));
 
-  const handleSelectChange = (pos: string, selected: string) => {
+  const handleSelectChange = (key: string, selected: string) => {
     if (selected === CUSTOM_SENTINEL) {
-      setCustomPositions((prev) => new Set(prev).add(pos));
-      onChange({ ...mapping, [pos]: '' });
+      setCustomKeys((prev) => new Set(prev).add(key));
+      onChange({ ...mapping, [key]: '' });
     } else {
-      setCustomPositions((prev) => {
-        const next = new Set(prev);
-        next.delete(pos);
-        return next;
-      });
-      onChange({ ...mapping, [pos]: selected });
+      setCustomKeys((prev) => { const next = new Set(prev); next.delete(key); return next; });
+      onChange({ ...mapping, [key]: selected });
     }
   };
 
-  const isCustom = (pos: string): boolean =>
-    customPositions.has(pos) || (!!mapping[pos] && !knownValues.has(mapping[pos]));
+  const isCustom = (key: string): boolean =>
+    customKeys.has(key) || (!!mapping[key] && !knownValues.has(mapping[key]));
 
-  const selectValue = (pos: string): string =>
-    isCustom(pos) ? CUSTOM_SENTINEL : (mapping[pos] ?? '');
+  const selectValue = (key: string): string =>
+    isCustom(key) ? CUSTOM_SENTINEL : (mapping[key] ?? '');
+
+  const renderRow = (key: string, label: React.ReactNode) => (
+    <div key={key} className="space-y-1.5">
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-mono text-muted-foreground w-10 shrink-0">{label}</span>
+        <Select value={selectValue(key)} onValueChange={(val) => handleSelectChange(key, val)}>
+          <SelectTrigger className="text-sm">
+            <SelectValue placeholder="Select a Shopify field…" />
+          </SelectTrigger>
+          <SelectContent>
+            {Array.from(grouped.entries()).map(([category, options]) => (
+              <SelectGroup key={category}>
+                <SelectLabel>{category}</SelectLabel>
+                {options.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    <span>{opt.label}</span>
+                    <span className="ml-2 font-mono text-xs text-muted-foreground">{opt.value}</span>
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            ))}
+            <SelectGroup>
+              <SelectLabel>Advanced</SelectLabel>
+              <SelectItem value={CUSTOM_SENTINEL}>Custom path…</SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </div>
+      {isCustom(key) && (
+        <div className="ml-12">
+          <Input
+            placeholder="e.g. line_items.0.sku"
+            value={mapping[key] ?? ''}
+            onChange={(e) => onChange({ ...mapping, [key]: e.target.value })}
+            className="text-sm font-mono"
+          />
+        </div>
+      )}
+    </div>
+  );
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div>
         <p className="text-sm font-medium text-foreground">Variable Mapping</p>
-        {bodyText && (
-          <p className="text-xs text-muted-foreground mt-1 font-mono bg-muted rounded px-2 py-1.5 leading-relaxed">
-            {bodyText}
-          </p>
-        )}
+        <p className="text-xs text-muted-foreground mt-1">
+          Select the Shopify field to use for each template variable.
+        </p>
       </div>
-      <p className="text-xs text-muted-foreground">
-        Select the Shopify field to use for each template variable.
-      </p>
-      <div className="space-y-3">
-        {variables.map((pos) => (
-          <div key={pos} className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-mono text-muted-foreground w-10 shrink-0">
-                {`{{${pos}}}`}
-              </span>
-              <Select value={selectValue(pos)} onValueChange={(val) => handleSelectChange(pos, val)}>
-                <SelectTrigger className="text-sm">
-                  <SelectValue placeholder="Select a Shopify field…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from(grouped.entries()).map(([category, options]) => (
-                    <SelectGroup key={category}>
-                      <SelectLabel>{category}</SelectLabel>
-                      {options.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          <span>{opt.label}</span>
-                          <span className="ml-2 font-mono text-xs text-muted-foreground">
-                            {opt.value}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  ))}
-                  <SelectGroup>
-                    <SelectLabel>Advanced</SelectLabel>
-                    <SelectItem value={CUSTOM_SENTINEL}>Custom path…</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-            {isCustom(pos) && (
-              <div className="ml-12">
-                <Input
-                  placeholder="e.g. line_items.0.sku"
-                  value={mapping[pos] ?? ''}
-                  onChange={(e) => onChange({ ...mapping, [pos]: e.target.value })}
-                  className="text-sm font-mono"
-                />
-              </div>
-            )}
+
+      {bodyVars.length > 0 && (
+        <div className="space-y-3">
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Message Body</p>
+            <p className="text-xs text-muted-foreground mt-1 font-mono bg-muted rounded px-2 py-1.5 leading-relaxed">
+              {bodyText}
+            </p>
           </div>
-        ))}
-      </div>
+          {bodyVars.map((pos) => renderRow(pos, `{{${pos}}}`))}
+        </div>
+      )}
+
+      {urlButtonVars.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">URL Button Variables</p>
+          {urlButtonVars.map((v) =>
+            renderRow(
+              v.key,
+              <span title={`Button: ${v.buttonLabel}`}>
+                {`{{${v.varPos}}}`}
+                <span className="block text-[10px] leading-tight truncate max-w-[2.5rem]" title={v.buttonLabel}>
+                  {v.buttonLabel}
+                </span>
+              </span>,
+            )
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -264,32 +264,55 @@ export const executeAutomation = async (
   try {
     const variableMapping = automation.variableMapping as VariableMapping;
 
-    // Resolve template variables from shopifyData
+    // Resolve template variables from shopifyData.
+    // Keys "1","2",... → body variables; keys "btn_{index}_{pos}" → URL button variables.
     const resolvedVars: Record<string, string> = {};
-    for (const [position, path] of Object.entries(variableMapping)) {
-      resolvedVars[position] = resolvePath(shopifyData, path);
+    for (const [key, path] of Object.entries(variableMapping)) {
+      resolvedVars[key] = resolvePath(shopifyData, path);
     }
 
-    // Get sorted positions (1, 2, 3, ...)
-    const sortedPositions = Object.keys(resolvedVars).sort(
-      (a, b) => Number(a) - Number(b),
-    );
-
-    const bodyParameters = sortedPositions.map((pos) => ({
-      type: 'text' as const,
-      text: resolvedVars[pos] ?? '',
-    }));
-
-    // Find the BODY component in the template
     const templateComponents = automation.template.components as unknown as TemplateComponent[];
     const hasBody = templateComponents.some((c) => c.type === 'BODY');
 
     const components: whatsappService.TemplateComponent[] = [];
 
-    if (hasBody && bodyParameters.length > 0) {
+    // Body component — only numeric keys like "1", "2", ...
+    const bodyPositions = Object.keys(resolvedVars)
+      .filter((k) => /^\d+$/.test(k))
+      .sort((a, b) => Number(a) - Number(b));
+
+    if (hasBody && bodyPositions.length > 0) {
       components.push({
         type: 'body',
-        parameters: bodyParameters,
+        parameters: bodyPositions.map((pos) => ({
+          type: 'text' as const,
+          text: resolvedVars[pos] ?? '',
+        })),
+      });
+    }
+
+    // Button components — keys "btn_{buttonIndex}_{varPos}", e.g. "btn_0_1"
+    const btnKeysByIndex = new Map<number, string[]>();
+    for (const key of Object.keys(resolvedVars)) {
+      const match = /^btn_(\d+)_(\d+)$/.exec(key);
+      if (match) {
+        const btnIdx = Number(match[1]);
+        const existing = btnKeysByIndex.get(btnIdx) ?? [];
+        existing.push(key);
+        btnKeysByIndex.set(btnIdx, existing);
+      }
+    }
+    for (const [btnIdx, keys] of btnKeysByIndex.entries()) {
+      const sorted = keys.sort((a, b) => {
+        const posA = Number(/^btn_\d+_(\d+)$/.exec(a)?.[1]);
+        const posB = Number(/^btn_\d+_(\d+)$/.exec(b)?.[1]);
+        return posA - posB;
+      });
+      components.push({
+        type: 'button',
+        sub_type: 'url',
+        index: btnIdx,
+        parameters: sorted.map((k) => ({ type: 'text' as const, text: resolvedVars[k] ?? '' })),
       });
     }
 

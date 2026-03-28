@@ -118,18 +118,43 @@ export const sendTemplateReply = async (
   if (template.status !== 'APPROVED') throw badRequest('Template is not approved');
 
   const templateComponents = template.components as unknown as TemplateComponent[];
-
-  // Build body parameters in position order
-  const sortedPositions = Object.keys(variables).sort((a, b) => Number(a) - Number(b));
-  const bodyParameters = sortedPositions.map((pos) => ({
-    type: 'text' as const,
-    text: variables[pos] ?? '',
-  }));
-
   const hasBody = templateComponents.some((c) => c.type === 'BODY');
   const components: whatsappService.TemplateComponent[] = [];
-  if (hasBody && bodyParameters.length > 0) {
-    components.push({ type: 'body', parameters: bodyParameters });
+
+  // Body component — numeric keys "1","2",...
+  const bodyPositions = Object.keys(variables)
+    .filter((k) => /^\d+$/.test(k))
+    .sort((a, b) => Number(a) - Number(b));
+  if (hasBody && bodyPositions.length > 0) {
+    components.push({
+      type: 'body',
+      parameters: bodyPositions.map((pos) => ({ type: 'text' as const, text: variables[pos] ?? '' })),
+    });
+  }
+
+  // Button components — keys "btn_{buttonIndex}_{varPos}", e.g. "btn_0_1"
+  const btnKeysByIndex = new Map<number, string[]>();
+  for (const key of Object.keys(variables)) {
+    const match = /^btn_(\d+)_(\d+)$/.exec(key);
+    if (match) {
+      const btnIdx = Number(match[1]);
+      const existing = btnKeysByIndex.get(btnIdx) ?? [];
+      existing.push(key);
+      btnKeysByIndex.set(btnIdx, existing);
+    }
+  }
+  for (const [btnIdx, keys] of btnKeysByIndex.entries()) {
+    const sorted = keys.sort((a, b) => {
+      const posA = Number(/^btn_\d+_(\d+)$/.exec(a)?.[1]);
+      const posB = Number(/^btn_\d+_(\d+)$/.exec(b)?.[1]);
+      return posA - posB;
+    });
+    components.push({
+      type: 'button',
+      sub_type: 'url',
+      index: btnIdx,
+      parameters: sorted.map((k) => ({ type: 'text' as const, text: variables[k] ?? '' })),
+    });
   }
 
   const result = await whatsappService.sendTemplateMessage(conversation.customer.phone, {

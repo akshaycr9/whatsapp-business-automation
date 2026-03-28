@@ -20,6 +20,7 @@ interface Props {
 interface TemplateComponent {
   type: string;
   text?: string;
+  buttons?: Array<{ type: string; text: string; url?: string }>;
 }
 
 function extractVariablePositions(components: unknown): number[] {
@@ -29,6 +30,29 @@ function extractVariablePositions(components: unknown): number[] {
   const matches = bodyComp.text.match(/\{\{(\d+)\}\}/g) ?? [];
   const positions = matches.map((m) => parseInt(m.replace(/\D/g, ''), 10));
   return [...new Set(positions)].sort((a, b) => a - b);
+}
+
+interface UrlButtonVar {
+  key: string;         // e.g. "btn_0_1"
+  varPos: number;      // e.g. 1
+  buttonLabel: string; // e.g. "Track Order"
+}
+
+function extractUrlButtonVars(components: unknown): UrlButtonVar[] {
+  const comps = (components as TemplateComponent[]) ?? [];
+  const buttonsComp = comps.find((c) => c.type === 'BUTTONS');
+  if (!buttonsComp?.buttons) return [];
+
+  const result: UrlButtonVar[] = [];
+  buttonsComp.buttons.forEach((btn, buttonIndex) => {
+    if (btn.type !== 'URL' || !btn.url) return;
+    const matches = btn.url.match(/\{\{(\d+)\}\}/g) ?? [];
+    const positions = [...new Set(matches.map((m) => parseInt(m.replace(/\D/g, ''), 10)))].sort((a, b) => a - b);
+    positions.forEach((varPos) => {
+      result.push({ key: `btn_${buttonIndex}_${varPos}`, varPos, buttonLabel: btn.text });
+    });
+  });
+  return result;
 }
 
 function getBodyText(components: unknown): string {
@@ -73,11 +97,13 @@ export function TemplateSendDialog({ conversationId, open, onOpenChange, onMessa
 
   const handleSelectTemplate = (template: Template) => {
     setSelectedTemplate(template);
-    // Pre-populate variables with empty strings
-    const positions = extractVariablePositions(template.components);
+    // Pre-populate all variable keys (body + URL button) with empty strings
     const initial: Record<string, string> = {};
-    for (const pos of positions) {
+    for (const pos of extractVariablePositions(template.components)) {
       initial[String(pos)] = '';
+    }
+    for (const v of extractUrlButtonVars(template.components)) {
+      initial[v.key] = '';
     }
     setVariables(initial);
   };
@@ -107,9 +133,14 @@ export function TemplateSendDialog({ conversationId, open, onOpenChange, onMessa
     ? extractVariablePositions(selectedTemplate.components)
     : [];
 
+  const urlButtonVars = selectedTemplate
+    ? extractUrlButtonVars(selectedTemplate.components)
+    : [];
+
   const canSend =
     selectedTemplate !== null &&
-    variablePositions.every((pos) => (variables[String(pos)] ?? '').trim() !== '');
+    variablePositions.every((pos) => (variables[String(pos)] ?? '').trim() !== '') &&
+    urlButtonVars.every((v) => (variables[v.key] ?? '').trim() !== '');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -172,29 +203,62 @@ export function TemplateSendDialog({ conversationId, open, onOpenChange, onMessa
               </p>
             )}
 
-            {variablePositions.length > 0 ? (
-              <div className="flex flex-col gap-3">
-                {variablePositions.map((pos) => (
-                  <div key={pos} className="flex flex-col gap-1.5">
-                    <Label htmlFor={`var-${pos}`} className="text-xs">
-                      Variable {pos} <span className="text-muted-foreground">{`{{${pos}}}`}</span>
-                    </Label>
-                    <Input
-                      id={`var-${pos}`}
-                      value={variables[String(pos)] ?? ''}
-                      onChange={(e) =>
-                        setVariables((prev) => ({ ...prev, [String(pos)]: e.target.value }))
-                      }
-                      placeholder={`Enter value for {{${pos}}}`}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                ))}
-              </div>
-            ) : (
+            {variablePositions.length === 0 && urlButtonVars.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 This template has no variables. Ready to send.
               </p>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {variablePositions.length > 0 && (
+                  <div className="flex flex-col gap-3">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Message Body
+                    </p>
+                    {variablePositions.map((pos) => (
+                      <div key={pos} className="flex flex-col gap-1.5">
+                        <Label htmlFor={`var-${pos}`} className="text-xs">
+                          Variable {pos}{' '}
+                          <span className="text-muted-foreground">{`{{${pos}}}`}</span>
+                        </Label>
+                        <Input
+                          id={`var-${pos}`}
+                          value={variables[String(pos)] ?? ''}
+                          onChange={(e) =>
+                            setVariables((prev) => ({ ...prev, [String(pos)]: e.target.value }))
+                          }
+                          placeholder={`Enter value for {{${pos}}}`}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {urlButtonVars.length > 0 && (
+                  <div className="flex flex-col gap-3">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      URL Button Variables
+                    </p>
+                    {urlButtonVars.map((v) => (
+                      <div key={v.key} className="flex flex-col gap-1.5">
+                        <Label htmlFor={`var-${v.key}`} className="text-xs">
+                          {v.buttonLabel}{' '}
+                          <span className="text-muted-foreground">{`{{${v.varPos}}}`}</span>
+                        </Label>
+                        <Input
+                          id={`var-${v.key}`}
+                          value={variables[v.key] ?? ''}
+                          onChange={(e) =>
+                            setVariables((prev) => ({ ...prev, [v.key]: e.target.value }))
+                          }
+                          placeholder={`Enter value for ${v.buttonLabel} URL`}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
 
             <Button onClick={() => void handleSend()} disabled={!canSend || sending} className="w-full">
