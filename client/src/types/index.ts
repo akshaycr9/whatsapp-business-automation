@@ -69,10 +69,14 @@ export type ShopifyEvent =
   | 'ORDER_FULFILLED'
   | 'ABANDONED_CART';
 
+export type AutomationTriggerType = 'SHOPIFY_EVENT' | 'BUTTON_REPLY';
+
 export interface Automation {
   id: string;
   name: string;
-  shopifyEvent: ShopifyEvent;
+  triggerType: AutomationTriggerType;
+  shopifyEvent: ShopifyEvent | null;
+  buttonTriggerText: string | null;
   templateId: string;
   template: Template;
   variableMapping: Record<string, string>;
