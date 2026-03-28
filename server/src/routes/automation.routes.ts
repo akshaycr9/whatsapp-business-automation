@@ -4,44 +4,17 @@ import * as automationService from '../services/automation.service.js';
 
 const router = Router();
 
-const automationSchema = z.discriminatedUnion('triggerType', [
-  z.object({
-    triggerType: z.literal('SHOPIFY_EVENT'),
-    name: z.string().min(1),
-    shopifyEvent: z.enum([
-      'PREPAID_ORDER_CONFIRMED',
-      'COD_ORDER_CONFIRMED',
-      'ORDER_FULFILLED',
-      'ABANDONED_CART',
-    ]),
-    templateId: z.string().cuid(),
-    variableMapping: z.record(z.string()),
-    isActive: z.boolean().default(true),
-    delayMinutes: z.number().int().min(0).default(0),
-  }),
-  z.object({
-    triggerType: z.literal('BUTTON_REPLY'),
-    name: z.string().min(1),
-    buttonTriggerText: z.string().min(1),
-    templateId: z.string().cuid(),
-    variableMapping: z.record(z.string()),
-    isActive: z.boolean().default(true),
-    delayMinutes: z.number().int().min(0).default(0),
-  }),
-]);
-
-// Partial update schema — all fields optional, triggerType not required
-const automationUpdateSchema = z.object({
-  triggerType: z.enum(['SHOPIFY_EVENT', 'BUTTON_REPLY']).optional(),
-  name: z.string().min(1).optional(),
+const automationBaseObject = z.object({
+  triggerType: z.enum(['SHOPIFY_EVENT', 'BUTTON_REPLY']),
+  name: z.string().min(1),
   shopifyEvent: z
     .enum(['PREPAID_ORDER_CONFIRMED', 'COD_ORDER_CONFIRMED', 'ORDER_FULFILLED', 'ABANDONED_CART'])
     .optional(),
   buttonTriggerText: z.string().min(1).optional(),
-  templateId: z.string().cuid().optional(),
-  variableMapping: z.record(z.string()).optional(),
-  isActive: z.boolean().optional(),
-  delayMinutes: z.number().int().min(0).optional(),
+  templateId: z.string().cuid(),
+  variableMapping: z.record(z.string()),
+  isActive: z.boolean().default(true),
+  delayMinutes: z.number().int().min(0).default(0),
 });
 
 // Full schema (POST) — cross-field validation requires the refine on the base object
@@ -83,7 +56,7 @@ router.get('/:id', async (req, res, next) => {
 // POST /api/automations
 router.post('/', async (req, res, next) => {
   try {
-    const body = automationSchema.parse(req.body);
+    const body = automationSchema.parse(req.body) as automationService.CreateAutomationInput;
     const result = await automationService.create(body);
     res.status(201).json({ data: result });
   } catch (err: unknown) {

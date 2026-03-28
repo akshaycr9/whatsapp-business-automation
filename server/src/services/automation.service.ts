@@ -159,9 +159,6 @@ export const update = async (
     if (!template) throw notFound('Template');
   }
 
-  // Determine effective triggerType for field nulling logic
-  const effectiveTriggerType = input.triggerType ?? existing.triggerType;
-
   const automation = await prisma.automation.update({
     where: { id },
     data: {

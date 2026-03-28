@@ -372,7 +372,7 @@ export const processInteractiveMessage = async (
 
   // Trigger follow-up automations — decoupled so failures never affect message storage
   if (buttonTitle) {
-    processButtonReply(messagePayload.from, buttonTitle).catch((err: unknown) => {
+    triggerForButtonReply(messagePayload.from, buttonTitle).catch((err: unknown) => {
       logger.error(`processInteractiveMessage: button reply processing failed for "${buttonTitle}":`, err);
     });
   }
