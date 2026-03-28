@@ -26,7 +26,7 @@ export interface Conversation {
 
 // ── Message ──────────────────────────────────────────────────
 export type MessageDirection = 'INBOUND' | 'OUTBOUND';
-export type MessageType = 'TEXT' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT' | 'TEMPLATE';
+export type MessageType = 'TEXT' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT' | 'TEMPLATE' | 'INTERACTIVE';
 export type MessageStatus = 'PENDING' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED';
 
 export interface Message {

@@ -109,6 +109,7 @@ function StatusTooltipContent({ message }: { message: Message }) {
 export function MessageBubble({ message }: Props) {
   const isOutbound = message.direction === 'OUTBOUND';
   const isTemplate = message.type === 'TEMPLATE';
+  const isInteractive = message.type === 'INTERACTIVE';
   const isMedia = ['IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT'].includes(message.type);
 
   const bubble = (
@@ -122,6 +123,13 @@ export function MessageBubble({ message }: Props) {
       {isTemplate && (
         <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
           {String(message.metadata?.templateName ?? 'Template')}
+        </span>
+      )}
+
+      {/* Interactive / button-reply label */}
+      {isInteractive && (
+        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800/50 dark:text-slate-400">
+          Button reply
         </span>
       )}
 

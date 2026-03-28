@@ -1,4 +1,4 @@
-import { type Automation, type AutomationLog, type ShopifyEvent } from '@prisma/client';
+import { type Automation, type AutomationLog, type ShopifyEvent, type AutomationTrigger } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { notFound } from '../lib/app-error.js';
 import { logger } from '../lib/logger.js';
@@ -10,14 +10,38 @@ export interface VariableMapping {
   [variablePosition: string]: string;
 }
 
-export interface CreateAutomationInput {
-  name: string;
-  shopifyEvent: 'PREPAID_ORDER_CONFIRMED' | 'COD_ORDER_CONFIRMED' | 'ORDER_FULFILLED' | 'ABANDONED_CART';
-  templateId: string;
-  variableMapping: VariableMapping;
-  isActive: boolean;
-  delayMinutes: number;
+export interface UpdateAutomationInput {
+  triggerType?: 'SHOPIFY_EVENT' | 'BUTTON_REPLY';
+  name?: string;
+  shopifyEvent?: 'PREPAID_ORDER_CONFIRMED' | 'COD_ORDER_CONFIRMED' | 'ORDER_FULFILLED' | 'ABANDONED_CART';
+  buttonTriggerText?: string;
+  templateId?: string;
+  variableMapping?: VariableMapping;
+  isActive?: boolean;
+  delayMinutes?: number;
 }
+
+export type CreateAutomationInput =
+  | {
+      triggerType: 'SHOPIFY_EVENT';
+      name: string;
+      shopifyEvent: 'PREPAID_ORDER_CONFIRMED' | 'COD_ORDER_CONFIRMED' | 'ORDER_FULFILLED' | 'ABANDONED_CART';
+      buttonTriggerText?: never;
+      templateId: string;
+      variableMapping: VariableMapping;
+      isActive: boolean;
+      delayMinutes: number;
+    }
+  | {
+      triggerType: 'BUTTON_REPLY';
+      name: string;
+      shopifyEvent?: never;
+      buttonTriggerText: string;
+      templateId: string;
+      variableMapping: VariableMapping;
+      isActive: boolean;
+      delayMinutes: number;
+    };
 
 interface ListParams {
   page?: number;
@@ -107,7 +131,9 @@ export const create = async (input: CreateAutomationInput): Promise<Automation> 
   const automation = await prisma.automation.create({
     data: {
       name: input.name,
-      shopifyEvent: input.shopifyEvent,
+      triggerType: input.triggerType as AutomationTrigger,
+      shopifyEvent: input.triggerType === 'SHOPIFY_EVENT' ? input.shopifyEvent : null,
+      buttonTriggerText: input.triggerType === 'BUTTON_REPLY' ? input.buttonTriggerText : null,
       templateId: input.templateId,
       variableMapping: input.variableMapping,
       isActive: input.isActive,
@@ -121,7 +147,7 @@ export const create = async (input: CreateAutomationInput): Promise<Automation> 
 
 export const update = async (
   id: string,
-  input: Partial<CreateAutomationInput>,
+  input: UpdateAutomationInput,
 ): Promise<Automation> => {
   const existing = await prisma.automation.findUnique({ where: { id } });
   if (!existing) throw notFound('Automation');
@@ -135,7 +161,9 @@ export const update = async (
     where: { id },
     data: {
       ...(input.name !== undefined && { name: input.name }),
+      ...(input.triggerType !== undefined && { triggerType: input.triggerType as AutomationTrigger }),
       ...(input.shopifyEvent !== undefined && { shopifyEvent: input.shopifyEvent }),
+      ...(input.buttonTriggerText !== undefined && { buttonTriggerText: input.buttonTriggerText }),
       ...(input.templateId !== undefined && { templateId: input.templateId }),
       ...(input.variableMapping !== undefined && { variableMapping: input.variableMapping }),
       ...(input.isActive !== undefined && { isActive: input.isActive }),
@@ -360,6 +388,42 @@ export const executeAutomation = async (
         errorMessage,
       },
     });
+  }
+};
+
+export const triggerForButtonReply = async (
+  customerPhone: string,
+  buttonText: string,
+): Promise<void> => {
+  // Case-insensitive exact match on buttonTriggerText
+  const automations = await prisma.automation.findMany({
+    where: {
+      triggerType: 'BUTTON_REPLY',
+      isActive: true,
+      buttonTriggerText: { equals: buttonText, mode: 'insensitive' },
+    },
+  });
+
+  if (automations.length === 0) {
+    logger.debug(`triggerForButtonReply: no active automations for button="${buttonText}"`);
+    return;
+  }
+
+  logger.info(
+    `triggerForButtonReply: ${automations.length} automation(s) for button="${buttonText}" → ${customerPhone}`,
+  );
+
+  const results = await Promise.allSettled(
+    automations.map((a) => executeAutomation(a.id, {}, customerPhone)),
+  );
+
+  for (const [i, result] of results.entries()) {
+    if (result.status === 'rejected') {
+      logger.error(
+        `triggerForButtonReply: automation ${automations[i]?.id} failed:`,
+        result.reason,
+      );
+    }
   }
 };
 

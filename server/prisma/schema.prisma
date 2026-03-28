@@ -27,15 +27,16 @@ enum CustomerSource {
 }
 
 model Conversation {
-  id              String    @id @default(cuid())
-  customerId      String    @unique
-  customer        Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  lastMessageAt   DateTime?
-  lastMessageText String?
-  unreadCount     Int       @default(0)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  messages        Message[]
+  id                   String    @id @default(cuid())
+  customerId           String    @unique
+  customer             Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  lastMessageAt        DateTime?
+  lastMessageText      String?
+  lastInboundMessageAt DateTime?
+  unreadCount          Int       @default(0)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  messages             Message[]
 }
 
 model Message {
@@ -69,6 +70,7 @@ enum MessageType {
   AUDIO
   DOCUMENT
   TEMPLATE
+  INTERACTIVE
 }
 
 enum MessageStatus {
@@ -106,17 +108,24 @@ enum TemplateStatus {
 }
 
 model Automation {
-  id              String        @id @default(cuid())
-  name            String
-  shopifyEvent    ShopifyEvent
-  templateId      String
-  template        Template      @relation(fields: [templateId], references: [id])
-  variableMapping Json
-  isActive        Boolean       @default(true)
-  delayMinutes    Int           @default(0)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  logs            AutomationLog[]
+  id                String            @id @default(cuid())
+  name              String
+  triggerType       AutomationTrigger @default(SHOPIFY_EVENT)
+  shopifyEvent      ShopifyEvent?
+  buttonTriggerText String?
+  templateId        String
+  template          Template          @relation(fields: [templateId], references: [id])
+  variableMapping   Json
+  isActive          Boolean           @default(true)
+  delayMinutes      Int               @default(0)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  logs              AutomationLog[]
+}
+
+enum AutomationTrigger {
+  SHOPIFY_EVENT
+  BUTTON_REPLY
 }
 
 enum ShopifyEvent {
@@ -138,6 +147,7 @@ model AutomationLog {
   createdAt     DateTime            @default(now())
 
   @@index([automationId, createdAt])
+  @@index([customerPhone, createdAt])
 }
 
 enum AutomationLogStatus {
