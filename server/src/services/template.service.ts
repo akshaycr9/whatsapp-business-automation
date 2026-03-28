@@ -257,6 +257,15 @@ export const create = async (input: CreateTemplateInput): Promise<Template> => {
     },
   });
 
+  await prisma.activityLog.create({
+    data: {
+      type: 'TEMPLATE_CREATED',
+      entityId: template.id,
+      entityName: template.name,
+      description: `Template '${template.name}' created (pending Meta approval)`,
+    },
+  });
+
   logger.info(`Template created: ${template.id} (Meta ID: ${metaResponse.id})`);
   return template;
 };
@@ -288,6 +297,18 @@ export const syncOne = async (id: string): Promise<Template> => {
       rejectedReason: metaRecord.rejected_reason ?? null,
     },
   });
+
+  if (updatedStatus !== template.status) {
+    const activityType = updatedStatus === 'APPROVED' ? 'TEMPLATE_APPROVED' : updatedStatus === 'REJECTED' ? 'TEMPLATE_REJECTED' : null;
+    if (activityType) {
+      const description = updatedStatus === 'APPROVED'
+        ? `Template '${template.name}' approved by Meta`
+        : `Template '${template.name}' rejected by Meta${metaRecord.rejected_reason ? `: ${metaRecord.rejected_reason}` : ''}`;
+      await prisma.activityLog.create({
+        data: { type: activityType, entityId: id, entityName: template.name, description },
+      });
+    }
+  }
 
   logger.info(`Template synced: ${id} — status: ${updatedStatus}`);
   return updated;
@@ -326,6 +347,18 @@ export const syncAll = async (): Promise<{ synced: number }> => {
       },
     });
 
+    if (updatedStatus !== template.status) {
+      const activityType = updatedStatus === 'APPROVED' ? 'TEMPLATE_APPROVED' : updatedStatus === 'REJECTED' ? 'TEMPLATE_REJECTED' : null;
+      if (activityType) {
+        const description = updatedStatus === 'APPROVED'
+          ? `Template '${template.name}' approved by Meta`
+          : `Template '${template.name}' rejected by Meta${metaRecord.rejected_reason ? `: ${metaRecord.rejected_reason}` : ''}`;
+        await prisma.activityLog.create({
+          data: { type: activityType, entityId: template.id, entityName: template.name, description },
+        });
+      }
+    }
+
     synced++;
   }
 
@@ -349,5 +382,15 @@ export const remove = async (id: string): Promise<void> => {
   }
 
   await prisma.template.delete({ where: { id } });
+
+  await prisma.activityLog.create({
+    data: {
+      type: 'TEMPLATE_DELETED',
+      entityId: id,
+      entityName: template.name,
+      description: `Template '${template.name}' deleted`,
+    },
+  });
+
   logger.info(`Template deleted: ${id}`);
 };

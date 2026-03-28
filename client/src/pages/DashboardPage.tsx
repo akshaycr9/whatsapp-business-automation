@@ -9,6 +9,13 @@ import {
   Users,
   FileCheck,
   RefreshCw,
+  FilePlus,
+  FileEdit,
+  FileX,
+  Trash2,
+  ToggleLeft,
+  ToggleRight,
+  Settings,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -44,30 +51,73 @@ function useLastUpdated(): string {
 }
 
 function ActivityIcon({ type }: { type: ActivityItem['type'] }) {
-  if (type === 'message_sent') {
+  if (type === 'template_created') {
     return (
       <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-950/40 flex items-center justify-center flex-shrink-0">
-        <Send className="h-3.5 w-3.5 text-blue-500" />
+        <FilePlus className="h-3.5 w-3.5 text-blue-500" />
       </div>
     );
   }
-  if (type === 'message_received') {
+  if (type === 'template_updated') {
+    return (
+      <div className="h-8 w-8 rounded-full bg-sky-100 dark:bg-sky-950/40 flex items-center justify-center flex-shrink-0">
+        <FileEdit className="h-3.5 w-3.5 text-sky-500" />
+      </div>
+    );
+  }
+  if (type === 'template_approved') {
     return (
       <div className="h-8 w-8 rounded-full bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center flex-shrink-0">
-        <MessageSquare className="h-3.5 w-3.5 text-emerald-500" />
+        <FileCheck className="h-3.5 w-3.5 text-emerald-500" />
       </div>
     );
   }
-  if (type === 'automation_triggered') {
+  if (type === 'template_rejected') {
+    return (
+      <div className="h-8 w-8 rounded-full bg-red-100 dark:bg-red-950/40 flex items-center justify-center flex-shrink-0">
+        <FileX className="h-3.5 w-3.5 text-red-500" />
+      </div>
+    );
+  }
+  if (type === 'template_deleted') {
+    return (
+      <div className="h-8 w-8 rounded-full bg-orange-100 dark:bg-orange-950/40 flex items-center justify-center flex-shrink-0">
+        <Trash2 className="h-3.5 w-3.5 text-orange-500" />
+      </div>
+    );
+  }
+  if (type === 'automation_created') {
     return (
       <div className="h-8 w-8 rounded-full bg-violet-100 dark:bg-violet-950/40 flex items-center justify-center flex-shrink-0">
         <Zap className="h-3.5 w-3.5 text-violet-500" />
       </div>
     );
   }
+  if (type === 'automation_updated') {
+    return (
+      <div className="h-8 w-8 rounded-full bg-purple-100 dark:bg-purple-950/40 flex items-center justify-center flex-shrink-0">
+        <Settings className="h-3.5 w-3.5 text-purple-500" />
+      </div>
+    );
+  }
+  if (type === 'automation_enabled') {
+    return (
+      <div className="h-8 w-8 rounded-full bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center flex-shrink-0">
+        <ToggleRight className="h-3.5 w-3.5 text-emerald-500" />
+      </div>
+    );
+  }
+  if (type === 'automation_disabled') {
+    return (
+      <div className="h-8 w-8 rounded-full bg-amber-100 dark:bg-amber-950/40 flex items-center justify-center flex-shrink-0">
+        <ToggleLeft className="h-3.5 w-3.5 text-amber-500" />
+      </div>
+    );
+  }
+  // automation_deleted
   return (
     <div className="h-8 w-8 rounded-full bg-red-100 dark:bg-red-950/40 flex items-center justify-center flex-shrink-0">
-      <AlertCircle className="h-3.5 w-3.5 text-red-500" />
+      <Trash2 className="h-3.5 w-3.5 text-red-500" />
     </div>
   );
 }
@@ -369,7 +419,7 @@ export default function DashboardPage() {
                 </div>
                 <p className="text-sm font-medium text-foreground">No recent activity</p>
                 <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-                  Activity will appear here once you start sending messages.
+                  Activity will appear here once you create or update templates and automations.
                 </p>
               </div>
             ) : (
@@ -379,11 +429,6 @@ export default function DashboardPage() {
                     <ActivityIcon type={item.type} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-foreground truncate">{item.description}</p>
-                      {item.customerName && (
-                        <p className="text-xs text-muted-foreground truncate mt-0.5">
-                          {item.customerPhone}
-                        </p>
-                      )}
                     </div>
                     <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">
                       {formatRelativeTime(item.timestamp)}

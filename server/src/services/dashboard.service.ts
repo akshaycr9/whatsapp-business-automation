@@ -15,10 +15,19 @@ export interface DashboardStats {
 
 export interface ActivityItem {
   id: string;
-  type: 'message_sent' | 'message_received' | 'automation_triggered' | 'automation_failed';
+  type:
+    | 'template_created'
+    | 'template_updated'
+    | 'template_approved'
+    | 'template_rejected'
+    | 'template_deleted'
+    | 'automation_created'
+    | 'automation_updated'
+    | 'automation_enabled'
+    | 'automation_disabled'
+    | 'automation_deleted';
   description: string;
-  customerName?: string;
-  customerPhone?: string;
+  entityName: string;
   timestamp: string;
 }
 
@@ -81,78 +90,18 @@ export const getStats = async (): Promise<DashboardStats> => {
 
 export const getRecentActivity = async (limit = 20): Promise<ActivityItem[]> => {
   try {
-    const [outboundMessages, inboundMessages, automationLogs] = await Promise.all([
-      prisma.message.findMany({
-        where: { direction: 'OUTBOUND' },
-        orderBy: { createdAt: 'desc' },
-        take: 20,
-        include: {
-          conversation: {
-            include: { customer: true },
-          },
-        },
-      }),
-      prisma.message.findMany({
-        where: { direction: 'INBOUND' },
-        orderBy: { createdAt: 'desc' },
-        take: 20,
-        include: {
-          conversation: {
-            include: { customer: true },
-          },
-        },
-      }),
-      prisma.automationLog.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 20,
-        include: { automation: true },
-      }),
-    ]);
+    const logs = await prisma.activityLog.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
 
-    const items: ActivityItem[] = [];
-
-    for (const msg of outboundMessages) {
-      const customer = msg.conversation.customer;
-      const displayName = customer.name ?? customer.phone;
-      items.push({
-        id: `msg-out-${msg.id}`,
-        type: 'message_sent',
-        description: `Sent message to ${displayName}`,
-        customerName: customer.name ?? undefined,
-        customerPhone: customer.phone,
-        timestamp: msg.createdAt.toISOString(),
-      });
-    }
-
-    for (const msg of inboundMessages) {
-      const customer = msg.conversation.customer;
-      const displayName = customer.name ?? customer.phone;
-      items.push({
-        id: `msg-in-${msg.id}`,
-        type: 'message_received',
-        description: `Received message from ${displayName}`,
-        customerName: customer.name ?? undefined,
-        customerPhone: customer.phone,
-        timestamp: msg.createdAt.toISOString(),
-      });
-    }
-
-    for (const log of automationLogs) {
-      const isFailed = log.status === 'FAILED';
-      items.push({
-        id: `log-${log.id}`,
-        type: isFailed ? 'automation_failed' : 'automation_triggered',
-        description: isFailed
-          ? `Automation '${log.automation.name}' failed for ${log.customerPhone}`
-          : `Automation '${log.automation.name}' triggered for ${log.customerPhone}`,
-        customerPhone: log.customerPhone,
-        timestamp: log.createdAt.toISOString(),
-      });
-    }
-
-    items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-    return items.slice(0, limit);
+    return logs.map((log) => ({
+      id: log.id,
+      type: log.type.toLowerCase() as ActivityItem['type'],
+      description: log.description,
+      entityName: log.entityName,
+      timestamp: log.createdAt.toISOString(),
+    }));
   } catch (err) {
     logger.error('Dashboard getRecentActivity failed:', err);
     throw err;
