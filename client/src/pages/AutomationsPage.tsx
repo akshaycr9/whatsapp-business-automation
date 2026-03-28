@@ -254,34 +254,73 @@ interface ShopifyPathOption {
 }
 
 const ORDER_PATHS: ShopifyPathOption[] = [
-  { value: 'name',                      label: 'Order Number',           category: 'Order' },
-  { value: 'order_number',              label: 'Order Number (numeric)', category: 'Order' },
-  { value: 'total_price',               label: 'Order Total',            category: 'Order' },
-  { value: 'subtotal_price',            label: 'Subtotal',               category: 'Order' },
-  { value: 'financial_status',          label: 'Payment Status',         category: 'Order' },
-  { value: 'fulfillment_status',        label: 'Fulfillment Status',     category: 'Order' },
-  { value: 'created_at',               label: 'Order Date',             category: 'Order' },
-  { value: 'customer.first_name',       label: 'Customer First Name',    category: 'Customer' },
-  { value: 'customer.last_name',        label: 'Customer Last Name',     category: 'Customer' },
-  { value: 'customer.email',            label: 'Customer Email',         category: 'Customer' },
-  { value: 'customer.phone',            label: 'Customer Phone',         category: 'Customer' },
-  { value: 'shipping_address.address1', label: 'Shipping Street',        category: 'Shipping' },
-  { value: 'shipping_address.city',     label: 'Shipping City',          category: 'Shipping' },
-  { value: 'shipping_address.province', label: 'Shipping State',         category: 'Shipping' },
-  { value: 'shipping_address.zip',      label: 'Shipping Postcode',      category: 'Shipping' },
-  { value: 'shipping_address.country',  label: 'Shipping Country',       category: 'Shipping' },
-  { value: 'line_items.0.name',         label: 'First Item Name',        category: 'Items' },
-  { value: 'line_items.0.quantity',     label: 'First Item Quantity',    category: 'Items' },
-  { value: 'line_items.0.price',        label: 'First Item Price',       category: 'Items' },
+  // Order
+  { value: 'name',                            label: 'Order Number',             category: 'Order' },
+  { value: 'order_number',                    label: 'Order Number (numeric)',   category: 'Order' },
+  { value: 'total_price',                     label: 'Order Total',              category: 'Order' },
+  { value: 'subtotal_price',                  label: 'Subtotal',                 category: 'Order' },
+  { value: 'total_discounts',                 label: 'Total Discounts',          category: 'Order' },
+  { value: 'discount_codes.0.code',           label: 'Discount Code',            category: 'Order' },
+  { value: 'currency',                        label: 'Currency',                 category: 'Order' },
+  { value: 'financial_status',                label: 'Payment Status',           category: 'Order' },
+  { value: 'fulfillment_status',              label: 'Fulfillment Status',       category: 'Order' },
+  { value: 'created_at',                      label: 'Order Date',               category: 'Order' },
+  { value: 'payment_gateway',                 label: 'Payment Method',           category: 'Order' },
+  { value: 'note',                            label: 'Order Note',               category: 'Order' },
+  { value: 'tags',                            label: 'Order Tags',               category: 'Order' },
+  // Fulfillment (populated for ORDER_FULFILLED event)
+  { value: 'fulfillments.0.tracking_number',  label: 'Tracking Number',          category: 'Fulfillment' },
+  { value: 'fulfillments.0.tracking_url',     label: 'Tracking URL',             category: 'Fulfillment' },
+  { value: 'fulfillments.0.tracking_company', label: 'Courier / Carrier',        category: 'Fulfillment' },
+  { value: 'fulfillments.0.shipment_status',  label: 'Shipment Status',          category: 'Fulfillment' },
+  // Customer
+  { value: 'customer.first_name',             label: 'Customer First Name',      category: 'Customer' },
+  { value: 'customer.last_name',              label: 'Customer Last Name',       category: 'Customer' },
+  { value: 'customer.email',                  label: 'Customer Email',           category: 'Customer' },
+  { value: 'customer.phone',                  label: 'Customer Phone',           category: 'Customer' },
+  { value: 'customer.orders_count',           label: 'Customer Total Orders',    category: 'Customer' },
+  // Shipping
+  { value: 'shipping_address.name',           label: 'Shipping Full Name',       category: 'Shipping' },
+  { value: 'shipping_address.address1',       label: 'Shipping Street',          category: 'Shipping' },
+  { value: 'shipping_address.address2',       label: 'Shipping Address 2',       category: 'Shipping' },
+  { value: 'shipping_address.city',           label: 'Shipping City',            category: 'Shipping' },
+  { value: 'shipping_address.province',       label: 'Shipping State',           category: 'Shipping' },
+  { value: 'shipping_address.zip',            label: 'Shipping Postcode',        category: 'Shipping' },
+  { value: 'shipping_address.country',        label: 'Shipping Country',         category: 'Shipping' },
+  { value: 'shipping_address.phone',          label: 'Shipping Phone',           category: 'Shipping' },
+  // Items
+  { value: 'line_items.0.name',               label: 'First Item Name',          category: 'Items' },
+  { value: 'line_items.0.title',              label: 'First Item Product Title', category: 'Items' },
+  { value: 'line_items.0.variant_title',      label: 'First Item Variant',       category: 'Items' },
+  { value: 'line_items.0.sku',                label: 'First Item SKU',           category: 'Items' },
+  { value: 'line_items.0.quantity',           label: 'First Item Quantity',      category: 'Items' },
+  { value: 'line_items.0.price',              label: 'First Item Price',         category: 'Items' },
+  { value: 'line_items.0.vendor',             label: 'First Item Vendor',        category: 'Items' },
 ];
 
 const CART_PATHS: ShopifyPathOption[] = [
-  { value: 'total_price',           label: 'Cart Total',          category: 'Cart' },
-  { value: 'email',                 label: 'Customer Email',       category: 'Customer' },
-  { value: 'phone',                 label: 'Customer Phone',       category: 'Customer' },
-  { value: 'customer.first_name',   label: 'Customer First Name',  category: 'Customer' },
-  { value: 'customer.last_name',    label: 'Customer Last Name',   category: 'Customer' },
-  { value: 'shipping_address.city', label: 'Shipping City',        category: 'Shipping' },
+  // Cart
+  { value: 'abandoned_checkout_url',          label: 'Abandoned Cart URL',       category: 'Cart' },
+  { value: 'total_price',                     label: 'Cart Total',               category: 'Cart' },
+  { value: 'subtotal_price',                  label: 'Cart Subtotal',            category: 'Cart' },
+  { value: 'currency',                        label: 'Currency',                 category: 'Cart' },
+  // Customer
+  { value: 'email',                           label: 'Customer Email',           category: 'Customer' },
+  { value: 'phone',                           label: 'Customer Phone',           category: 'Customer' },
+  { value: 'customer.first_name',             label: 'Customer First Name',      category: 'Customer' },
+  { value: 'customer.last_name',              label: 'Customer Last Name',       category: 'Customer' },
+  // Shipping
+  { value: 'shipping_address.name',           label: 'Shipping Full Name',       category: 'Shipping' },
+  { value: 'shipping_address.address1',       label: 'Shipping Street',          category: 'Shipping' },
+  { value: 'shipping_address.city',           label: 'Shipping City',            category: 'Shipping' },
+  { value: 'shipping_address.province',       label: 'Shipping State',           category: 'Shipping' },
+  { value: 'shipping_address.zip',            label: 'Shipping Postcode',        category: 'Shipping' },
+  { value: 'shipping_address.country',        label: 'Shipping Country',         category: 'Shipping' },
+  // Items
+  { value: 'line_items.0.title',              label: 'First Item Name',          category: 'Items' },
+  { value: 'line_items.0.variant_title',      label: 'First Item Variant',       category: 'Items' },
+  { value: 'line_items.0.quantity',           label: 'First Item Quantity',      category: 'Items' },
+  { value: 'line_items.0.price',              label: 'First Item Price',         category: 'Items' },
 ];
 
 const CUSTOM_SENTINEL = '__custom__';
