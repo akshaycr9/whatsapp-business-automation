@@ -48,3 +48,7 @@ export const emitAutomationTriggered = (automationId: string, log: unknown): voi
 export const emitConversationUpdated = (conversation: unknown): void => {
   getIO().emit('conversation_updated', { conversation });
 };
+
+export const emitMessageReaction = (messageId: string, reactions: unknown[]): void => {
+  getIO().emit('message_reaction', { messageId, reactions });
+};

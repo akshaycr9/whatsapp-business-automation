@@ -5,6 +5,7 @@ import { logger } from '../../lib/logger.js';
 import {
   processInboundMessage,
   processInteractiveMessage,
+  processReaction,
   updateMessageStatus,
   type MetaMessagePayload,
 } from '../../services/message.service.js';
@@ -84,9 +85,14 @@ async function processWebhookPayload(body: unknown): Promise<void> {
         for (const message of messages) {
           // "interactive" = customer tapped a button on an interactive message
           // "button"      = customer tapped a quick-reply button on a template message
+          // "reaction"    = customer reacted to a message with an emoji
           if (message.type === 'interactive' || message.type === 'button') {
             await processInteractiveMessage(message, phoneNumberId).catch((err: unknown) =>
               logger.error('Failed to process interactive/button message:', err),
+            );
+          } else if (message.type === 'reaction') {
+            await processReaction(message).catch((err: unknown) =>
+              logger.error('Failed to process reaction:', err),
             );
           } else {
             await processInboundMessage(message, phoneNumberId).catch((err: unknown) =>

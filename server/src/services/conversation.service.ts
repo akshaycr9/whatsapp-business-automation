@@ -30,8 +30,12 @@ interface MessagesCursorMeta {
   hasMore: boolean;
 }
 
+type MessageWithReactions = Prisma.MessageGetPayload<{
+  include: { reactions: true };
+}>;
+
 interface MessagesResult {
-  items: Prisma.MessageGetPayload<Record<string, never>>[];
+  items: MessageWithReactions[];
   meta: MessagesCursorMeta;
 }
 
@@ -101,6 +105,7 @@ export const getMessages = async (
 
   const rows = await prisma.message.findMany({
     where,
+    include: { reactions: true },
     orderBy: { createdAt: 'desc' },
     take: limit + 1,
   });

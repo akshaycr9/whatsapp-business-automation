@@ -9,6 +9,7 @@ import {
   emitNewMessage,
   emitConversationUpdated,
   emitMessageStatusUpdate,
+  emitMessageReaction,
 } from '../socket/index.js';
 
 export interface MetaMessagePayload {
@@ -23,6 +24,7 @@ export interface MetaMessagePayload {
   document?: { id: string; mime_type: string; filename?: string; caption?: string };
   button?: { text: string; payload?: string };
   interactive?: { type: string; button_reply?: { id: string; title: string }; list_reply?: { id: string; title: string } };
+  reaction?: { message_id: string; emoji: string | null };
 }
 
 const STATUS_RANK: Record<MessageStatus, number> = {
@@ -348,6 +350,46 @@ export const processInboundMessage = async (
       logger.error('triggerForButtonReply failed:', err);
     });
   }
+};
+
+export const processReaction = async (
+  messagePayload: MetaMessagePayload,
+): Promise<void> => {
+  const reaction = messagePayload.reaction;
+  if (!reaction) {
+    logger.warn('processReaction: missing reaction payload');
+    return;
+  }
+
+  const targetMessage = await prisma.message.findUnique({
+    where: { waMessageId: reaction.message_id },
+  });
+
+  if (!targetMessage) {
+    logger.warn(`processReaction: target message not found waMessageId=${reaction.message_id}`);
+    return;
+  }
+
+  if (!reaction.emoji) {
+    // Empty, null, or absent emoji = reaction removed
+    await prisma.reaction.deleteMany({
+      where: { messageId: targetMessage.id, senderPhone: messagePayload.from },
+    });
+    logger.info(`Reaction removed: message=${targetMessage.id} from=${messagePayload.from}`);
+  } else {
+    await prisma.reaction.upsert({
+      where: { messageId_senderPhone: { messageId: targetMessage.id, senderPhone: messagePayload.from } },
+      create: { messageId: targetMessage.id, senderPhone: messagePayload.from, emoji: reaction.emoji },
+      update: { emoji: reaction.emoji },
+    });
+    logger.info(`Reaction upserted: message=${targetMessage.id} from=${messagePayload.from} emoji=${reaction.emoji}`);
+  }
+
+  const updatedReactions = await prisma.reaction.findMany({
+    where: { messageId: targetMessage.id },
+  });
+
+  emitMessageReaction(targetMessage.id, updatedReactions);
 };
 
 export const processInteractiveMessage = async (

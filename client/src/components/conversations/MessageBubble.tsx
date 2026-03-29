@@ -5,7 +5,7 @@ import VideoPlugin from 'yet-another-react-lightbox/plugins/video';
 import 'yet-another-react-lightbox/styles.css';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn, formatRelativeTime } from '@/lib/utils';
-import type { Message, MessageStatus } from '@/types';
+import type { Message, MessageStatus, Reaction } from '@/types';
 
 interface Props {
   message: Message;
@@ -259,6 +259,34 @@ function ReplyContext({ body, templateName }: { body: string; templateName?: str
   );
 }
 
+// ── Reaction pills ───────────────────────────────────────────────────────────
+
+function ReactionPills({ reactions, isOutbound }: { reactions: Reaction[]; isOutbound: boolean }) {
+  const grouped = reactions.reduce<Record<string, number>>((acc, r) => {
+    acc[r.emoji] = (acc[r.emoji] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const entries = Object.entries(grouped);
+  if (entries.length === 0) return null;
+
+  return (
+    <div className={cn('flex gap-1 flex-wrap -mt-1', isOutbound ? 'justify-end' : 'justify-start')}>
+      {entries.map(([emoji, count]) => (
+        <span
+          key={emoji}
+          className="flex items-center gap-0.5 bg-background border border-border rounded-full px-1.5 py-0.5 text-sm shadow-sm leading-none select-none"
+        >
+          {emoji}
+          {count > 1 && (
+            <span className="text-[10px] text-muted-foreground font-medium">{count}</span>
+          )}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 // ── Main bubble ─────────────────────────────────────────────────────────────
 
 export function MessageBubble({ message }: Props) {
@@ -352,6 +380,9 @@ export function MessageBubble({ message }: Props) {
           )}
         </div>
       </div>
+
+      {/* Reaction pills — sit below the bubble, overlapping slightly */}
+      <ReactionPills reactions={message.reactions} isOutbound={isOutbound} />
     </div>
   );
 

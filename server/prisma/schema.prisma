@@ -54,8 +54,21 @@ model Message {
   statusUpdatedAt DateTime?
   metadata        Json?
   createdAt       DateTime         @default(now())
+  reactions       Reaction[]
 
   @@index([conversationId, createdAt])
+}
+
+model Reaction {
+  id          String   @id @default(cuid())
+  messageId   String
+  message     Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  senderPhone String
+  emoji       String
+  createdAt   DateTime @default(now())
+
+  @@unique([messageId, senderPhone])
+  @@index([messageId])
 }
 
 enum MessageDirection {

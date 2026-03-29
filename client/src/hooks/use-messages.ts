@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '@/lib/api';
 import { socket } from '@/lib/socket';
-import type { Message, NewMessageEvent, MessageStatusUpdateEvent } from '@/types';
+import type { Message, NewMessageEvent, MessageStatusUpdateEvent, MessageReactionEvent } from '@/types';
 
 interface MessagesMeta {
   cursor: string | null;
@@ -41,7 +41,8 @@ export function useMessages(conversationId: string | undefined): UseMessagesRetu
         meta: { cursor: string | null; hasMore: boolean };
       }>(`/conversations/${convId}/messages`, { params: { limit: 50 } });
       // Backend returns newest-first (DESC); reverse to oldest-first for chat display
-      setMessages([...response.data.data].reverse());
+      // Normalise: ensure reactions array is always present
+      setMessages([...response.data.data].reverse().map((m) => ({ ...m, reactions: m.reactions ?? [] })));
       setMeta({ cursor: response.data.meta.cursor, hasMore: response.data.meta.hasMore });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load messages');
@@ -82,7 +83,7 @@ export function useMessages(conversationId: string | undefined): UseMessagesRetu
       setMessages((prev) => {
         // Avoid duplicates
         if (prev.some((m) => m.id === event.message.id)) return prev;
-        return [...prev, event.message];
+        return [...prev, { ...event.message, reactions: event.message.reactions ?? [] }];
       });
       // Refresh 24h window status
       if (conversationIdRef.current) {
@@ -119,12 +120,20 @@ export function useMessages(conversationId: string | undefined): UseMessagesRetu
       );
     };
 
+    const handleReaction = (event: MessageReactionEvent) => {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === event.messageId ? { ...m, reactions: event.reactions } : m)),
+      );
+    };
+
     socket.on('new_message', handleNewMessage);
     socket.on('message_status_update', handleStatusUpdate);
+    socket.on('message_reaction', handleReaction);
 
     return () => {
       socket.off('new_message', handleNewMessage);
       socket.off('message_status_update', handleStatusUpdate);
+      socket.off('message_reaction', handleReaction);
     };
   }, [checkWindow]);
 
@@ -142,7 +151,10 @@ export function useMessages(conversationId: string | undefined): UseMessagesRetu
         params: { limit: 50, cursor: oldestMessage.createdAt },
       });
       // Prepend older messages (reverse DESC response to oldest-first before prepending)
-      setMessages((prev) => [...[...response.data.data].reverse(), ...prev]);
+      setMessages((prev) => [
+        ...[...response.data.data].reverse().map((m) => ({ ...m, reactions: m.reactions ?? [] })),
+        ...prev,
+      ]);
       setMeta({ cursor: response.data.meta.cursor, hasMore: response.data.meta.hasMore });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load older messages');

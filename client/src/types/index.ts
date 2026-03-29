@@ -29,6 +29,14 @@ export type MessageDirection = 'INBOUND' | 'OUTBOUND';
 export type MessageType = 'TEXT' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT' | 'TEMPLATE' | 'INTERACTIVE';
 export type MessageStatus = 'PENDING' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED';
 
+export interface Reaction {
+  id: string;
+  messageId: string;
+  senderPhone: string;
+  emoji: string;
+  createdAt: string;
+}
+
 export interface Message {
   id: string;
   conversationId: string;
@@ -43,6 +51,7 @@ export interface Message {
   statusUpdatedAt: string | null;
   metadata: Record<string, unknown> | null;
   createdAt: string;
+  reactions: Reaction[];
 }
 
 // ── Template ─────────────────────────────────────────────────
@@ -132,4 +141,9 @@ export interface MessageStatusUpdateEvent {
 
 export interface ConversationUpdatedEvent {
   conversation: Conversation;
+}
+
+export interface MessageReactionEvent {
+  messageId: string;
+  reactions: Reaction[];
 }
