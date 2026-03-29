@@ -24,7 +24,7 @@ export interface MetaMessagePayload {
   document?: { id: string; mime_type: string; filename?: string; caption?: string };
   button?: { text: string; payload?: string };
   interactive?: { type: string; button_reply?: { id: string; title: string }; list_reply?: { id: string; title: string } };
-  reaction?: { message_id: string; emoji: string };
+  reaction?: { message_id: string; emoji: string | null };
 }
 
 const STATUS_RANK: Record<MessageStatus, number> = {
@@ -370,8 +370,8 @@ export const processReaction = async (
     return;
   }
 
-  if (reaction.emoji === '') {
-    // Empty emoji = reaction removed
+  if (!reaction.emoji) {
+    // Empty, null, or absent emoji = reaction removed
     await prisma.reaction.deleteMany({
       where: { messageId: targetMessage.id, senderPhone: messagePayload.from },
     });
