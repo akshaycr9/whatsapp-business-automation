@@ -1,4 +1,5 @@
 import { type Express, type Request, type Response } from 'express';
+import { createProxyMiddleware } from 'http-proxy-middleware';
 import customerRoutes from './customer.routes.js';
 import conversationRoutes from './conversation.routes.js';
 import mediaRoutes from './media.routes.js';
@@ -71,6 +72,20 @@ export const registerRoutes = (app: Express): void => {
   app.use('/api/dashboard', dashboardRoutes);
   app.use('/api/automations', automationRoutes);
   app.use('/api/push', pushRoutes);
+
+  // ── Dev frontend proxy ────────────────────────────────────────────────────
+  // In development, proxy all non-API requests to the Vite dev server so the
+  // app is accessible at the backend's ngrok HTTPS URL.
+  // This is what makes service workers and Web Push work on iOS (requires HTTPS).
+  if (env.NODE_ENV === 'development') {
+    app.use(
+      createProxyMiddleware({
+        target: 'http://localhost:5173',
+        changeOrigin: true,
+        ws: true,
+      }),
+    );
+  }
 
   // ── 404 catch-all ─────────────────────────────────────────────────────────
   // Logs the unmatched path so it's easy to diagnose misconfigured webhook URLs.

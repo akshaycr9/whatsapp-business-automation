@@ -21,10 +21,14 @@ app.use((req, _res, next) => {
 });
 
 // ── Middleware ────────────────────────────────────────────────
+const devOrigins = ['http://localhost:5173', 'http://localhost:4173'];
+// Also allow the backend's own PUBLIC_URL so the iPhone via ngrok is same-origin
+if (env.PUBLIC_URL) devOrigins.push(env.PUBLIC_URL);
+
 app.use(cors({
   origin: process.env.NODE_ENV === 'production'
     ? process.env.CLIENT_URL
-    : ['http://localhost:5173', 'http://localhost:4173'],
+    : devOrigins,
   credentials: true,
 }));
 

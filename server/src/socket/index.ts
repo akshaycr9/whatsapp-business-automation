@@ -5,9 +5,13 @@ import { logger } from '../lib/logger.js';
 let io: SocketServer;
 
 export const initSocket = (httpServer: HttpServer): SocketServer => {
+  const allowedOrigins = [process.env.CLIENT_URL ?? 'http://localhost:5173'];
+  // Allow the backend's own PUBLIC_URL so the iPhone (via ngrok) can connect
+  if (process.env.PUBLIC_URL) allowedOrigins.push(process.env.PUBLIC_URL);
+
   io = new SocketServer(httpServer, {
     cors: {
-      origin: process.env.CLIENT_URL ?? 'http://localhost:5173',
+      origin: allowedOrigins,
       methods: ['GET', 'POST'],
     },
   });
