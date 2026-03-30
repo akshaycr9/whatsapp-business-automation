@@ -5,6 +5,7 @@ import mediaRoutes from './media.routes.js';
 import templateRoutes from './template.routes.js';
 import dashboardRoutes from './dashboard.routes.js';
 import automationRoutes from './automation.routes.js';
+import pushRoutes from './push.routes.js';
 import metaWebhookRoutes from './webhooks/meta.webhook.js';
 import shopifyWebhookRoutes from './webhooks/shopify.webhook.js';
 import { logger } from '../lib/logger.js';
@@ -69,6 +70,7 @@ export const registerRoutes = (app: Express): void => {
   app.use('/api/templates', templateRoutes);
   app.use('/api/dashboard', dashboardRoutes);
   app.use('/api/automations', automationRoutes);
+  app.use('/api/push', pushRoutes);
 
   // ── 404 catch-all ─────────────────────────────────────────────────────────
   // Logs the unmatched path so it's easy to diagnose misconfigured webhook URLs.

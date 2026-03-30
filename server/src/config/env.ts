@@ -35,6 +35,13 @@ const envSchema = z.object({
       (val) => !val.startsWith('your_'),
       'SHOPIFY_WEBHOOK_SECRET still contains a placeholder — set it to your real signing secret',
     ),
+  // VAPID keys for Web Push Notifications (iOS PWA + desktop browsers).
+  // Generate once with: node -e "const wp=require('web-push'); const k=wp.generateVAPIDKeys(); console.log(JSON.stringify(k,null,2))"
+  // Run from server/ directory after npm install.
+  VAPID_PUBLIC_KEY: z.string().min(1),
+  VAPID_PRIVATE_KEY: z.string().min(1),
+  // Must be "mailto:your@email.com" or your site URL — identifies you to push services.
+  VAPID_EMAIL: z.string().min(1),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -11,6 +11,7 @@ import {
   emitMessageStatusUpdate,
   emitMessageReaction,
 } from '../socket/index.js';
+import { sendPushToAll } from './push.service.js';
 
 export interface MetaMessagePayload {
   id: string;
@@ -339,6 +340,16 @@ export const processInboundMessage = async (
   // global notification hook) have the name available when new_message fires.
   emitConversationUpdated(updatedConversation);
   emitNewMessage(conversationId, message);
+
+  // Send Web Push to all subscribed devices (covers iOS PWA and background browsers).
+  // Runs async — failures are logged but do not affect the webhook response.
+  const displayName = updatedConversation.customer.name ?? updatedConversation.customer.phone;
+  sendPushToAll({
+    title: displayName,
+    body: lastMessageText === '[Media]' ? 'Sent a media message' : lastMessageText,
+    conversationId,
+    url: `/conversations`,
+  }).catch((err: unknown) => logger.error('sendPushToAll failed:', err));
 
   // Fire button-reply automations if this is a button/interactive reply.
   // Runs async after the response is already emitted — failures are logged only.

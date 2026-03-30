@@ -193,6 +193,15 @@ enum ActivityLogType {
   AUTOMATION_DELETED
 }
 
+model PushSubscription {
+  id        String   @id @default(cuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+}
+
 model CheckoutTracker {
   id                String   @id @default(cuid())
   shopifyCheckoutId String   @unique

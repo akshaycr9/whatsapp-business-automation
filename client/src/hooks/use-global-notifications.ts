@@ -5,6 +5,7 @@ import {
   requestNotificationPermission,
   showBrowserNotification,
 } from '@/lib/notifications';
+import { registerPushSubscription } from '@/lib/push-subscription';
 import { formatPhoneDisplay } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import type { ConversationUpdatedEvent, NewMessageEvent } from '@/types';
@@ -63,10 +64,15 @@ export function useGlobalNotifications(): void {
   }, [toast]);
 
   // Request permission on the first user click (a real user gesture so the
-  // browser shows the modal dialog, not the quiet address-bar bell)
+  // browser shows the modal dialog, not the quiet address-bar bell).
+  // After permission is granted, also register for Web Push so iOS PWA and
+  // background browsers receive notifications even when the app is closed.
   useEffect(() => {
-    const handleFirstClick = () => {
-      void requestNotificationPermission();
+    const handleFirstClick = async () => {
+      const permission = await requestNotificationPermission();
+      if (permission === 'granted') {
+        void registerPushSubscription();
+      }
     };
     document.addEventListener('click', handleFirstClick, { once: true });
     return () => document.removeEventListener('click', handleFirstClick);
