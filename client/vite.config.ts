@@ -4,6 +4,9 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  // Load .env from the monorepo root (one level up from client/) so VITE_* vars
+  // defined there (e.g. VITE_VAPID_PUBLIC_KEY) are available to the frontend.
+  envDir: '..',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

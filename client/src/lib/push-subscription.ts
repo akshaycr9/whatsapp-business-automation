@@ -23,19 +23,30 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
  * - The user has denied notification permission
  */
 export async function registerPushSubscription(): Promise<boolean> {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
-  if (!VAPID_PUBLIC_KEY) {
-    console.warn('[push] VITE_VAPID_PUBLIC_KEY is not set — skipping push subscription');
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.warn('[push] Service workers or PushManager not supported in this browser');
     return false;
   }
-  if (Notification.permission !== 'granted') return false;
+  if (!VAPID_PUBLIC_KEY) {
+    console.error('[push] VITE_VAPID_PUBLIC_KEY is not set — check your .env file');
+    return false;
+  }
+  if (Notification.permission !== 'granted') {
+    console.warn('[push] Notification permission not granted:', Notification.permission);
+    return false;
+  }
 
   try {
+    console.log('[push] Registering service worker…');
     const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-    // Wait for the SW to be active before subscribing
+    console.log('[push] Service worker registered, waiting for ready…');
     await navigator.serviceWorker.ready;
+    console.log('[push] Service worker ready, subscribing to push…');
 
     const existing = await registration.pushManager.getSubscription();
+    if (existing) {
+      console.log('[push] Re-using existing push subscription, saving to server…');
+    }
     const subscription =
       existing ??
       (await registration.pushManager.subscribe({
@@ -43,12 +54,18 @@ export async function registerPushSubscription(): Promise<boolean> {
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
       }));
 
-    const { endpoint, keys } = subscription.toJSON() as {
-      endpoint: string;
-      keys: { p256dh: string; auth: string };
-    };
+    const json = subscription.toJSON();
+    const endpoint = json.endpoint;
+    const p256dh = json.keys?.['p256dh'];
+    const auth = json.keys?.['auth'];
 
-    await api.post('/push/subscribe', { endpoint, keys });
+    if (!endpoint || !p256dh || !auth) {
+      console.error('[push] Subscription JSON missing keys:', json);
+      return false;
+    }
+
+    await api.post('/push/subscribe', { endpoint, keys: { p256dh, auth } });
+    console.log('[push] ✅ Push subscription saved to server');
     return true;
   } catch (err) {
     console.error('[push] Failed to register push subscription:', err);

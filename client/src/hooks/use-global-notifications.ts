@@ -39,7 +39,9 @@ export function useGlobalNotifications(): void {
   const customerNamesRef = useRef<Map<string, string>>(new Map());
   const permissionToastShownRef = useRef(false);
 
-  // On mount: guide the user if notifications are not yet enabled
+  // On mount: guide the user if notifications are not yet enabled.
+  // If permission is already granted, eagerly register the push subscription
+  // so the device is enrolled even if the user never clicks anything.
   useEffect(() => {
     if (permissionToastShownRef.current) return;
     permissionToastShownRef.current = true;
@@ -60,6 +62,10 @@ export function useGlobalNotifications(): void {
         variant: 'destructive',
         duration: 10000,
       });
+    } else if (Notification.permission === 'granted') {
+      // Permission was already granted in a previous session — re-register the
+      // push subscription immediately so the device is always enrolled.
+      void registerPushSubscription();
     }
   }, [toast]);
 
@@ -68,6 +74,7 @@ export function useGlobalNotifications(): void {
   // After permission is granted, also register for Web Push so iOS PWA and
   // background browsers receive notifications even when the app is closed.
   useEffect(() => {
+    if (Notification.permission !== 'default') return; // already handled above
     const handleFirstClick = async () => {
       const permission = await requestNotificationPermission();
       if (permission === 'granted') {
