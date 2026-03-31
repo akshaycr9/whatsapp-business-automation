@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { ConversationListItem } from '@/components/conversations/ConversationListItem';
 import { MessageBubble } from '@/components/conversations/MessageBubble';
 import { ChatInput } from '@/components/conversations/ChatInput';
@@ -145,7 +144,7 @@ function ChatPanel({ conversationId, conversations, onBack, onMarkRead }: ChatPa
   }, [conversationId, onMarkRead]);
 
   const handleMessageSent = useCallback(
-    (message: Message) => {
+    (_message: Message) => {
       // Message is appended via the socket event, but as a fallback also refetch
       // Scroll to bottom after send
       isNearBottomRef.current = true;
