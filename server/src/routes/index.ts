@@ -1,4 +1,4 @@
-import { type Express, type Request, type Response } from 'express';
+import { type Express, type Request, type Response, type NextFunction } from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import customerRoutes from './customer.routes.js';
 import conversationRoutes from './conversation.routes.js';
@@ -7,10 +7,12 @@ import templateRoutes from './template.routes.js';
 import dashboardRoutes from './dashboard.routes.js';
 import automationRoutes from './automation.routes.js';
 import pushRoutes from './push.routes.js';
+import authRoutes from './auth.routes.js';
 import metaWebhookRoutes from './webhooks/meta.webhook.js';
 import shopifyWebhookRoutes from './webhooks/shopify.webhook.js';
 import { logger } from '../lib/logger.js';
 import { env } from '../config/env.js';
+import { requireAuth } from '../middleware/auth.js';
 import { startAbandonedCartJob } from '../jobs/abandoned-cart.job.js';
 import { registerWebhooks } from '../services/shopify.service.js';
 
@@ -56,6 +58,9 @@ export const registerRoutes = (app: Express): void => {
     });
   });
 
+  // ── Auth routes (unprotected — login endpoint must be reachable without token) ──
+  app.use('/api/auth', authRoutes);
+
   // ── Webhooks ──────────────────────────────────────────────────────────────
   // Registered at both /api/webhooks/* and /webhooks/* so the endpoint works
   // regardless of whether the URL was configured with or without the /api/ prefix.
@@ -64,7 +69,30 @@ export const registerRoutes = (app: Express): void => {
   app.use('/api/webhooks/shopify', shopifyWebhookRoutes);
   app.use('/webhooks/shopify',     shopifyWebhookRoutes);
 
-  // ── API routes ────────────────────────────────────────────────────────────
+  // ── Auth guard ────────────────────────────────────────────────────────────
+  // Protects all /api/* routes registered below this line.
+  // Public paths above (health, setup, debug, auth, webhooks) are already
+  // handled by Express before reaching this middleware, so they are NOT affected.
+  // Non-API paths (e.g. the Vite proxy) are also skipped.
+  const PUBLIC_API_PREFIXES = [
+    '/api/health',
+    '/api/auth',
+    '/api/webhooks',
+    '/webhooks',
+    '/api/setup',
+    '/api/debug',
+  ];
+
+  app.use((req: Request, _res: Response, next: NextFunction) => {
+    if (!req.path.startsWith('/api/')) return next();
+    const isPublic = PUBLIC_API_PREFIXES.some(
+      (prefix) => req.path === prefix || req.path.startsWith(prefix + '/'),
+    );
+    if (isPublic) return next();
+    return requireAuth(req, _res, next);
+  });
+
+  // ── Protected API routes ──────────────────────────────────────────────────
   app.use('/api/customers', customerRoutes);
   app.use('/api/conversations', conversationRoutes);
   app.use('/api/media', mediaRoutes);

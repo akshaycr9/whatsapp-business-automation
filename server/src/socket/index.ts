@@ -1,6 +1,8 @@
+import jwt from 'jsonwebtoken';
 import { type Server as HttpServer } from 'http';
 import { Server as SocketServer } from 'socket.io';
 import { logger } from '../lib/logger.js';
+import { env } from '../config/env.js';
 
 let io: SocketServer;
 
@@ -14,6 +16,23 @@ export const initSocket = (httpServer: HttpServer): SocketServer => {
       origin: allowedOrigins,
       methods: ['GET', 'POST'],
     },
+  });
+
+  // ── JWT handshake verification ────────────────────────────────────────────
+  // Reject socket connections that don't carry a valid token.
+  // The client passes { auth: { token } } when calling socket.connect().
+  io.use((socket, next) => {
+    const token = socket.handshake.auth['token'] as string | undefined;
+    if (!token) {
+      next(new Error('Authentication required'));
+      return;
+    }
+    try {
+      jwt.verify(token, env.JWT_SECRET);
+      next();
+    } catch {
+      next(new Error('Invalid or expired token'));
+    }
   });
 
   io.on('connection', (socket) => {

@@ -14,7 +14,12 @@ export const socket: Socket = io(WS_URL, {
 });
 
 export const connectSocket = () => {
-  if (!socket.connected) socket.connect();
+  if (!socket.connected) {
+    // Pass the JWT token so the server can verify the connection at handshake
+    const token = localStorage.getItem('qwertees_auth_token');
+    if (token) socket.auth = { token };
+    socket.connect();
+  }
 };
 
 export const disconnectSocket = () => {
