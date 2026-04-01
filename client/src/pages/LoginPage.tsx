@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -8,13 +8,21 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
 export default function LoginPage() {
-  const { login } = useAuth();
-  const navigate = useNavigate();
+  const { login, isAuthenticated } = useAuth();
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // If the user is already authenticated (e.g. valid token in localStorage),
+  // redirect away immediately. This also handles the post-login redirect:
+  // after login() resolves and setToken() fires, React re-renders this component
+  // with isAuthenticated === true and this Navigate takes over — no navigate()
+  // call needed, which avoids the race between setToken and ProtectedRoute.
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -22,7 +30,8 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await login(username, password);
-      navigate('/dashboard', { replace: true });
+      // Navigation is handled by the isAuthenticated guard above —
+      // once setToken() fires, this component re-renders and Navigate kicks in.
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {

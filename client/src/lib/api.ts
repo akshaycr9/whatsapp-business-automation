@@ -25,8 +25,13 @@ api.interceptors.response.use(
   (response) => response,
   (error: unknown) => {
     if (axios.isAxiosError(error)) {
-      // Token expired or invalid mid-session — clear and redirect to login
-      if (error.response?.status === 401) {
+      // Token expired or invalid mid-session — clear and redirect to login.
+      // Skip this for the login endpoint itself: a 401 there means wrong
+      // credentials, not an expired session, so we let the error propagate
+      // to the caller (LoginPage) to display the error message instead of
+      // causing an infinite redirect loop.
+      const isLoginRequest = error.config?.url === 'auth/login';
+      if (error.response?.status === 401 && !isLoginRequest) {
         localStorage.removeItem(TOKEN_KEY);
         window.location.href = '/login';
         return Promise.reject(new Error('Session expired. Please log in again.'));

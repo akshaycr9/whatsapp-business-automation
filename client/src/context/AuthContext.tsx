@@ -25,7 +25,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (username: string, password: string): Promise<void> => {
-    const response = await api.post<{ data: { token: string } }>('/auth/login', {
+    // Use a relative path (no leading slash) so Axios appends it to the baseURL
+    // ('/api'). A leading slash would make Axios treat it as an absolute path,
+    // discarding the baseURL and hitting '/auth/login' instead of '/api/auth/login'.
+    const response = await api.post<{ data: { token: string } }>('auth/login', {
       username,
       password,
     });
