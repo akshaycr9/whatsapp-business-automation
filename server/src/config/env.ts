@@ -42,6 +42,22 @@ const envSchema = z.object({
   VAPID_PRIVATE_KEY: z.string().min(1),
   // Must be "mailto:your@email.com" or your site URL — identifies you to push services.
   VAPID_EMAIL: z.string().min(1),
+  // ── Single-user authentication ─────────────────────────────────────────────
+  // Username for the single admin account.
+  AUTH_USERNAME: z.string().min(1),
+  // bcrypt hash of the admin password (rounds=12). Never store plaintext.
+  // Generate: node -e "const b=require('bcryptjs'); b.hash('yourpassword',12).then(console.log)"
+  AUTH_PASSWORD_HASH: z
+    .string()
+    .min(1)
+    .refine(
+      (val) => val.startsWith('$2a$') || val.startsWith('$2b$'),
+      'AUTH_PASSWORD_HASH must be a valid bcrypt hash (starts with $2a$ or $2b$)',
+    ),
+  // JWT signing secret — minimum 32 characters. Generate: openssl rand -hex 32
+  JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
+  // JWT token expiry (e.g. "7d", "24h", "1h"). Defaults to 7 days.
+  JWT_EXPIRES_IN: z.string().default('7d'),
 });
 
 const parsed = envSchema.safeParse(process.env);

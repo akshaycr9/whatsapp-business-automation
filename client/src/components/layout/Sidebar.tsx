@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   MessageSquare,
@@ -8,11 +8,13 @@ import {
   Users,
   Bell,
   BellOff,
+  LogOut,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { requestNotificationPermission } from '@/lib/notifications';
+import { useAuth } from '@/context/AuthContext';
 
 interface NavItem {
   label: string;
@@ -84,6 +86,13 @@ function NotificationBell() {
 
 export function Sidebar({ onNavigate }: SidebarProps) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   return (
     <div className="flex h-full flex-col">
@@ -137,6 +146,22 @@ export function Sidebar({ onNavigate }: SidebarProps) {
             <p className="text-xs text-muted-foreground truncate">Admin</p>
           </div>
           <NotificationBell />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 flex-shrink-0 text-muted-foreground hover:text-destructive"
+                onClick={handleLogout}
+                aria-label="Log out"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p>Log out</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
     </div>
