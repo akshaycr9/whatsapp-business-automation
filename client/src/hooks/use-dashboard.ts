@@ -1,88 +1,60 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { api } from '@/lib/api';
-import { socket } from '@/lib/socket';
-import type { ApiResponse } from '@/types';
+import { useEffect, useCallback, useRef } from 'react';
+import { useAppDispatch, useAppSelector } from '@/app/hooks';
+import {
+  fetchDashboard,
+  fetchDashboardStats,
+  selectDashboardStats,
+  selectDashboardActivity,
+  selectDashboardStatus,
+  selectDashboardIsFetching,
+  selectDashboardError,
+} from '@/features/dashboard/dashboardSlice';
 import type { DashboardStats, ActivityItem } from '@/types/dashboard';
 
-// Module-level cache — persists across component mounts for instant re-navigation
-let cachedStats: DashboardStats | null = null;
-let cachedActivity: ActivityItem[] = [];
+export interface UseDashboardReturn {
+  stats: DashboardStats | null;
+  activity: ActivityItem[];
+  loading: boolean;
+  isFetching: boolean;
+  error: string | null;
+  refetch: () => Promise<void>;
+}
 
-export function useDashboard() {
-  const [stats, setStats] = useState<DashboardStats | null>(cachedStats);
-  const [activity, setActivity] = useState<ActivityItem[]>(cachedActivity);
-  const [loading, setLoading] = useState(cachedStats === null);
-  const [isFetching, setIsFetching] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export function useDashboard(): UseDashboardReturn {
+  const dispatch = useAppDispatch();
+  const stats = useAppSelector(selectDashboardStats);
+  const activity = useAppSelector(selectDashboardActivity);
+  const status = useAppSelector(selectDashboardStatus);
+  const isFetching = useAppSelector(selectDashboardIsFetching);
+  const error = useAppSelector(selectDashboardError);
+
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const fetchStats = useCallback(async (): Promise<void> => {
-    try {
-      const response = await api.get<ApiResponse<DashboardStats>>('/dashboard/stats');
-      cachedStats = response.data.data;
-      setStats(response.data.data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load dashboard stats');
-    }
-  }, []);
-
-  const fetchActivity = useCallback(async (): Promise<void> => {
-    try {
-      const response = await api.get<ApiResponse<ActivityItem[]>>('/dashboard/activity?limit=20');
-      cachedActivity = response.data.data;
-      setActivity(response.data.data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load recent activity');
-    }
-  }, []);
-
-  const refetch = useCallback(async (): Promise<void> => {
-    setError(null);
-    setIsFetching(true);
-    try {
-      await Promise.all([fetchStats(), fetchActivity()]);
-    } finally {
-      setIsFetching(false);
-    }
-  }, [fetchStats, fetchActivity]);
-
-  // Initial load — background-refresh even if cache exists (stale-while-revalidate)
+  // Initial load — always fetch (stale-while-revalidate pattern)
   useEffect(() => {
-    if (cachedStats === null) setLoading(true);
-    setIsFetching(true);
-    Promise.all([fetchStats(), fetchActivity()]).finally(() => {
-      setLoading(false);
-      setIsFetching(false);
-    });
-  }, [fetchStats, fetchActivity]);
+    void dispatch(fetchDashboard());
+  }, [dispatch]);
 
-  // Auto-refresh every 30 seconds
+  // Auto-refresh stats every 30 seconds — interval is a side effect, not state
   useEffect(() => {
     intervalRef.current = setInterval(() => {
-      void fetchStats();
+      void dispatch(fetchDashboardStats());
     }, 30_000);
-
     return () => {
-      if (intervalRef.current !== null) {
-        clearInterval(intervalRef.current);
-      }
+      if (intervalRef.current !== null) clearInterval(intervalRef.current);
     };
-  }, [fetchStats]);
+  }, [dispatch]);
 
-  // Socket-driven refresh on new messages or automation events
-  useEffect(() => {
-    const handleRefresh = () => {
-      void fetchStats();
-    };
+  const refetch = useCallback(async (): Promise<void> => {
+    await dispatch(fetchDashboard());
+  }, [dispatch]);
 
-    socket.on('new_message', handleRefresh);
-    socket.on('automation_triggered', handleRefresh);
-
-    return () => {
-      socket.off('new_message', handleRefresh);
-      socket.off('automation_triggered', handleRefresh);
-    };
-  }, [fetchStats]);
-
-  return { stats, activity, loading, isFetching, error, refetch };
+  return {
+    stats,
+    activity,
+    loading: status === 'loading',
+    isFetching,
+    error,
+    refetch,
+  };
 }
