@@ -1,6 +1,32 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { api } from '@/lib/api';
-import type { Template, PaginatedResponse, ApiResponse } from '@/types';
+import { useEffect, useCallback, useRef } from 'react';
+import { useAppDispatch, useAppSelector } from '@/app/hooks';
+import {
+  fetchTemplates,
+  createTemplate as createTemplateThunk,
+  deleteTemplate as deleteTemplateThunk,
+  syncTemplate as syncTemplateThunk,
+  syncAllTemplates as syncAllTemplatesThunk,
+  setSearch,
+  setStatusFilter,
+  setPage,
+  selectTemplates,
+  selectTemplatesMeta,
+  selectTemplatesStatus,
+  selectTemplatesError,
+  selectTemplatesSearch,
+  selectTemplatesStatusFilter,
+  selectTemplatesPage,
+  type StatusFilter,
+  type CreateTemplateInput,
+} from '@/features/templates/templatesSlice';
+import type { Template } from '@/types';
+
+export type {
+  StatusFilter,
+  CreateTemplateInput,
+  TemplateComponentInput,
+  TemplateButtonInput,
+} from '@/features/templates/templatesSlice';
 
 interface TemplateMeta {
   total: number;
@@ -9,160 +35,152 @@ interface TemplateMeta {
   totalPages: number;
 }
 
-export type StatusFilter = 'all' | 'PENDING' | 'APPROVED' | 'REJECTED';
-
-export interface TemplateButtonInput {
-  type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER' | 'COPY_CODE';
-  text: string;
-  url?: string;
-  phone_number?: string;
-  /** Example value for dynamic URL {{1}} or COPY_CODE */
-  example?: string;
+export interface UseTemplatesReturn {
+  templates: Template[];
+  meta: TemplateMeta;
+  loading: boolean;
+  isFetching: boolean;
+  error: string | null;
+  statusFilter: StatusFilter;
+  setStatusFilter: (value: StatusFilter) => void;
+  search: string;
+  setSearch: (value: string) => void;
+  page: number;
+  setPage: (value: number) => void;
+  createTemplate: (input: CreateTemplateInput) => Promise<Template>;
+  removeTemplate: (id: string) => Promise<void>;
+  syncOne: (id: string) => Promise<Template>;
+  syncAll: () => Promise<{ synced: number }>;
+  refetch: () => void;
 }
 
-export interface TemplateComponentInput {
-  type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS';
-  format?: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT';
-  text?: string;
-  /** Sample values for {{1}}, {{2}}, … — required by Meta when variables present */
-  example?: string[];
-  buttons?: TemplateButtonInput[];
-}
+export function useTemplates(): UseTemplatesReturn {
+  const dispatch = useAppDispatch();
+  const templates = useAppSelector(selectTemplates);
+  const meta = useAppSelector(selectTemplatesMeta);
+  const status = useAppSelector(selectTemplatesStatus);
+  const error = useAppSelector(selectTemplatesError);
+  const search = useAppSelector(selectTemplatesSearch);
+  const statusFilter = useAppSelector(selectTemplatesStatusFilter);
+  const page = useAppSelector(selectTemplatesPage);
 
-export interface CreateTemplateInput {
-  name: string;
-  language: string;
-  category: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION';
-  components: TemplateComponentInput[];
-}
+  // Debounce timer for search/filter — local implementation detail
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track whether this is initial render to avoid double-fetch on page change
+  const isFirstRender = useRef(true);
 
-interface SyncAllResult {
-  synced: number;
-}
-
-const DEFAULT_META: TemplateMeta = { total: 0, page: 1, limit: 20, totalPages: 0 };
-
-// Module-level cache — persists across component mounts for instant re-navigation
-let cache: { templates: Template[]; meta: TemplateMeta } | null = null;
-
-export function useTemplates() {
-  const [templates, setTemplates] = useState<Template[]>(cache?.templates ?? []);
-  const [meta, setMeta] = useState<TemplateMeta>(cache?.meta ?? DEFAULT_META);
-  const [loading, setLoading] = useState(cache === null);
-  const [isFetching, setIsFetching] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-
-  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const fetchTemplates = useCallback(
-    async (searchTerm: string, pageNum: number, status: StatusFilter) => {
-      setIsFetching(true);
-      setError(null);
-      try {
-        const params: Record<string, string | number> = { page: pageNum, limit: 20 };
-        if (searchTerm.trim()) params['search'] = searchTerm.trim();
-        if (status !== 'all') params['status'] = status;
-
-        const response = await api.get<PaginatedResponse<Template>>('/templates', { params });
-        const newTemplates = response.data.data;
-        const newMeta = response.data.meta;
-        setTemplates(newTemplates);
-        setMeta(newMeta);
-        // Only cache the default view (no filters/search) so navigation back shows stale-while-revalidate
-        if (!searchTerm.trim() && status === 'all' && pageNum === 1) {
-          cache = { templates: newTemplates, meta: newMeta };
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load templates');
-      } finally {
-        setLoading(false);
-        setIsFetching(false);
-      }
-    },
-    [],
-  );
-
-  // Debounce search changes — reset to page 1
+  // Initial fetch on mount
   useEffect(() => {
-    if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    debounceTimer.current = setTimeout(() => {
-      setPage(1);
-      void fetchTemplates(search, 1, statusFilter);
+    if (status === 'idle') {
+      void dispatch(fetchTemplates({ search, page, statusFilter }));
+    }
+  }, [status, dispatch]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Debounce search/filter changes — reset to page 1
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      void dispatch(fetchTemplates({ search, page: 1, statusFilter }));
     }, 300);
     return () => {
-      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [search, statusFilter, fetchTemplates]);
+  }, [search, statusFilter, dispatch]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch when page changes
-  const isFirstRender = useRef(true);
+  // Fetch when page changes (skip first render — initial fetch above handles it)
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
     }
-    void fetchTemplates(search, page, statusFilter);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+    void dispatch(fetchTemplates({ search, page, statusFilter }));
+  }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const createTemplate = useCallback(
+  const handleSetSearch = useCallback(
+    (value: string) => {
+      dispatch(setSearch(value)); // also resets page to 1 in the slice
+    },
+    [dispatch],
+  );
+
+  const handleSetStatusFilter = useCallback(
+    (value: StatusFilter) => {
+      dispatch(setStatusFilter(value)); // also resets page to 1 in the slice
+    },
+    [dispatch],
+  );
+
+  const handleSetPage = useCallback(
+    (value: number) => {
+      dispatch(setPage(value));
+    },
+    [dispatch],
+  );
+
+  const handleCreateTemplate = useCallback(
     async (input: CreateTemplateInput): Promise<Template> => {
-      const response = await api.post<ApiResponse<Template>>('/templates', input);
-      cache = null; // Invalidate cache on mutation
-      await fetchTemplates(search, page, statusFilter);
-      return response.data.data;
+      const result = await dispatch(createTemplateThunk(input));
+      if (createTemplateThunk.rejected.match(result)) {
+        throw new Error((result.payload as string | undefined) ?? 'Failed to create template');
+      }
+      // Refetch to get accurate pagination
+      await dispatch(fetchTemplates({ search, page, statusFilter }));
+      return result.payload as Template;
     },
-    [fetchTemplates, search, page, statusFilter],
+    [dispatch, search, page, statusFilter],
   );
 
-  const removeTemplate = useCallback(
+  const handleRemoveTemplate = useCallback(
     async (id: string): Promise<void> => {
-      await api.delete(`/templates/${id}`);
-      cache = null; // Invalidate cache on mutation
-      setTemplates((prev) => prev.filter((t) => t.id !== id));
-      setMeta((prev) => ({ ...prev, total: Math.max(0, prev.total - 1) }));
+      const result = await dispatch(deleteTemplateThunk(id));
+      if (deleteTemplateThunk.rejected.match(result)) {
+        throw new Error((result.payload as string | undefined) ?? 'Failed to delete template');
+      }
     },
-    [],
+    [dispatch],
   );
 
-  const syncOne = useCallback(async (id: string): Promise<Template> => {
-    const response = await api.post<ApiResponse<Template>>(`/templates/${id}/sync`);
-    const updated = response.data.data;
-    setTemplates((prev) => prev.map((t) => (t.id === id ? updated : t)));
-    cache = null; // Invalidate cache on sync
-    return updated;
-  }, []);
+  const handleSyncOne = useCallback(
+    async (id: string): Promise<Template> => {
+      const result = await dispatch(syncTemplateThunk(id));
+      if (syncTemplateThunk.rejected.match(result)) {
+        throw new Error((result.payload as string | undefined) ?? 'Failed to sync template');
+      }
+      return result.payload as Template;
+    },
+    [dispatch],
+  );
 
-  const syncAll = useCallback(async (): Promise<SyncAllResult> => {
-    const response = await api.post<ApiResponse<SyncAllResult>>('/templates/sync-all');
-    cache = null; // Invalidate cache on sync
-    await fetchTemplates(search, page, statusFilter);
-    return response.data.data;
-  }, [fetchTemplates, search, page, statusFilter]);
+  const handleSyncAll = useCallback(async (): Promise<{ synced: number }> => {
+    const result = await dispatch(syncAllTemplatesThunk());
+    if (syncAllTemplatesThunk.rejected.match(result)) {
+      throw new Error((result.payload as string | undefined) ?? 'Failed to sync templates');
+    }
+    // Refetch after sync
+    await dispatch(fetchTemplates({ search, page, statusFilter }));
+    return result.payload as { synced: number };
+  }, [dispatch, search, page, statusFilter]);
 
   const refetch = useCallback(() => {
-    void fetchTemplates(search, page, statusFilter);
-  }, [fetchTemplates, search, page, statusFilter]);
+    void dispatch(fetchTemplates({ search, page, statusFilter }));
+  }, [dispatch, search, page, statusFilter]);
 
   return {
     templates,
     meta,
-    loading,
-    isFetching,
+    loading: status === 'loading',
+    isFetching: status === 'loading' && templates.length > 0,
     error,
     statusFilter,
-    setStatusFilter,
+    setStatusFilter: handleSetStatusFilter,
     search,
-    setSearch,
+    setSearch: handleSetSearch,
     page,
-    setPage,
-    createTemplate,
-    removeTemplate,
-    syncOne,
-    syncAll,
+    setPage: handleSetPage,
+    createTemplate: handleCreateTemplate,
+    removeTemplate: handleRemoveTemplate,
+    syncOne: handleSyncOne,
+    syncAll: handleSyncAll,
     refetch,
   };
 }

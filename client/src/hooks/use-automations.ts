@@ -1,6 +1,25 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { api } from '@/lib/api';
-import type { Automation, AutomationLog, Template, PaginatedResponse, ApiResponse } from '@/types';
+import { useEffect, useCallback, useRef } from 'react';
+import { useAppDispatch, useAppSelector } from '@/app/hooks';
+import {
+  fetchAutomations,
+  fetchApprovedTemplates,
+  createAutomation as createAutomationThunk,
+  updateAutomation as updateAutomationThunk,
+  deleteAutomation as deleteAutomationThunk,
+  toggleAutomation as toggleAutomationThunk,
+  fetchAutomationLogs,
+  setPage,
+  selectAutomations,
+  selectApprovedTemplates,
+  selectAutomationsMeta,
+  selectAutomationsStatus,
+  selectAutomationsError,
+  selectAutomationsPage,
+  type CreateAutomationInput,
+} from '@/features/automations/automationsSlice';
+import type { Automation, AutomationLog, Template } from '@/types';
+
+export type { CreateAutomationInput };
 
 interface AutomationMeta {
   total: number;
@@ -9,161 +28,138 @@ interface AutomationMeta {
   totalPages: number;
 }
 
-export interface CreateAutomationInput {
-  name: string;
-  triggerType: 'SHOPIFY_EVENT' | 'BUTTON_REPLY';
-  shopifyEvent?: 'PREPAID_ORDER_CONFIRMED' | 'COD_ORDER_CONFIRMED' | 'ORDER_FULFILLED' | 'ABANDONED_CART';
-  buttonTriggerText?: string;
-  templateId: string;
-  variableMapping: Record<string, string>;
-  isActive: boolean;
-  delayMinutes: number;
+export interface UseAutomationsReturn {
+  automations: Automation[];
+  approvedTemplates: Template[];
+  meta: AutomationMeta;
+  loading: boolean;
+  isFetching: boolean;
+  error: string | null;
+  page: number;
+  setPage: (value: number) => void;
+  createAutomation: (input: CreateAutomationInput) => Promise<Automation>;
+  updateAutomation: (id: string, input: Partial<CreateAutomationInput>) => Promise<Automation>;
+  removeAutomation: (id: string) => Promise<void>;
+  toggleAutomation: (id: string) => Promise<Automation>;
+  fetchLogs: (
+    automationId: string,
+    logsPage?: number,
+  ) => Promise<{ items: AutomationLog[]; meta: AutomationMeta }>;
+  refetch: () => void;
 }
 
-// Module-level cache — persists across component mounts for instant re-navigation
-let cache: { automations: Automation[]; meta: AutomationMeta } | null = null;
-let cachedApprovedTemplates: Template[] | null = null;
+export function useAutomations(): UseAutomationsReturn {
+  const dispatch = useAppDispatch();
+  const automations = useAppSelector(selectAutomations);
+  const approvedTemplates = useAppSelector(selectApprovedTemplates);
+  const meta = useAppSelector(selectAutomationsMeta);
+  const status = useAppSelector(selectAutomationsStatus);
+  const error = useAppSelector(selectAutomationsError);
+  const page = useAppSelector(selectAutomationsPage);
 
-export function useAutomations() {
-  const [automations, setAutomations] = useState<Automation[]>(cache?.automations ?? []);
-  const [approvedTemplates, setApprovedTemplates] = useState<Template[]>(cachedApprovedTemplates ?? []);
-  const [meta, setMeta] = useState<AutomationMeta>(
-    cache?.meta ?? { total: 0, page: 1, limit: 20, totalPages: 0 },
-  );
-  const [loading, setLoading] = useState(cache === null);
-  const [isFetching, setIsFetching] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
   const isFirstPageEffect = useRef(true);
 
-  const fetchAutomations = useCallback(async (pageNum: number): Promise<void> => {
-    setIsFetching(true);
-    setError(null);
-    try {
-      const response = await api.get<PaginatedResponse<Automation>>('/automations', {
-        params: { page: pageNum, limit: 20 },
-      });
-      const newAutomations = response.data.data;
-      const newMeta = response.data.meta;
-      setAutomations(newAutomations);
-      setMeta(newMeta);
-      if (pageNum === 1) {
-        cache = { automations: newAutomations, meta: newMeta };
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load automations');
-    } finally {
-      setLoading(false);
-      setIsFetching(false);
-    }
-  }, []);
-
-  const fetchApprovedTemplates = useCallback(async (): Promise<void> => {
-    try {
-      const response = await api.get<PaginatedResponse<Template>>('/templates', {
-        params: { status: 'APPROVED', limit: 100 },
-      });
-      cachedApprovedTemplates = response.data.data;
-      setApprovedTemplates(response.data.data);
-    } catch {
-      // Non-critical — templates list failing shouldn't block the page
-    }
-  }, []);
-
+  // Initial fetch
   useEffect(() => {
-    void fetchAutomations(1);
-    void fetchApprovedTemplates();
-  }, [fetchAutomations, fetchApprovedTemplates]);
+    if (status === 'idle') {
+      void dispatch(fetchAutomations(1));
+      void dispatch(fetchApprovedTemplates());
+    }
+  }, [status, dispatch]);
 
+  // Fetch when page changes (skip first render)
   useEffect(() => {
     if (isFirstPageEffect.current) {
       isFirstPageEffect.current = false;
       return;
     }
-    void fetchAutomations(page);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+    void dispatch(fetchAutomations(page));
+  }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const createAutomation = useCallback(
+  const handleSetPage = useCallback(
+    (value: number) => {
+      dispatch(setPage(value));
+    },
+    [dispatch],
+  );
+
+  const handleCreateAutomation = useCallback(
     async (input: CreateAutomationInput): Promise<Automation> => {
-      const response = await api.post<ApiResponse<Automation>>('/automations', input);
-      cache = null; // Invalidate cache on mutation
-      await fetchAutomations(page);
-      return response.data.data;
+      const result = await dispatch(createAutomationThunk(input));
+      if (createAutomationThunk.rejected.match(result)) {
+        throw new Error((result.payload as string | undefined) ?? 'Failed to create automation');
+      }
+      // Refetch to get accurate pagination
+      await dispatch(fetchAutomations(page));
+      return result.payload as Automation;
     },
-    [fetchAutomations, page],
+    [dispatch, page],
   );
 
-  const updateAutomation = useCallback(
+  const handleUpdateAutomation = useCallback(
     async (id: string, input: Partial<CreateAutomationInput>): Promise<Automation> => {
-      const response = await api.put<ApiResponse<Automation>>(`/automations/${id}`, input);
-      const updated = response.data.data;
-      setAutomations((prev) => prev.map((a) => (a.id === id ? { ...a, ...updated } : a)));
-      cache = null; // Invalidate cache on mutation
-      return updated;
+      const result = await dispatch(updateAutomationThunk({ id, input }));
+      if (updateAutomationThunk.rejected.match(result)) {
+        throw new Error((result.payload as string | undefined) ?? 'Failed to update automation');
+      }
+      return result.payload as Automation;
     },
-    [],
+    [dispatch],
   );
 
-  const removeAutomation = useCallback(async (id: string): Promise<void> => {
-    await api.delete(`/automations/${id}`);
-    cache = null; // Invalidate cache on mutation
-    setAutomations((prev) => prev.filter((a) => a.id !== id));
-    setMeta((prev) => ({ ...prev, total: Math.max(0, prev.total - 1) }));
-  }, []);
+  const handleRemoveAutomation = useCallback(
+    async (id: string): Promise<void> => {
+      const result = await dispatch(deleteAutomationThunk(id));
+      if (deleteAutomationThunk.rejected.match(result)) {
+        throw new Error((result.payload as string | undefined) ?? 'Failed to delete automation');
+      }
+    },
+    [dispatch],
+  );
 
-  const toggleAutomation = useCallback(async (id: string): Promise<Automation> => {
-    // Optimistic update
-    setAutomations((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, isActive: !a.isActive } : a)),
-    );
-    try {
-      const response = await api.patch<ApiResponse<Automation>>(`/automations/${id}/toggle`);
-      const updated = response.data.data;
-      setAutomations((prev) => prev.map((a) => (a.id === id ? { ...a, ...updated } : a)));
-      cache = null; // Invalidate cache on toggle
-      return updated;
-    } catch (err) {
-      // Revert optimistic update on failure
-      setAutomations((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, isActive: !a.isActive } : a)),
-      );
-      throw err;
-    }
-  }, []);
+  const handleToggleAutomation = useCallback(
+    async (id: string): Promise<Automation> => {
+      const result = await dispatch(toggleAutomationThunk(id));
+      if (toggleAutomationThunk.rejected.match(result)) {
+        throw new Error((result.payload as string | undefined) ?? 'Failed to toggle automation');
+      }
+      return result.payload as Automation;
+    },
+    [dispatch],
+  );
 
-  const fetchLogs = useCallback(
+  const handleFetchLogs = useCallback(
     async (
       automationId: string,
       logsPage = 1,
     ): Promise<{ items: AutomationLog[]; meta: AutomationMeta }> => {
-      const response = await api.get<{ data: AutomationLog[]; meta: AutomationMeta }>(
-        `/automations/${automationId}/logs`,
-        { params: { page: logsPage, limit: 20 } },
-      );
-      return { items: response.data.data, meta: response.data.meta };
+      const result = await dispatch(fetchAutomationLogs({ automationId, page: logsPage }));
+      if (fetchAutomationLogs.rejected.match(result)) {
+        throw new Error((result.payload as string | undefined) ?? 'Failed to load logs');
+      }
+      return result.payload as { items: AutomationLog[]; meta: AutomationMeta };
     },
-    [],
+    [dispatch],
   );
 
   const refetch = useCallback(() => {
-    void fetchAutomations(page);
-  }, [fetchAutomations, page]);
+    void dispatch(fetchAutomations(page));
+  }, [dispatch, page]);
 
   return {
     automations,
     approvedTemplates,
     meta,
-    loading,
-    isFetching,
+    loading: status === 'loading',
+    isFetching: status === 'loading' && automations.length > 0,
     error,
     page,
-    setPage,
-    createAutomation,
-    updateAutomation,
-    removeAutomation,
-    toggleAutomation,
-    fetchLogs,
+    setPage: handleSetPage,
+    createAutomation: handleCreateAutomation,
+    updateAutomation: handleUpdateAutomation,
+    removeAutomation: handleRemoveAutomation,
+    toggleAutomation: handleToggleAutomation,
+    fetchLogs: handleFetchLogs,
     refetch,
   };
 }

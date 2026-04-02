@@ -599,7 +599,7 @@ export default function CustomersPage() {
               variant="outline"
               size="sm"
               disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
+              onClick={() => setPage(page - 1)}
             >
               Previous
             </Button>
@@ -610,7 +610,7 @@ export default function CustomersPage() {
               variant="outline"
               size="sm"
               disabled={page >= meta.totalPages}
-              onClick={() => setPage((p) => p + 1)}
+              onClick={() => setPage(page + 1)}
             >
               Next
             </Button>

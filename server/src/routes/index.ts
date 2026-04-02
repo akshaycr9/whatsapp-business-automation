@@ -81,6 +81,7 @@ export const registerRoutes = (app: Express): void => {
     '/webhooks',
     '/api/setup',
     '/api/debug',
+    '/api/media', // Media proxy: browser <img>/<video>/<audio> can't send Authorization headers
   ];
 
   app.use((req: Request, _res: Response, next: NextFunction) => {

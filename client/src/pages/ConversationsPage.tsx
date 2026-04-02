@@ -145,14 +145,14 @@ function ChatPanel({ conversationId, conversations, onBack, onMarkRead }: ChatPa
 
   const handleMessageSent = useCallback(
     (_message: Message) => {
-      // Message is appended via the socket event, but as a fallback also refetch
-      // Scroll to bottom after send
+      // The server emits a new_message socket event after persisting the message,
+      // which dispatches messageReceived and adds it to Redux without clearing state.
+      // Calling refetchMessages() here resets items to [] (fetchMessages.pending),
+      // creating a race window where status-update socket events are silently dropped.
       isNearBottomRef.current = true;
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      // Refetch to get the latest state
-      refetchMessages();
     },
-    [refetchMessages],
+    [],
   );
 
   // Group messages by day for date separators

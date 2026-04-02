@@ -1,6 +1,26 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { api } from '@/lib/api';
-import type { Customer, PaginatedResponse, ApiResponse } from '@/types';
+import { useEffect, useCallback, useRef } from 'react';
+import { useAppDispatch, useAppSelector } from '@/app/hooks';
+import {
+  fetchCustomers,
+  createCustomer as createCustomerThunk,
+  updateCustomer as updateCustomerThunk,
+  deleteCustomer as deleteCustomerThunk,
+  syncCustomersFromShopify,
+  setSearch,
+  setPage,
+  selectCustomers,
+  selectCustomersMeta,
+  selectCustomersStatus,
+  selectCustomersError,
+  selectCustomersSearch,
+  selectCustomersPage,
+  type CreateCustomerInput,
+  type UpdateCustomerInput,
+  type SyncResult,
+} from '@/features/customers/customersSlice';
+import type { Customer } from '@/types';
+
+export type { CreateCustomerInput, UpdateCustomerInput, SyncResult };
 
 interface CustomerMeta {
   total: number;
@@ -9,142 +29,136 @@ interface CustomerMeta {
   totalPages: number;
 }
 
-interface SyncResult {
-  created: number;
-  updated: number;
-  skipped: number;
+export interface UseCustomersReturn {
+  customers: Customer[];
+  meta: CustomerMeta;
+  loading: boolean;
+  isFetching: boolean;
+  error: string | null;
+  search: string;
+  setSearch: (value: string) => void;
+  page: number;
+  setPage: (value: number) => void;
+  createCustomer: (input: CreateCustomerInput) => Promise<Customer>;
+  updateCustomer: (id: string, input: UpdateCustomerInput) => Promise<Customer>;
+  deleteCustomer: (id: string) => Promise<void>;
+  syncFromShopify: () => Promise<SyncResult>;
+  refetch: () => void;
 }
 
-interface CreateCustomerInput {
-  phone: string;
-  name?: string;
-  email?: string;
-  city?: string;
-  tags?: string[];
-}
+export function useCustomers(): UseCustomersReturn {
+  const dispatch = useAppDispatch();
+  const customers = useAppSelector(selectCustomers);
+  const meta = useAppSelector(selectCustomersMeta);
+  const status = useAppSelector(selectCustomersStatus);
+  const error = useAppSelector(selectCustomersError);
+  const search = useAppSelector(selectCustomersSearch);
+  const page = useAppSelector(selectCustomersPage);
 
-interface UpdateCustomerInput {
-  name?: string;
-  email?: string;
-  city?: string;
-  tags?: string[];
-}
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFirstRender = useRef(true);
 
-const DEFAULT_META: CustomerMeta = { total: 0, page: 1, limit: 20, totalPages: 0 };
-
-// Module-level cache — persists across component mounts for instant re-navigation
-let cache: { customers: Customer[]; meta: CustomerMeta } | null = null;
-
-export function useCustomers() {
-  const [customers, setCustomers] = useState<Customer[]>(cache?.customers ?? []);
-  const [meta, setMeta] = useState<CustomerMeta>(cache?.meta ?? DEFAULT_META);
-  const [loading, setLoading] = useState(cache === null);
-  const [isFetching, setIsFetching] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-
-  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const fetchCustomers = useCallback(async (searchTerm: string, pageNum: number) => {
-    setIsFetching(true);
-    setError(null);
-    try {
-      const params: Record<string, string | number> = { page: pageNum, limit: 20 };
-      if (searchTerm.trim()) params.search = searchTerm.trim();
-
-      const response = await api.get<PaginatedResponse<Customer>>('/customers', { params });
-      const newCustomers = response.data.data;
-      const newMeta = response.data.meta;
-      setCustomers(newCustomers);
-      setMeta(newMeta);
-      // Only cache the default view (no search, page 1)
-      if (!searchTerm.trim() && pageNum === 1) {
-        cache = { customers: newCustomers, meta: newMeta };
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load customers');
-    } finally {
-      setLoading(false);
-      setIsFetching(false);
-    }
-  }, []);
-
-  // Debounce search changes — reset to page 1
+  // Initial fetch on mount
   useEffect(() => {
-    if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    debounceTimer.current = setTimeout(() => {
-      setPage(1);
-      void fetchCustomers(search, 1);
+    if (status === 'idle') {
+      void dispatch(fetchCustomers({ search: '', page: 1 }));
+    }
+  }, [status, dispatch]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Debounce search changes
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      void dispatch(fetchCustomers({ search, page: 1 }));
     }, 300);
     return () => {
-      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [search, fetchCustomers]);
+  }, [search, dispatch]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch when page changes (but not when search changes — handled above)
-  const isFirstRender = useRef(true);
+  // Fetch when page changes (skip first render)
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
     }
-    void fetchCustomers(search, page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+    void dispatch(fetchCustomers({ search, page }));
+  }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const createCustomer = useCallback(async (input: CreateCustomerInput): Promise<Customer> => {
-    const response = await api.post<ApiResponse<Customer>>('/customers', input);
-    cache = null; // Invalidate cache on mutation
-    await fetchCustomers(search, page);
-    return response.data.data;
-  }, [fetchCustomers, search, page]);
+  const handleSetSearch = useCallback(
+    (value: string) => {
+      dispatch(setSearch(value)); // also resets page to 1 in the slice
+    },
+    [dispatch],
+  );
 
-  const updateCustomer = useCallback(
+  const handleSetPage = useCallback(
+    (value: number) => {
+      dispatch(setPage(value));
+    },
+    [dispatch],
+  );
+
+  const handleCreateCustomer = useCallback(
+    async (input: CreateCustomerInput): Promise<Customer> => {
+      const result = await dispatch(createCustomerThunk(input));
+      if (createCustomerThunk.rejected.match(result)) {
+        throw new Error((result.payload as string | undefined) ?? 'Failed to create customer');
+      }
+      await dispatch(fetchCustomers({ search, page }));
+      return result.payload as Customer;
+    },
+    [dispatch, search, page],
+  );
+
+  const handleUpdateCustomer = useCallback(
     async (id: string, input: UpdateCustomerInput): Promise<Customer> => {
-      const response = await api.put<ApiResponse<Customer>>(`/customers/${id}`, input);
-      setCustomers((prev) => prev.map((c) => (c.id === id ? response.data.data : c)));
-      cache = null; // Invalidate cache on mutation
-      return response.data.data;
+      const result = await dispatch(updateCustomerThunk({ id, input }));
+      if (updateCustomerThunk.rejected.match(result)) {
+        throw new Error((result.payload as string | undefined) ?? 'Failed to update customer');
+      }
+      return result.payload as Customer;
     },
-    [],
+    [dispatch],
   );
 
-  const deleteCustomer = useCallback(
+  const handleDeleteCustomer = useCallback(
     async (id: string): Promise<void> => {
-      await api.delete(`/customers/${id}`);
-      cache = null; // Invalidate cache on mutation
-      setCustomers((prev) => prev.filter((c) => c.id !== id));
-      setMeta((prev) => ({ ...prev, total: Math.max(0, prev.total - 1) }));
+      const result = await dispatch(deleteCustomerThunk(id));
+      if (deleteCustomerThunk.rejected.match(result)) {
+        throw new Error((result.payload as string | undefined) ?? 'Failed to delete customer');
+      }
     },
-    [],
+    [dispatch],
   );
 
-  const syncFromShopify = useCallback(async (): Promise<SyncResult> => {
-    const response = await api.post<ApiResponse<SyncResult>>('/customers/sync-shopify');
-    cache = null; // Invalidate cache on sync
-    await fetchCustomers(search, page);
-    return response.data.data;
-  }, [fetchCustomers, search, page]);
+  const handleSyncFromShopify = useCallback(async (): Promise<SyncResult> => {
+    const result = await dispatch(syncCustomersFromShopify());
+    if (syncCustomersFromShopify.rejected.match(result)) {
+      throw new Error((result.payload as string | undefined) ?? 'Failed to sync from Shopify');
+    }
+    await dispatch(fetchCustomers({ search, page }));
+    return result.payload as SyncResult;
+  }, [dispatch, search, page]);
 
   const refetch = useCallback(() => {
-    void fetchCustomers(search, page);
-  }, [fetchCustomers, search, page]);
+    void dispatch(fetchCustomers({ search, page }));
+  }, [dispatch, search, page]);
 
   return {
     customers,
     meta,
-    loading,
-    isFetching,
+    loading: status === 'loading',
+    isFetching: status === 'loading' && customers.length > 0,
     error,
     search,
-    setSearch,
+    setSearch: handleSetSearch,
     page,
-    setPage,
-    createCustomer,
-    updateCustomer,
-    deleteCustomer,
-    syncFromShopify,
+    setPage: handleSetPage,
+    createCustomer: handleCreateCustomer,
+    updateCustomer: handleUpdateCustomer,
+    deleteCustomer: handleDeleteCustomer,
+    syncFromShopify: handleSyncFromShopify,
     refetch,
   };
 }

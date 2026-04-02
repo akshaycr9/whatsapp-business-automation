@@ -1,15 +1,15 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { api } from '@/lib/api';
-import { socket } from '@/lib/socket';
-import type {
-  Conversation,
-  PaginatedResponse,
-  NewMessageEvent,
-  ConversationUpdatedEvent,
-} from '@/types';
-
-// Module-level cache — persists across component mounts for instant re-navigation
-let cachedConversations: Conversation[] | null = null;
+import { useEffect, useCallback, useRef } from 'react';
+import { useAppDispatch, useAppSelector } from '@/app/hooks';
+import {
+  fetchConversations,
+  setSearch,
+  markRead,
+  selectConversations,
+  selectConversationsStatus,
+  selectConversationsError,
+  selectConversationsSearch,
+} from '@/features/conversations/conversationsSlice';
+import type { Conversation } from '@/types';
 
 export interface UseConversationsReturn {
   conversations: Conversation[];
@@ -19,112 +19,63 @@ export interface UseConversationsReturn {
   search: string;
   setSearch: (value: string) => void;
   refetch: () => void;
-  /** Optimistically clears the unread badge for a conversation (call when opening it). */
   markConversationRead: (id: string) => void;
 }
 
 export function useConversations(): UseConversationsReturn {
-  const [conversations, setConversations] = useState<Conversation[]>(cachedConversations ?? []);
-  const [loading, setLoading] = useState(cachedConversations === null);
-  const [isFetching, setIsFetching] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
+  const dispatch = useAppDispatch();
+  const conversations = useAppSelector(selectConversations);
+  const status = useAppSelector(selectConversationsStatus);
+  const error = useAppSelector(selectConversationsError);
+  const search = useAppSelector(selectConversationsSearch);
 
-  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const searchRef = useRef(search);
-  searchRef.current = search;
+  // Debounce timer is local — it is not state, just an implementation detail
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fetchConversations = useCallback(async (searchTerm: string) => {
-    setIsFetching(true);
-    setError(null);
-    try {
-      const params: Record<string, string> = {};
-      if (searchTerm.trim()) params.search = searchTerm.trim();
-      const response = await api.get<PaginatedResponse<Conversation>>('/conversations', { params });
-      const newConversations = response.data.data;
-      setConversations(newConversations);
-      // Only cache the default (non-search) view
-      if (!searchTerm.trim()) {
-        cachedConversations = newConversations;
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load conversations');
-    } finally {
-      setLoading(false);
-      setIsFetching(false);
+  // Initial fetch on mount (only if not yet loaded)
+  useEffect(() => {
+    if (status === 'idle') {
+      void dispatch(fetchConversations(''));
     }
-  }, []);
+  }, [status, dispatch]);
 
-  // Initial fetch
+  // Debounce search — dispatch fetch 300ms after search value settles in Redux
   useEffect(() => {
-    void fetchConversations('');
-  }, [fetchConversations]);
-
-  // Debounce search
-  useEffect(() => {
-    if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    debounceTimer.current = setTimeout(() => {
-      void fetchConversations(search);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      void dispatch(fetchConversations(search));
     }, 300);
     return () => {
-      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [search, fetchConversations]);
+  }, [search, dispatch]);
 
-  // Socket event handlers
-  useEffect(() => {
-    const handleConversationUpdated = (event: ConversationUpdatedEvent) => {
-      setConversations((prev) =>
-        prev.map((c) => (c.id === event.conversation.id ? event.conversation : c)),
-      );
-      // Update cache too
-      if (cachedConversations) {
-        cachedConversations = cachedConversations.map((c) =>
-          c.id === event.conversation.id ? event.conversation : c,
-        );
-      }
-    };
-
-    const handleNewMessage = (event: NewMessageEvent) => {
-      setConversations((prev) => {
-        const idx = prev.findIndex((c) => c.id === event.conversationId);
-        if (idx === -1) return prev;
-        const updated: Conversation = {
-          ...prev[idx],
-          lastMessageAt: event.message.createdAt,
-          lastMessageText: event.message.body,
-        };
-        // Move to top
-        const rest = prev.filter((c) => c.id !== event.conversationId);
-        const newList = [updated, ...rest];
-        cachedConversations = newList;
-        return newList;
-      });
-    };
-
-    socket.on('conversation_updated', handleConversationUpdated);
-    socket.on('new_message', handleNewMessage);
-
-    return () => {
-      socket.off('conversation_updated', handleConversationUpdated);
-      socket.off('new_message', handleNewMessage);
-    };
-  }, []);
+  const handleSetSearch = useCallback(
+    (value: string) => {
+      dispatch(setSearch(value));
+    },
+    [dispatch],
+  );
 
   const refetch = useCallback(() => {
-    void fetchConversations(searchRef.current);
-  }, [fetchConversations]);
+    void dispatch(fetchConversations(search));
+  }, [dispatch, search]);
 
-  const markConversationRead = useCallback((id: string) => {
-    setConversations((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, unreadCount: 0 } : c)),
-    );
-    if (cachedConversations) {
-      cachedConversations = cachedConversations.map((c) =>
-        c.id === id ? { ...c, unreadCount: 0 } : c,
-      );
-    }
-  }, []);
+  const markConversationRead = useCallback(
+    (id: string) => {
+      dispatch(markRead(id));
+    },
+    [dispatch],
+  );
 
-  return { conversations, loading, isFetching, error, search, setSearch, refetch, markConversationRead };
+  return {
+    conversations,
+    loading: status === 'loading',
+    isFetching: status === 'loading' && conversations.length > 0,
+    error,
+    search,
+    setSearch: handleSetSearch,
+    refetch,
+    markConversationRead,
+  };
 }
