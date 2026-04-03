@@ -44,6 +44,42 @@ Monorepo with `server/` and `client/` directories. Each has its own `package.jso
 - No CSS files — use Tailwind utility classes only
 - `vite.config.ts` uses `envDir: '..'` — all `VITE_*` vars go in the root `.env`, not in `client/.env`
 
+#### Three-Layer Architecture (strict — no exceptions)
+```
+PAGE → COMPONENT → HOOK
+```
+- **Pages** (`src/pages/`): composition only — call hooks, pass data as props, wrap handlers in `useCallback`. No component definitions, no business logic, no Redux imports.
+- **Components** (`src/components/<feature>/`): presentational only — receive typed props, render UI, emit events via callback props. No hooks that fetch data, no Redux imports, no API calls.
+- **Hooks** (`src/hooks/`): data layer — own one domain, talk to Redux/API, return stable data + memoized handlers. No JSX.
+- **Utilities** (`src/lib/`): pure functions only — `template-utils.ts`, `automation-utils.ts`, `utils.ts`.
+
+#### Component Directory Structure
+```
+src/components/
+  ui/              — shadcn/ui primitives (auto-generated, never modify)
+  layout/          — AppShell, Sidebar, NotificationBell
+  auth/            — ProtectedRoute
+  conversations/   — ChatPanel, MessageBubble, ConversationListItem, ChatInput,
+                     TemplateSendDialog, DateSeparator, skeletons
+  templates/       — TemplateCard, StatusBadge, PreviewBubble, NewTemplateDialog, skeletons
+  automations/     — AutomationFormDialog, LogsDialog, DeleteDialog, EventCards,
+                     VariableMappingSection, ToggleSwitch
+  customers/       — CustomerForm, CustomerAvatar, CustomerTableSkeleton
+  dashboard/       — StatCard, ActivityIcon, ActivityItem
+```
+
+#### SOLID Principles (applied to React)
+- **Single Responsibility**: one component = one job; one hook = one data domain; pure helpers go in `src/lib/`
+- **Open/Closed**: use config/lookup maps instead of if/else chains — adding a new variant = one map entry, no changes to existing code (e.g. `ActivityIcon` uses `ACTIVITY_CONFIG`, automations uses `EVENT_CONFIG`)
+- **Interface Segregation**: props interfaces contain only what the component renders — never pass a full model object when only 2–3 fields are used; map at the page level
+- **Dependency Inversion**: dialogs and forms receive an `onSubmit` callback prop — they never import hooks or dispatch to Redux; the page injects the dependency
+
+#### React Performance Rules
+- Wrap list-rendered components in `React.memo` — `MessageBubble`, `ConversationListItem`, `TemplateCard`, `StatCard`, `ActivityItem`, etc.
+- Wrap all handler props passed to memoized children in `useCallback` at the page level
+- Memoize selector factory calls: `const sel = useMemo(() => selectConvMessages(id), [id])` — never call a selector factory inline in `useAppSelector`
+- Use `useMemo` for expensive derived values (variable extraction, filtered lists)
+
 ### Naming
 - Files: kebab-case (e.g., `abandoned-cart.service.ts`)
 - React components: PascalCase files (e.g., `ConversationsPage.tsx`)

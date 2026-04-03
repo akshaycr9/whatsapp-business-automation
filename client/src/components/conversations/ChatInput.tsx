@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Send, Loader2, LayoutTemplate } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
@@ -12,7 +12,7 @@ interface Props {
   onMessageSent: (message: Message) => void;
 }
 
-export function ChatInput({ conversationId, isWithin24HourWindow, onMessageSent }: Props) {
+export const ChatInput = React.memo(function ChatInput({ conversationId, isWithin24HourWindow, onMessageSent }: Props) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
@@ -114,4 +114,4 @@ export function ChatInput({ conversationId, isWithin24HourWindow, onMessageSent 
       />
     </div>
   );
-}
+});
