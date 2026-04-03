@@ -13,7 +13,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   Table,
@@ -34,181 +33,17 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { useCustomers } from '@/hooks/use-customers';
 import { useToast } from '@/hooks/use-toast';
-import { formatPhoneDisplay, formatRelativeTime, getInitials } from '@/lib/utils';
+import { formatPhoneDisplay, formatRelativeTime } from '@/lib/utils';
+import { CustomerAvatar } from '@/components/customers/CustomerAvatar';
+import { CustomerTableSkeleton } from '@/components/customers/CustomerTableSkeleton';
+import { CustomerForm } from '@/components/customers/CustomerForm';
+import type { CustomerFormData } from '@/components/customers/CustomerForm';
 import type { Customer } from '@/types';
-
-// ── Avatar ────────────────────────────────────────────────────────────────────
-
-const AVATAR_COLORS = [
-  'bg-blue-100 text-blue-700',
-  'bg-purple-100 text-purple-700',
-  'bg-orange-100 text-orange-700',
-  'bg-pink-100 text-pink-700',
-  'bg-teal-100 text-teal-700',
-  'bg-indigo-100 text-indigo-700',
-];
-
-function CustomerAvatar({ name, phone }: { name: string | null; phone: string }) {
-  const label = name ?? phone;
-  const initials = getInitials(label);
-  const colorIndex = phone.charCodeAt(phone.length - 1) % AVATAR_COLORS.length;
-  const colorClass = AVATAR_COLORS[colorIndex];
-
-  return (
-    <div
-      className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${colorClass}`}
-    >
-      {initials}
-    </div>
-  );
-}
-
-// ── Customer Form ─────────────────────────────────────────────────────────────
-
-interface CustomerFormData {
-  phone: string;
-  name: string;
-  email: string;
-  city: string;
-  tags: string;
-}
-
-const EMPTY_FORM: CustomerFormData = { phone: '', name: '', email: '', city: '', tags: '' };
-
-interface CustomerFormProps {
-  initial?: CustomerFormData;
-  onSubmit: (data: CustomerFormData) => Promise<void>;
-  onCancel: () => void;
-  submitLabel: string;
-  loading: boolean;
-}
-
-function CustomerForm({ initial = EMPTY_FORM, onSubmit, onCancel, submitLabel, loading }: CustomerFormProps) {
-  const [form, setForm] = React.useState<CustomerFormData>(initial);
-  const [phoneError, setPhoneError] = React.useState('');
-
-  const handleChange = (field: keyof CustomerFormData) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
-    if (field === 'phone') setPhoneError('');
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.phone.trim()) {
-      setPhoneError('Phone number is required');
-      return;
-    }
-    await onSubmit(form);
-  };
-
-  return (
-    <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
-      <div className="space-y-1.5">
-        <Label htmlFor="phone">
-          Phone number <span className="text-destructive">*</span>
-        </Label>
-        <Input
-          id="phone"
-          placeholder="919876543210"
-          value={form.phone}
-          onChange={handleChange('phone')}
-          disabled={loading}
-        />
-        {phoneError && <p className="text-xs text-destructive">{phoneError}</p>}
-        <p className="text-xs text-muted-foreground">E.164 format without + (e.g. 919876543210)</p>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="name">Name</Label>
-        <Input
-          id="name"
-          placeholder="Rahul Sharma"
-          value={form.name}
-          onChange={handleChange('name')}
-          disabled={loading}
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          placeholder="rahul@example.com"
-          value={form.email}
-          onChange={handleChange('email')}
-          disabled={loading}
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="city">City</Label>
-        <Input
-          id="city"
-          placeholder="Mumbai"
-          value={form.city}
-          onChange={handleChange('city')}
-          disabled={loading}
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="tags">Tags</Label>
-        <Input
-          id="tags"
-          placeholder="vip, repeat-buyer, wholesale"
-          value={form.tags}
-          onChange={handleChange('tags')}
-          disabled={loading}
-        />
-        <p className="text-xs text-muted-foreground">Comma-separated tags</p>
-      </div>
-
-      <DialogFooter className="pt-2">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
-          Cancel
-        </Button>
-        <Button type="submit" disabled={loading}>
-          {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {loading ? 'Saving...' : submitLabel}
-        </Button>
-      </DialogFooter>
-    </form>
-  );
-}
-
-// ── Table skeleton ────────────────────────────────────────────────────────────
-
-function TableSkeleton() {
-  return (
-    <>
-      {Array.from({ length: 8 }).map((_, i) => (
-        <TableRow key={i}>
-          <TableCell>
-            <div className="flex items-center gap-3">
-              <Skeleton className="h-8 w-8 rounded-full" />
-              <Skeleton className="h-4 w-32" />
-            </div>
-          </TableCell>
-          <TableCell><Skeleton className="h-4 w-36" /></TableCell>
-          <TableCell><Skeleton className="h-4 w-40" /></TableCell>
-          <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-          <TableCell><Skeleton className="h-5 w-16 rounded-md" /></TableCell>
-          <TableCell><Skeleton className="h-5 w-16 rounded-md" /></TableCell>
-          <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-          <TableCell><Skeleton className="h-8 w-8 rounded-md" /></TableCell>
-        </TableRow>
-      ))}
-    </>
-  );
-}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -256,23 +91,14 @@ export default function CustomersPage() {
 
   const { toast } = useToast();
 
-  // Dialog state
   const [addOpen, setAddOpen] = React.useState(false);
   const [editCustomer, setEditCustomer] = React.useState<Customer | null>(null);
-
-  // Form submission loading
   const [formLoading, setFormLoading] = React.useState(false);
-
-  // Sync loading
   const [syncing, setSyncing] = React.useState(false);
-
-  // Per-row delete confirmation: stores customerId that is pending delete
   const [pendingDeleteId, setPendingDeleteId] = React.useState<string | null>(null);
   const [deleting, setDeleting] = React.useState(false);
 
-  // ── Handlers ────────────────────────────────────────────────
-
-  const handleCreate = async (data: CustomerFormData) => {
+  const handleCreate = React.useCallback(async (data: CustomerFormData) => {
     setFormLoading(true);
     try {
       await createCustomer(formDataToApiInput(data));
@@ -287,9 +113,9 @@ export default function CustomersPage() {
     } finally {
       setFormLoading(false);
     }
-  };
+  }, [createCustomer, toast]);
 
-  const handleUpdate = async (data: CustomerFormData) => {
+  const handleUpdate = React.useCallback(async (data: CustomerFormData) => {
     if (!editCustomer) return;
     setFormLoading(true);
     try {
@@ -306,9 +132,9 @@ export default function CustomersPage() {
     } finally {
       setFormLoading(false);
     }
-  };
+  }, [editCustomer, updateCustomer, toast]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = React.useCallback(async (id: string) => {
     setDeleting(true);
     try {
       await deleteCustomer(id);
@@ -323,9 +149,9 @@ export default function CustomersPage() {
     } finally {
       setDeleting(false);
     }
-  };
+  }, [deleteCustomer, toast]);
 
-  const handleSync = async () => {
+  const handleSync = React.useCallback(async () => {
     setSyncing(true);
     try {
       const result = await syncFromShopify();
@@ -342,14 +168,10 @@ export default function CustomersPage() {
     } finally {
       setSyncing(false);
     }
-  };
-
-  // ── Pagination helpers ───────────────────────────────────────
+  }, [syncFromShopify, toast]);
 
   const startRow = meta.total === 0 ? 0 : (page - 1) * meta.limit + 1;
   const endRow = Math.min(page * meta.limit, meta.total);
-
-  // ── Render ──────────────────────────────────────────────────
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
@@ -366,7 +188,6 @@ export default function CustomersPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Search */}
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
@@ -376,14 +197,10 @@ export default function CustomersPage() {
               className="pl-8 w-64"
             />
           </div>
-
-          {/* Sync */}
           <Button variant="outline" onClick={() => void handleSync()} disabled={syncing}>
             <RefreshCw className={`mr-2 h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
             {syncing ? 'Syncing…' : 'Sync from Shopify'}
           </Button>
-
-          {/* Add */}
           <Button onClick={() => setAddOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Add Customer
@@ -422,7 +239,7 @@ export default function CustomersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading && <TableSkeleton />}
+              {loading && <CustomerTableSkeleton />}
 
               {!loading && customers.length === 0 && (
                 <TableRow>
@@ -470,7 +287,6 @@ export default function CustomersPage() {
               {!loading &&
                 customers.map((customer) => (
                   <TableRow key={customer.id}>
-                    {/* Avatar + Name */}
                     <TableCell className="pl-4">
                       <div className="flex items-center gap-3">
                         <CustomerAvatar name={customer.name} phone={customer.phone} />
@@ -479,29 +295,21 @@ export default function CustomersPage() {
                         </span>
                       </div>
                     </TableCell>
-
-                    {/* Phone */}
                     <TableCell>
                       <span className="font-mono text-xs text-foreground">
                         {formatPhoneDisplay(customer.phone)}
                       </span>
                     </TableCell>
-
-                    {/* Email */}
                     <TableCell>
                       <span className="text-sm text-foreground">
                         {customer.email ?? <span className="text-muted-foreground">—</span>}
                       </span>
                     </TableCell>
-
-                    {/* City */}
                     <TableCell>
                       <span className="text-sm text-foreground">
                         {customer.city ?? <span className="text-muted-foreground">—</span>}
                       </span>
                     </TableCell>
-
-                    {/* Tags */}
                     <TableCell>
                       {customer.tags.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
@@ -515,22 +323,16 @@ export default function CustomersPage() {
                         <span className="text-muted-foreground text-sm">—</span>
                       )}
                     </TableCell>
-
-                    {/* Source */}
                     <TableCell>
                       <Badge variant={customer.source === 'SHOPIFY' ? 'default' : 'outline'}>
                         {customer.source === 'SHOPIFY' ? 'Shopify' : 'Manual'}
                       </Badge>
                     </TableCell>
-
-                    {/* Date */}
                     <TableCell>
                       <span className="text-sm text-muted-foreground">
                         {formatRelativeTime(customer.createdAt)}
                       </span>
                     </TableCell>
-
-                    {/* Actions */}
                     <TableCell>
                       {pendingDeleteId === customer.id ? (
                         <div className="flex items-center gap-1">
@@ -631,7 +433,7 @@ export default function CustomersPage() {
             onSubmit={handleCreate}
             onCancel={() => setAddOpen(false)}
             submitLabel="Add Customer"
-            loading={formLoading}
+            isSubmitting={formLoading}
           />
         </DialogContent>
       </Dialog>
@@ -647,11 +449,11 @@ export default function CustomersPage() {
           </DialogHeader>
           {editCustomer && (
             <CustomerForm
-              initial={customerToFormData(editCustomer)}
+              initialValues={customerToFormData(editCustomer)}
               onSubmit={handleUpdate}
               onCancel={() => setEditCustomer(null)}
               submitLabel="Save Changes"
-              loading={formLoading}
+              isSubmitting={formLoading}
             />
           )}
         </DialogContent>

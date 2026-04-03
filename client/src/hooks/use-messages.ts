@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import {
   fetchMessages,
@@ -21,9 +21,14 @@ export interface UseMessagesReturn {
 
 export function useMessages(conversationId: string | undefined): UseMessagesReturn {
   const dispatch = useAppDispatch();
-  const convState = useAppSelector(
-    conversationId ? selectConvMessages(conversationId) : selectConvMessages('__none__'),
+  // Memoize the selector so its reference stays stable across renders.
+  // Creating it inline would produce a new function on every render, causing
+  // useAppSelector to recompute on every cycle even when state hasn't changed.
+  const selector = useMemo(
+    () => selectConvMessages(conversationId ?? '__none__'),
+    [conversationId],
   );
+  const convState = useAppSelector(selector);
 
   // Fetch messages and check window whenever conversationId changes
   useEffect(() => {

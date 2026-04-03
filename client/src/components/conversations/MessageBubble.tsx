@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Check, CheckCheck, AlertCircle, Clock, FileText, Image, Video, Music, File, MousePointerClick, ExternalLink, Phone, Play } from 'lucide-react';
 import Lightbox from 'yet-another-react-lightbox';
 import VideoPlugin from 'yet-another-react-lightbox/plugins/video';
@@ -289,7 +289,7 @@ function ReactionPills({ reactions, isOutbound }: { reactions: Reaction[]; isOut
 
 // ── Main bubble ─────────────────────────────────────────────────────────────
 
-export function MessageBubble({ message }: Props) {
+export const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
   const isOutbound = message.direction === 'OUTBOUND';
   const isTemplate = message.type === 'TEMPLATE';
   const isInteractive = message.type === 'INTERACTIVE';
@@ -408,4 +408,4 @@ export function MessageBubble({ message }: Props) {
       )}
     </div>
   );
-}
+});
