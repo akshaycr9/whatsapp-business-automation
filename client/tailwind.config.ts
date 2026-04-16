@@ -21,6 +21,30 @@ const config: Config = {
         xs: ['12px', { lineHeight: '1.4' }],
       },
       colors: {
+        // ── V2 / Stitch Material Design color palette ──────────────────
+        // Namespaced under `stitch-*` to avoid any conflict with v1 shadcn tokens.
+        // Usage: bg-stitch-surface, text-stitch-on-surface, etc.
+        stitch: {
+          surface: '#fcf8ff',
+          'surface-low': '#f5f2ff',
+          'surface-lowest': '#ffffff',
+          'surface-container': '#efecff',
+          'surface-high': '#e8e5ff',
+          'surface-highest': '#e2e0fc',
+          'surface-dim': '#dad7f3',
+          primary: '#006d2f',
+          'primary-container': '#25d366',
+          'on-primary': '#ffffff',
+          'on-primary-container': '#005523',
+          'on-surface': '#1a1a2e',
+          'on-surface-variant': '#3c4a3d',
+          'on-background': '#1a1a2e',
+          outline: '#6c7b6b',
+          'outline-variant': '#bbcbb9',
+          secondary: '#5d5c74',
+          sidebar: '#1a1a2e',
+        },
+        // ── End V2 colors ───────────────────────────────────────────────
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
