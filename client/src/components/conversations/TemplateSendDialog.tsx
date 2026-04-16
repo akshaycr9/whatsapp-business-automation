@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -66,7 +66,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   AUTHENTICATION: 'Auth',
 };
 
-export function TemplateSendDialog({ conversationId, open, onOpenChange, onMessageSent }: Props) {
+export const TemplateSendDialog = React.memo(function TemplateSendDialog({ conversationId, open, onOpenChange, onMessageSent }: Props) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
@@ -270,4 +270,4 @@ export function TemplateSendDialog({ conversationId, open, onOpenChange, onMessa
       </DialogContent>
     </Dialog>
   );
-}
+});

@@ -1,17 +1,26 @@
+import React from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn, formatRelativeTime, getInitials, formatPhoneDisplay } from '@/lib/utils';
-import type { Conversation } from '@/types';
 
-interface Props {
-  conversation: Conversation;
+interface ConversationListItemProps {
+  id: string;
+  displayName: string;
+  lastMessageText: string | null;
+  lastMessageAt: string | null;
+  unreadCount: number;
   isActive: boolean;
   onClick: () => void;
 }
 
-export function ConversationListItem({ conversation, isActive, onClick }: Props) {
-  const { customer } = conversation;
-  const displayName = customer.name ?? formatPhoneDisplay(customer.phone);
-  const initials = getInitials(customer.name ?? customer.phone);
+export const ConversationListItem = React.memo(function ConversationListItem({
+  displayName,
+  lastMessageText,
+  lastMessageAt,
+  unreadCount,
+  isActive,
+  onClick,
+}: ConversationListItemProps) {
+  const initials = getInitials(displayName);
 
   return (
     <button
@@ -43,9 +52,9 @@ export function ConversationListItem({ conversation, isActive, onClick }: Props)
           >
             {displayName}
           </span>
-          {conversation.lastMessageAt && (
+          {lastMessageAt && (
             <span className="text-[11px] text-muted-foreground flex-shrink-0">
-              {formatRelativeTime(conversation.lastMessageAt)}
+              {formatRelativeTime(lastMessageAt)}
             </span>
           )}
         </div>
@@ -53,15 +62,18 @@ export function ConversationListItem({ conversation, isActive, onClick }: Props)
         {/* Bottom row: last message + unread badge */}
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs text-muted-foreground truncate">
-            {conversation.lastMessageText ?? 'No messages yet'}
+            {lastMessageText ?? 'No messages yet'}
           </span>
-          {conversation.unreadCount > 0 && (
+          {unreadCount > 0 && (
             <span className="flex-shrink-0 inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-emerald-500 text-white text-[10px] font-bold leading-none">
-              {conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}
+              {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
         </div>
       </div>
     </button>
   );
-}
+});
+
+// Keep formatPhoneDisplay available for callers who need to map Conversation -> props
+export { formatPhoneDisplay };
