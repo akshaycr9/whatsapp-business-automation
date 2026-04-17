@@ -71,6 +71,12 @@ async function processShopifyWebhook(
       await handleOrderFulfilled(body);
       break;
 
+    // orders/cancelled fires when an order is cancelled in Shopify admin or via API.
+    // Payload is the full order object.
+    case 'orders/cancelled':
+      await handleOrderCancelled(body);
+      break;
+
     case 'checkouts/create':
     // checkouts/update fires on cart changes — upsert keeps the tracker data fresh
     // so the abandoned-cart job works with the latest item/price info.
@@ -126,6 +132,37 @@ async function handleOrderFulfilled(body: Record<string, unknown>): Promise<void
   } else {
     logger.warn(`Order fulfilled ${orderId}: no phone found in any payload field, skipping automation`);
   }
+}
+
+// Handles orders/cancelled — payload is the full order object.
+// Triggers the ORDER_CANCELLED automation and cancels any pending COD follow-up
+// for this customer (no point sending a follow-up on a cancelled order).
+async function handleOrderCancelled(body: Record<string, unknown>): Promise<void> {
+  const orderId = String(body['id'] ?? '');
+  logger.info(`Order cancelled: ${orderId}`);
+
+  const phone = extractShopifyPhone(body);
+
+  if (!phone) {
+    logger.warn(`Order cancelled ${orderId}: no phone found — skipping automation`);
+    return;
+  }
+
+  const normalizedPhone = normalizePhone(phone);
+
+  // Cancel any pending COD follow-up queue entries for this customer
+  const cancelled = await prisma.codFollowUpQueue.updateMany({
+    where: { customerPhone: normalizedPhone, status: 'PENDING' },
+    data: { status: 'CANCELLED' },
+  });
+
+  if (cancelled.count > 0) {
+    logger.info(
+      `Order cancelled ${orderId}: voided ${cancelled.count} pending COD follow-up(s) for ${normalizedPhone}`,
+    );
+  }
+
+  await triggerForEvent('ORDER_CANCELLED', body, normalizedPhone);
 }
 
 // Handles both checkouts/create and checkouts/update — upserts the tracker
