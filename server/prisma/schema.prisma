@@ -139,6 +139,7 @@ model Automation {
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
   logs              AutomationLog[]
+  codFollowUpQueues CodFollowUpQueue[]
 }
 
 enum ShopifyEvent {
@@ -146,6 +147,11 @@ enum ShopifyEvent {
   COD_ORDER_CONFIRMED
   ORDER_FULFILLED
   ABANDONED_CART
+  // ── V2 additions ──────────────────────────────────────
+  ORDER_CANCELLED
+  COD_ORDER_FOLLOW_UP
+  ABANDONED_CART_FOLLOW_UP
+  ABANDONED_CART_WIN_BACK
 }
 
 model AutomationLog {
@@ -191,6 +197,29 @@ enum ActivityLogType {
   AUTOMATION_ENABLED
   AUTOMATION_DISABLED
   AUTOMATION_DELETED
+}
+
+enum CodFollowUpStatus {
+  PENDING
+  SENT
+  SKIPPED
+  CANCELLED
+}
+
+model CodFollowUpQueue {
+  id            String            @id @default(cuid())
+  customerPhone String
+  automationId  String
+  automation    Automation        @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  shopifyData   Json
+  scheduledAt   DateTime
+  confirmedAt   DateTime
+  status        CodFollowUpStatus @default(PENDING)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([status, scheduledAt])
+  @@index([customerPhone, status])
 }
 
 model PushSubscription {

@@ -1,3 +1,11 @@
+// AutomationsPage (V1) — replaced by the V2 UI at /v2/automations.
+// Original code preserved below for reference.
+
+export default function AutomationsPage() {
+  return null;
+}
+
+/*
 import { useState, useCallback } from 'react';
 import {
   Plus,
@@ -35,8 +43,6 @@ import { LogsDialog } from '@/components/automations/LogsDialog';
 import { DeleteDialog } from '@/components/automations/DeleteDialog';
 import { ToggleSwitch } from '@/components/automations/ToggleSwitch';
 import type { Automation } from '@/types';
-
-// ── Main page ──────────────────────────────────────────────────────────────────
 
 export default function AutomationsPage() {
   const {
@@ -101,7 +107,6 @@ export default function AutomationsPage() {
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
 
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Automations</h1>
@@ -115,7 +120,6 @@ export default function AutomationsPage() {
         </Button>
       </div>
 
-      {/* Event Overview Cards */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -126,7 +130,6 @@ export default function AutomationsPage() {
         <EventCards automations={automations} />
       )}
 
-      {/* Error state */}
       {error && (
         <Alert variant="destructive">
           <AlertDescription className="flex items-center justify-between">
@@ -138,7 +141,6 @@ export default function AutomationsPage() {
         </Alert>
       )}
 
-      {/* Automations table */}
       <div className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="px-6 py-4 border-b border-border">
           <h2 className="text-base font-medium text-foreground">All Automations</h2>
@@ -242,7 +244,6 @@ export default function AutomationsPage() {
         )}
       </div>
 
-      {/* Create Dialog */}
       <AutomationFormDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
@@ -251,7 +252,6 @@ export default function AutomationsPage() {
         mode="create"
       />
 
-      {/* Edit Dialog */}
       <AutomationFormDialog
         open={editTarget !== null}
         onOpenChange={(open) => { if (!open) setEditTarget(null); }}
@@ -270,7 +270,6 @@ export default function AutomationsPage() {
         mode="edit"
       />
 
-      {/* Logs Dialog */}
       <LogsDialog
         open={logsTarget !== null}
         onOpenChange={(open) => { if (!open) setLogsTarget(null); }}
@@ -279,7 +278,6 @@ export default function AutomationsPage() {
         fetchLogs={fetchLogs}
       />
 
-      {/* Delete Dialog */}
       <DeleteDialog
         open={deleteTarget !== null}
         onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
@@ -288,7 +286,6 @@ export default function AutomationsPage() {
         onConfirm={handleDelete}
       />
 
-      {/* Spinner for toggling (screen-reader only) */}
       {togglingIds.size > 0 && (
         <span className="sr-only" aria-live="polite">
           <Loader2 className="animate-spin" />
@@ -298,3 +295,4 @@ export default function AutomationsPage() {
     </div>
   );
 }
+*/

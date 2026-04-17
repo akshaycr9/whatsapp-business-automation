@@ -10,10 +10,20 @@ export interface VariableMapping {
   [variablePosition: string]: string;
 }
 
+type AllShopifyEvents =
+  | 'PREPAID_ORDER_CONFIRMED'
+  | 'COD_ORDER_CONFIRMED'
+  | 'ORDER_FULFILLED'
+  | 'ABANDONED_CART'
+  | 'ORDER_CANCELLED'
+  | 'COD_ORDER_FOLLOW_UP'
+  | 'ABANDONED_CART_FOLLOW_UP'
+  | 'ABANDONED_CART_WIN_BACK';
+
 export interface UpdateAutomationInput {
   triggerType?: 'SHOPIFY_EVENT' | 'BUTTON_REPLY';
   name?: string;
-  shopifyEvent?: 'PREPAID_ORDER_CONFIRMED' | 'COD_ORDER_CONFIRMED' | 'ORDER_FULFILLED' | 'ABANDONED_CART';
+  shopifyEvent?: AllShopifyEvents;
   buttonTriggerText?: string;
   templateId?: string;
   variableMapping?: VariableMapping;
@@ -25,7 +35,7 @@ export type CreateAutomationInput =
   | {
       triggerType: 'SHOPIFY_EVENT';
       name: string;
-      shopifyEvent: 'PREPAID_ORDER_CONFIRMED' | 'COD_ORDER_CONFIRMED' | 'ORDER_FULFILLED' | 'ABANDONED_CART';
+      shopifyEvent: AllShopifyEvents;
       buttonTriggerText?: never;
       templateId: string;
       variableMapping: VariableMapping;
@@ -504,6 +514,37 @@ export const triggerForButtonReply = async (
   }
 };
 
+const scheduleCodFollowUp = async (
+  shopifyData: Record<string, unknown>,
+  customerPhone: string,
+  confirmedAt: Date,
+): Promise<void> => {
+  const followUpAutomation = await prisma.automation.findFirst({
+    where: { triggerType: 'SHOPIFY_EVENT', shopifyEvent: 'COD_ORDER_FOLLOW_UP', isActive: true },
+  });
+
+  if (!followUpAutomation || followUpAutomation.delayMinutes <= 0) {
+    logger.debug('scheduleCodFollowUp: no active COD_ORDER_FOLLOW_UP automation found — skipping');
+    return;
+  }
+
+  const scheduledAt = new Date(confirmedAt.getTime() + followUpAutomation.delayMinutes * 60 * 1000);
+
+  await prisma.codFollowUpQueue.create({
+    data: {
+      customerPhone,
+      automationId: followUpAutomation.id,
+      shopifyData: shopifyData as import('@prisma/client').Prisma.InputJsonValue,
+      scheduledAt,
+      confirmedAt,
+    },
+  });
+
+  logger.info(
+    `scheduleCodFollowUp: queued for ${customerPhone} at ${scheduledAt.toISOString()} (delay: ${followUpAutomation.delayMinutes}m)`,
+  );
+};
+
 export const triggerForEvent = async (
   event: ShopifyEvent,
   shopifyData: Record<string, unknown>,
@@ -515,24 +556,29 @@ export const triggerForEvent = async (
 
   if (automations.length === 0) {
     logger.debug(`triggerForEvent: no active automations for event ${event}`);
-    return;
+  } else {
+    logger.info(
+      `triggerForEvent: ${automations.length} automation(s) for ${event} → ${customerPhone}`,
+    );
+
+    const results = await Promise.allSettled(
+      automations.map((a) => executeAutomation(a.id, shopifyData, customerPhone)),
+    );
+
+    for (const [i, result] of results.entries()) {
+      if (result.status === 'rejected') {
+        logger.error(
+          `triggerForEvent: automation ${automations[i]?.id} failed:`,
+          result.reason,
+        );
+      }
+    }
   }
 
-  logger.info(
-    `triggerForEvent: ${automations.length} automation(s) for ${event} → ${customerPhone}`,
-  );
-
-  const results = await Promise.allSettled(
-    automations.map((a) => executeAutomation(a.id, shopifyData, customerPhone)),
-  );
-
-  for (const [i, result] of results.entries()) {
-    if (result.status === 'rejected') {
-      logger.error(
-        `triggerForEvent: automation ${automations[i]?.id} failed:`,
-        result.reason,
-      );
-    }
+  if (event === 'COD_ORDER_CONFIRMED') {
+    await scheduleCodFollowUp(shopifyData, customerPhone, new Date()).catch((err: unknown) => {
+      logger.error('scheduleCodFollowUp failed:', err);
+    });
   }
 };
 

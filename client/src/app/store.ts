@@ -6,6 +6,7 @@ import templatesReducer from '@/features/templates/templatesSlice';
 import automationsReducer from '@/features/automations/automationsSlice';
 import customersReducer from '@/features/customers/customersSlice';
 import dashboardReducer from '@/features/dashboard/dashboardSlice';
+import v2AutomationsReducer from '@/v2/features/automationsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -16,6 +17,7 @@ export const store = configureStore({
     automations: automationsReducer,
     customers: customersReducer,
     dashboard: dashboardReducer,
+    v2Automations: v2AutomationsReducer,
   },
 });
 

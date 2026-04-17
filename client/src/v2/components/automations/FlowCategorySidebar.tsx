@@ -1,7 +1,7 @@
 import React from 'react';
 import { ShoppingCart, CreditCard, ShoppingBasket } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { V2FlowCategory } from '@/v2/lib/v2-mock-data';
+import type { V2FlowCategory } from '@/v2/types';
 
 const ICON_MAP: Record<V2FlowCategory['icon'], React.ElementType> = {
   shopping_cart: ShoppingCart,

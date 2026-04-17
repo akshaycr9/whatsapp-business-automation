@@ -8,7 +8,16 @@ const automationBaseObject = z.object({
   triggerType: z.enum(['SHOPIFY_EVENT', 'BUTTON_REPLY']),
   name: z.string().min(1),
   shopifyEvent: z
-    .enum(['PREPAID_ORDER_CONFIRMED', 'COD_ORDER_CONFIRMED', 'ORDER_FULFILLED', 'ABANDONED_CART'])
+    .enum([
+      'PREPAID_ORDER_CONFIRMED',
+      'COD_ORDER_CONFIRMED',
+      'ORDER_FULFILLED',
+      'ABANDONED_CART',
+      'ORDER_CANCELLED',
+      'COD_ORDER_FOLLOW_UP',
+      'ABANDONED_CART_FOLLOW_UP',
+      'ABANDONED_CART_WIN_BACK',
+    ])
     .optional(),
   buttonTriggerText: z.string().min(1).optional(),
   templateId: z.string().cuid(),
@@ -18,14 +27,23 @@ const automationBaseObject = z.object({
 });
 
 // Full schema (POST) — cross-field validation requires the refine on the base object
-const automationSchema = automationBaseObject.refine(
-  (d) =>
-    d.triggerType === 'SHOPIFY_EVENT' ? d.shopifyEvent !== undefined : d.buttonTriggerText !== undefined,
-  {
-    message:
-      'shopifyEvent is required for SHOPIFY_EVENT automations; buttonTriggerText is required for BUTTON_REPLY automations',
-  },
-);
+const automationSchema = automationBaseObject
+  .refine(
+    (d) =>
+      d.triggerType === 'SHOPIFY_EVENT' ? d.shopifyEvent !== undefined : d.buttonTriggerText !== undefined,
+    {
+      message:
+        'shopifyEvent is required for SHOPIFY_EVENT automations; buttonTriggerText is required for BUTTON_REPLY automations',
+    },
+  )
+  .refine(
+    (d) =>
+      d.shopifyEvent !== 'COD_ORDER_FOLLOW_UP' || [1, 60, 180, 300].includes(d.delayMinutes ?? 0),
+    {
+      message: 'COD_ORDER_FOLLOW_UP requires delayMinutes of 1, 60, 180, or 300',
+      path: ['delayMinutes'],
+    },
+  );
 
 // Partial schema for PUT — .partial() must be called before .refine() (ZodEffects has no .partial())
 const automationUpdateSchema = automationBaseObject.partial();

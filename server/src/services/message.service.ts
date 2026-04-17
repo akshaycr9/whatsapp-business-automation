@@ -330,6 +330,7 @@ export const processInboundMessage = async (
     data: {
       lastMessageAt: now,
       lastMessageText,
+      lastInboundMessageAt: now,
       unreadCount: { increment: 1 },
     },
     include: { customer: true },

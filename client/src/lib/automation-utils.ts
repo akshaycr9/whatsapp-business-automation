@@ -1,4 +1,4 @@
-import { CreditCard, Banknote, Package, ShoppingCart, MessageSquare } from 'lucide-react';
+import { CreditCard, Banknote, Package, ShoppingCart, MessageSquare, XCircle, Clock, ShoppingBag, Gift } from 'lucide-react';
 import React from 'react';
 import type { ShopifyEvent } from '@/types';
 
@@ -31,6 +31,27 @@ export const EVENT_CONFIG: Record<ShopifyEvent, EventConfig> = {
     icon: React.createElement(ShoppingCart, { className: 'h-4 w-4' }),
     badgeClass: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
   },
+  // ── V2 additions ──────────────────────────────────────────────────────────────
+  ORDER_CANCELLED: {
+    label: 'Order Cancelled',
+    icon: React.createElement(XCircle, { className: 'h-4 w-4' }),
+    badgeClass: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+  },
+  COD_ORDER_FOLLOW_UP: {
+    label: 'COD Order Follow Up',
+    icon: React.createElement(Clock, { className: 'h-4 w-4' }),
+    badgeClass: 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400',
+  },
+  ABANDONED_CART_FOLLOW_UP: {
+    label: 'Abandoned Cart Follow Up',
+    icon: React.createElement(ShoppingBag, { className: 'h-4 w-4' }),
+    badgeClass: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+  },
+  ABANDONED_CART_WIN_BACK: {
+    label: 'Abandoned Cart Win-back',
+    icon: React.createElement(Gift, { className: 'h-4 w-4' }),
+    badgeClass: 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400',
+  },
 };
 
 export const EVENT_ICON_BG: Record<ShopifyEvent, string> = {
@@ -38,6 +59,11 @@ export const EVENT_ICON_BG: Record<ShopifyEvent, string> = {
   COD_ORDER_CONFIRMED: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
   ORDER_FULFILLED: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
   ABANDONED_CART: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  // ── V2 additions ────────────────────────────────────────────
+  ORDER_CANCELLED: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  COD_ORDER_FOLLOW_UP: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400',
+  ABANDONED_CART_FOLLOW_UP: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+  ABANDONED_CART_WIN_BACK: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
 };
 
 const BUTTON_REPLY_CONFIG: EventConfig = {

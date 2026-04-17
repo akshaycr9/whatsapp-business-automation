@@ -14,6 +14,7 @@ import { logger } from '../lib/logger.js';
 import { env } from '../config/env.js';
 import { requireAuth } from '../middleware/auth.js';
 import { startAbandonedCartJob } from '../jobs/abandoned-cart.job.js';
+import { startCodFollowUpJob } from '../jobs/cod-follow-up.job.js';
 import { registerWebhooks } from '../services/shopify.service.js';
 
 export const registerRoutes = (app: Express): void => {
@@ -131,6 +132,7 @@ export const registerRoutes = (app: Express): void => {
 
   // Start background jobs
   startAbandonedCartJob();
+  startCodFollowUpJob();
 
   // ── Shopify webhook auto-registration ─────────────────────────────────────
   // Uses the Shopify Admin API to programmatically register/update all 4 webhook
