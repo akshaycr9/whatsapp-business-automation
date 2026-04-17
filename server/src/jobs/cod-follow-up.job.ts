@@ -1,14 +1,18 @@
-import cron from 'node-cron';
-import { prisma } from '../lib/prisma.js';
-import { logger } from '../lib/logger.js';
-import { executeAutomation } from '../services/automation.service.js';
+import cron from "node-cron";
+import { prisma } from "../lib/prisma.js";
+import { logger } from "../lib/logger.js";
+import { executeAutomation } from "../services/automation.service.js";
+import { env } from "../config/env.js";
+
+const SCHEDULE = env.NODE_ENV === "production" ? "*/15 * * * *" : "* * * * *";
+const SCHEDULE_LABEL = env.NODE_ENV === "production" ? "every 15 minutes" : "every minute";
 
 export function startCodFollowUpJob(): void {
-  cron.schedule('*/5 * * * *', () => {
+  cron.schedule(SCHEDULE, () => {
     void runCodFollowUpCheck();
   });
 
-  logger.info('COD follow-up job started (runs every 5 minutes)');
+  logger.info(`COD follow-up job started (${SCHEDULE_LABEL})`);
 }
 
 async function runCodFollowUpCheck(): Promise<void> {
@@ -16,15 +20,15 @@ async function runCodFollowUpCheck(): Promise<void> {
 
   const dueRows = await prisma.codFollowUpQueue.findMany({
     where: {
-      status: 'PENDING',
+      status: "PENDING",
       scheduledAt: { lte: now },
     },
     take: 50,
-    orderBy: { scheduledAt: 'asc' },
+    orderBy: { scheduledAt: "asc" },
   });
 
   if (dueRows.length === 0) {
-    logger.debug('COD follow-up job: nothing due');
+    logger.debug("COD follow-up job: nothing due");
     return;
   }
 
@@ -43,7 +47,7 @@ async function runCodFollowUpCheck(): Promise<void> {
         const replied = await prisma.message.findFirst({
           where: {
             conversationId: conversation.id,
-            direction: 'INBOUND',
+            direction: "INBOUND",
             createdAt: { gt: row.confirmedAt },
           },
         });
@@ -51,7 +55,7 @@ async function runCodFollowUpCheck(): Promise<void> {
         if (replied) {
           await prisma.codFollowUpQueue.update({
             where: { id: row.id },
-            data: { status: 'SKIPPED' },
+            data: { status: "SKIPPED" },
           });
           logger.info(
             `COD follow-up SKIPPED for ${row.customerPhone} — customer replied at ${replied.createdAt.toISOString()}`,
@@ -67,7 +71,7 @@ async function runCodFollowUpCheck(): Promise<void> {
       if (!automation?.isActive) {
         await prisma.codFollowUpQueue.update({
           where: { id: row.id },
-          data: { status: 'CANCELLED' },
+          data: { status: "CANCELLED" },
         });
         logger.info(
           `COD follow-up CANCELLED for ${row.customerPhone} — automation ${row.automationId} is inactive`,
@@ -83,7 +87,7 @@ async function runCodFollowUpCheck(): Promise<void> {
 
       await prisma.codFollowUpQueue.update({
         where: { id: row.id },
-        data: { status: 'SENT' },
+        data: { status: "SENT" },
       });
 
       logger.info(`COD follow-up SENT to ${row.customerPhone}`);
