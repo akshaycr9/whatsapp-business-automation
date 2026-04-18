@@ -1,6 +1,6 @@
-import axios from 'axios';
-import { env } from '../config/env.js';
-import { logger } from '../lib/logger.js';
+import axios from "axios";
+import { env } from "../config/env.js";
+import { logger } from "../lib/logger.js";
 
 export interface ShopifyCustomer {
   id: number;
@@ -17,8 +17,8 @@ export interface ShopifyCustomer {
 const shopifyApi = axios.create({
   baseURL: `https://${env.SHOPIFY_STORE_URL}/admin/api/2025-01`,
   headers: {
-    'X-Shopify-Access-Token': env.SHOPIFY_ACCESS_TOKEN,
-    'Content-Type': 'application/json',
+    "X-Shopify-Access-Token": env.SHOPIFY_ACCESS_TOKEN,
+    "Content-Type": "application/json",
   },
 });
 
@@ -30,9 +30,9 @@ function parseNextPageInfo(linkHeader: string | undefined): string | undefined {
   if (!linkHeader) return undefined;
 
   // Link header format: <url>; rel="next", <url>; rel="previous"
-  const parts = linkHeader.split(',');
+  const parts = linkHeader.split(",");
   for (const part of parts) {
-    const [urlPart, relPart] = part.trim().split(';');
+    const [urlPart, relPart] = part.trim().split(";");
     if (relPart?.trim() === 'rel="next"') {
       const match = urlPart?.trim().match(/[?&]page_info=([^>&]+)/);
       if (match?.[1]) return match[1];
@@ -48,16 +48,16 @@ export const getCustomers = async (
     limit: options.limit ?? 250,
   };
   if (options.page_info) {
-    params['page_info'] = options.page_info;
+    params["page_info"] = options.page_info;
   }
 
   const response = await shopifyApi.get<{ customers: ShopifyCustomer[] }>(
-    '/customers.json',
+    "/customers.json",
     { params },
   );
 
   const nextPageInfo = parseNextPageInfo(
-    response.headers['link'] as string | undefined,
+    response.headers["link"] as string | undefined,
   );
 
   logger.info(`Shopify: fetched ${response.data.customers.length} customers`);
@@ -68,7 +68,9 @@ export const getCustomers = async (
   };
 };
 
-export const getCustomer = async (shopifyId: string): Promise<ShopifyCustomer> => {
+export const getCustomer = async (
+  shopifyId: string,
+): Promise<ShopifyCustomer> => {
   const response = await shopifyApi.get<{ customer: ShopifyCustomer }>(
     `/customers/${shopifyId}.json`,
   );
@@ -88,14 +90,15 @@ interface ShopifyWebhooksListResponse {
 }
 
 const REQUIRED_TOPICS = [
-  'orders/create',       // new order placed — triggers PREPAID or COD confirmation
-  'orders/fulfilled',    // order fully shipped — triggers ORDER_FULFILLED
+  "orders/create", // new order placed — triggers PREPAID or COD confirmation
+  "orders/fulfilled", // order fully shipped — triggers ORDER_FULFILLED
+  "orders/cancelled", // order cancelled — triggers ORDER_CANCELLED
   // NOTE: orders/paid intentionally excluded — for prepaid orders Shopify fires BOTH
   // orders/create (financial_status='paid') AND orders/paid, causing duplicate messages.
   // orders/create alone is sufficient: it handles prepaid (status='paid') and COD
   // (status='pending') in one webhook without any duplication.
-  'checkouts/create',    // new checkout — start abandoned cart tracking
-  'checkouts/update',    // checkout updated — keep tracker in sync
+  "checkouts/create", // new checkout — start abandoned cart tracking
+  "checkouts/update", // checkout updated — keep tracker in sync
 ] as const;
 
 /**
@@ -108,19 +111,26 @@ const REQUIRED_TOPICS = [
 export const registerWebhooks = async (publicUrl: string): Promise<void> => {
   const webhookAddress = `${publicUrl}/api/webhooks/shopify`;
 
-  logger.info(`Shopify webhook registration: token prefix = ${env.SHOPIFY_ACCESS_TOKEN.slice(0, 8)}…`);
+  logger.info(
+    `Shopify webhook registration: token prefix = ${env.SHOPIFY_ACCESS_TOKEN.slice(0, 8)}…`,
+  );
   logger.info(`Shopify webhook registration: store = ${env.SHOPIFY_STORE_URL}`);
-  logger.info(`Shopify webhook registration: target address = ${webhookAddress}`);
+  logger.info(
+    `Shopify webhook registration: target address = ${webhookAddress}`,
+  );
 
   let listResponse;
   try {
-    listResponse = await shopifyApi.get<ShopifyWebhooksListResponse>('/webhooks.json');
+    listResponse =
+      await shopifyApi.get<ShopifyWebhooksListResponse>("/webhooks.json");
   } catch (err: unknown) {
     // Surface the Shopify error body so it's easy to diagnose token/scope issues
-    if (err && typeof err === 'object' && 'response' in err) {
-      const axiosErr = err as { response?: { status?: number; data?: unknown } };
+    if (err && typeof err === "object" && "response" in err) {
+      const axiosErr = err as {
+        response?: { status?: number; data?: unknown };
+      };
       logger.error(
-        `Shopify GET /webhooks.json failed — HTTP ${axiosErr.response?.status ?? '?'}:`,
+        `Shopify GET /webhooks.json failed — HTTP ${axiosErr.response?.status ?? "?"}:`,
         axiosErr.response?.data,
       );
     }
@@ -143,8 +153,8 @@ export const registerWebhooks = async (publicUrl: string): Promise<void> => {
         logger.info(`↑ Shopify webhook updated: ${topic} → ${webhookAddress}`);
       }
     } else {
-      await shopifyApi.post('/webhooks.json', {
-        webhook: { topic, address: webhookAddress, format: 'json' },
+      await shopifyApi.post("/webhooks.json", {
+        webhook: { topic, address: webhookAddress, format: "json" },
       });
       logger.info(`+ Shopify webhook registered: ${topic} → ${webhookAddress}`);
     }
@@ -157,9 +167,11 @@ export const registerWebhooks = async (publicUrl: string): Promise<void> => {
   for (const hook of existing) {
     if (!requiredSet.has(hook.topic) && hook.address === webhookAddress) {
       await shopifyApi.delete(`/webhooks/${hook.id}.json`);
-      logger.info(`✕ Shopify webhook deleted (no longer required): ${hook.topic}`);
+      logger.info(
+        `✕ Shopify webhook deleted (no longer required): ${hook.topic}`,
+      );
     }
   }
 
-  logger.info('Shopify webhook registration complete ✅');
+  logger.info("Shopify webhook registration complete ✅");
 };

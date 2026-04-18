@@ -1,12 +1,27 @@
-import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
-import { api } from '@/lib/api';
-import type { Automation, AutomationLog, Template, PaginatedResponse, ApiResponse } from '@/types';
-import type { RootState } from '@/app/store';
+import {
+  createSlice,
+  createAsyncThunk,
+  type PayloadAction,
+} from "@reduxjs/toolkit";
+import { api } from "@/lib/api";
+import type {
+  Automation,
+  AutomationLog,
+  Template,
+  PaginatedResponse,
+  ApiResponse,
+} from "@/types";
+import type { RootState } from "@/app/store";
 
 export interface CreateAutomationInput {
   name: string;
-  triggerType: 'SHOPIFY_EVENT' | 'BUTTON_REPLY';
-  shopifyEvent?: 'PREPAID_ORDER_CONFIRMED' | 'COD_ORDER_CONFIRMED' | 'ORDER_FULFILLED' | 'ABANDONED_CART';
+  triggerType: "SHOPIFY_EVENT" | "BUTTON_REPLY";
+  shopifyEvent?:
+    | "PREPAID_ORDER_CONFIRMED"
+    | "COD_ORDER_CONFIRMED"
+    | "ORDER_FULFILLED"
+    | "ORDER_CANCELLED"
+    | "ABANDONED_CART";
   buttonTriggerText?: string;
   templateId: string;
   variableMapping: Record<string, string>;
@@ -21,7 +36,7 @@ interface AutomationMeta {
   totalPages: number;
 }
 
-type LoadStatus = 'idle' | 'loading' | 'succeeded' | 'failed';
+type LoadStatus = "idle" | "loading" | "succeeded" | "failed";
 
 interface AutomationsState {
   list: Automation[];
@@ -37,8 +52,8 @@ const initialState: AutomationsState = {
   list: [],
   approvedTemplates: [],
   meta: { total: 0, page: 1, limit: 20, totalPages: 0 },
-  status: 'idle',
-  approvedTemplatesStatus: 'idle',
+  status: "idle",
+  approvedTemplatesStatus: "idle",
   error: null,
   page: 1,
 };
@@ -49,130 +64,121 @@ export const fetchAutomations = createAsyncThunk<
   { automations: Automation[]; meta: AutomationMeta },
   number,
   { rejectValue: string }
->(
-  'automations/fetchAll',
-  async (page, { rejectWithValue }) => {
-    try {
-      const res = await api.get<PaginatedResponse<Automation>>('/automations', {
-        params: { page, limit: 20 },
-      });
-      return { automations: res.data.data, meta: res.data.meta };
-    } catch (err: unknown) {
-      return rejectWithValue(
-        err instanceof Error ? err.message : 'Failed to load automations',
-      );
-    }
-  },
-);
+>("automations/fetchAll", async (page, { rejectWithValue }) => {
+  try {
+    const res = await api.get<PaginatedResponse<Automation>>("/automations", {
+      params: { page, limit: 20 },
+    });
+    return { automations: res.data.data, meta: res.data.meta };
+  } catch (err: unknown) {
+    return rejectWithValue(
+      err instanceof Error ? err.message : "Failed to load automations",
+    );
+  }
+});
 
 export const fetchApprovedTemplates = createAsyncThunk<
   Template[],
   void,
   { rejectValue: string }
->(
-  'automations/fetchApprovedTemplates',
-  async (_, { rejectWithValue }) => {
-    try {
-      const res = await api.get<PaginatedResponse<Template>>('/templates', {
-        params: { status: 'APPROVED', limit: 100 },
-      });
-      return res.data.data;
-    } catch (err: unknown) {
-      return rejectWithValue(
-        err instanceof Error ? err.message : 'Failed to load approved templates',
-      );
-    }
-  },
-);
+>("automations/fetchApprovedTemplates", async (_, { rejectWithValue }) => {
+  try {
+    const res = await api.get<PaginatedResponse<Template>>("/templates", {
+      params: { status: "APPROVED", limit: 100 },
+    });
+    return res.data.data;
+  } catch (err: unknown) {
+    return rejectWithValue(
+      err instanceof Error ? err.message : "Failed to load approved templates",
+    );
+  }
+});
 
 export const createAutomation = createAsyncThunk<
   Automation,
   CreateAutomationInput,
   { rejectValue: string }
->(
-  'automations/create',
-  async (input, { rejectWithValue }) => {
-    try {
-      const res = await api.post<ApiResponse<Automation>>('/automations', input);
-      return res.data.data;
-    } catch (err: unknown) {
-      return rejectWithValue(
-        err instanceof Error ? err.message : 'Failed to create automation',
-      );
-    }
-  },
-);
+>("automations/create", async (input, { rejectWithValue }) => {
+  try {
+    const res = await api.post<ApiResponse<Automation>>("/automations", input);
+    return res.data.data;
+  } catch (err: unknown) {
+    return rejectWithValue(
+      err instanceof Error ? err.message : "Failed to create automation",
+    );
+  }
+});
 
 export const updateAutomation = createAsyncThunk<
   Automation,
   { id: string; input: Partial<CreateAutomationInput> },
   { rejectValue: string }
->(
-  'automations/update',
-  async ({ id, input }, { rejectWithValue }) => {
-    try {
-      const res = await api.put<ApiResponse<Automation>>(`/automations/${id}`, input);
-      return res.data.data;
-    } catch (err: unknown) {
-      return rejectWithValue(
-        err instanceof Error ? err.message : 'Failed to update automation',
-      );
-    }
-  },
-);
+>("automations/update", async ({ id, input }, { rejectWithValue }) => {
+  try {
+    const res = await api.put<ApiResponse<Automation>>(
+      `/automations/${id}`,
+      input,
+    );
+    return res.data.data;
+  } catch (err: unknown) {
+    return rejectWithValue(
+      err instanceof Error ? err.message : "Failed to update automation",
+    );
+  }
+});
 
-export const deleteAutomation = createAsyncThunk<string, string, { rejectValue: string }>(
-  'automations/delete',
-  async (id, { rejectWithValue }) => {
-    try {
-      await api.delete(`/automations/${id}`);
-      return id;
-    } catch (err: unknown) {
-      return rejectWithValue(
-        err instanceof Error ? err.message : 'Failed to delete automation',
-      );
-    }
-  },
-);
+export const deleteAutomation = createAsyncThunk<
+  string,
+  string,
+  { rejectValue: string }
+>("automations/delete", async (id, { rejectWithValue }) => {
+  try {
+    await api.delete(`/automations/${id}`);
+    return id;
+  } catch (err: unknown) {
+    return rejectWithValue(
+      err instanceof Error ? err.message : "Failed to delete automation",
+    );
+  }
+});
 
 export const toggleAutomation = createAsyncThunk<
   Automation,
   string,
   { rejectValue: string }
->(
-  'automations/toggle',
-  async (id, { rejectWithValue, dispatch }) => {
-    // Optimistic update — flip the flag immediately
+>("automations/toggle", async (id, { rejectWithValue, dispatch }) => {
+  // Optimistic update — flip the flag immediately
+  dispatch(automationToggled(id));
+  try {
+    const res = await api.patch<ApiResponse<Automation>>(
+      `/automations/${id}/toggle`,
+    );
+    return res.data.data;
+  } catch (err: unknown) {
+    // Rollback
     dispatch(automationToggled(id));
-    try {
-      const res = await api.patch<ApiResponse<Automation>>(`/automations/${id}/toggle`);
-      return res.data.data;
-    } catch (err: unknown) {
-      // Rollback
-      dispatch(automationToggled(id));
-      return rejectWithValue(
-        err instanceof Error ? err.message : 'Failed to toggle automation',
-      );
-    }
-  },
-);
+    return rejectWithValue(
+      err instanceof Error ? err.message : "Failed to toggle automation",
+    );
+  }
+});
 
 export const fetchAutomationLogs = createAsyncThunk<
   { items: AutomationLog[]; meta: AutomationMeta },
   { automationId: string; page?: number },
   { rejectValue: string }
 >(
-  'automations/fetchLogs',
+  "automations/fetchLogs",
   async ({ automationId, page = 1 }, { rejectWithValue }) => {
     try {
-      const res = await api.get<{ data: AutomationLog[]; meta: AutomationMeta }>(
-        `/automations/${automationId}/logs`,
-        { params: { page, limit: 20 } },
-      );
+      const res = await api.get<{
+        data: AutomationLog[];
+        meta: AutomationMeta;
+      }>(`/automations/${automationId}/logs`, { params: { page, limit: 20 } });
       return { items: res.data.data, meta: res.data.meta };
     } catch (err: unknown) {
       return rejectWithValue(
-        err instanceof Error ? err.message : 'Failed to load automation logs',
+        err instanceof Error ? err.message : "Failed to load automation logs",
       );
     }
   },
@@ -181,7 +187,7 @@ export const fetchAutomationLogs = createAsyncThunk<
 // ─── Slice ─────────────────────────────────────────────────────────────────────
 
 const automationsSlice = createSlice({
-  name: 'automations',
+  name: "automations",
   initialState,
   reducers: {
     setPage: (state, action: PayloadAction<number>) => {
@@ -198,27 +204,27 @@ const automationsSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(fetchAutomations.pending, (state) => {
-        if (state.status === 'idle') state.status = 'loading';
+        if (state.status === "idle") state.status = "loading";
         state.error = null;
       })
       .addCase(fetchAutomations.fulfilled, (state, action) => {
-        state.status = 'succeeded';
+        state.status = "succeeded";
         state.list = action.payload.automations;
         state.meta = action.payload.meta;
       })
       .addCase(fetchAutomations.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload ?? 'Unknown error';
+        state.status = "failed";
+        state.error = action.payload ?? "Unknown error";
       })
       .addCase(fetchApprovedTemplates.pending, (state) => {
-        state.approvedTemplatesStatus = 'loading';
+        state.approvedTemplatesStatus = "loading";
       })
       .addCase(fetchApprovedTemplates.fulfilled, (state, action) => {
-        state.approvedTemplatesStatus = 'succeeded';
+        state.approvedTemplatesStatus = "succeeded";
         state.approvedTemplates = action.payload;
       })
       .addCase(fetchApprovedTemplates.rejected, (state) => {
-        state.approvedTemplatesStatus = 'failed';
+        state.approvedTemplatesStatus = "failed";
       })
       .addCase(createAutomation.fulfilled, (state, action) => {
         state.list.unshift(action.payload);
@@ -226,7 +232,8 @@ const automationsSlice = createSlice({
       })
       .addCase(updateAutomation.fulfilled, (state, action) => {
         const idx = state.list.findIndex((a) => a.id === action.payload.id);
-        if (idx !== -1) state.list[idx] = { ...state.list[idx], ...action.payload };
+        if (idx !== -1)
+          state.list[idx] = { ...state.list[idx], ...action.payload };
       })
       .addCase(deleteAutomation.fulfilled, (state, action) => {
         state.list = state.list.filter((a) => a.id !== action.payload);
@@ -234,7 +241,8 @@ const automationsSlice = createSlice({
       })
       .addCase(toggleAutomation.fulfilled, (state, action) => {
         const idx = state.list.findIndex((a) => a.id === action.payload.id);
-        if (idx !== -1) state.list[idx] = { ...state.list[idx], ...action.payload };
+        if (idx !== -1)
+          state.list[idx] = { ...state.list[idx], ...action.payload };
       });
   },
 });
@@ -244,7 +252,8 @@ export const { setPage } = automationsSlice.actions;
 
 // ─── Selectors ─────────────────────────────────────────────────────────────────
 
-export const selectAutomations = (state: RootState): Automation[] => state.automations.list;
+export const selectAutomations = (state: RootState): Automation[] =>
+  state.automations.list;
 export const selectApprovedTemplates = (state: RootState): Template[] =>
   state.automations.approvedTemplates;
 export const selectAutomationsMeta = (state: RootState): AutomationMeta =>
@@ -253,6 +262,7 @@ export const selectAutomationsStatus = (state: RootState): LoadStatus =>
   state.automations.status;
 export const selectAutomationsError = (state: RootState): string | null =>
   state.automations.error;
-export const selectAutomationsPage = (state: RootState): number => state.automations.page;
+export const selectAutomationsPage = (state: RootState): number =>
+  state.automations.page;
 
 export default automationsSlice.reducer;

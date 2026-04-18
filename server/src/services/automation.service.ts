@@ -1,27 +1,32 @@
-import { type Automation, type AutomationLog, type ShopifyEvent, type AutomationTrigger } from '@prisma/client';
-import { prisma } from '../lib/prisma.js';
-import { notFound } from '../lib/app-error.js';
-import { logger } from '../lib/logger.js';
-import * as whatsappService from './whatsapp.service.js';
-import { findOrCreateForCustomer } from './conversation.service.js';
-import { emitNewMessage, emitConversationUpdated } from '../socket/index.js';
+import {
+  type Automation,
+  type AutomationLog,
+  type ShopifyEvent,
+  type AutomationTrigger,
+} from "@prisma/client";
+import { prisma } from "../lib/prisma.js";
+import { notFound } from "../lib/app-error.js";
+import { logger } from "../lib/logger.js";
+import * as whatsappService from "./whatsapp.service.js";
+import { findOrCreateForCustomer } from "./conversation.service.js";
+import { emitNewMessage, emitConversationUpdated } from "../socket/index.js";
 
 export interface VariableMapping {
   [variablePosition: string]: string;
 }
 
 type AllShopifyEvents =
-  | 'PREPAID_ORDER_CONFIRMED'
-  | 'COD_ORDER_CONFIRMED'
-  | 'ORDER_FULFILLED'
-  | 'ORDER_CANCELLED'
-  | 'COD_ORDER_FOLLOW_UP'
-  | 'ABANDONED_CART_1'
-  | 'ABANDONED_CART_2'
-  | 'ABANDONED_CART_3';
+  | "PREPAID_ORDER_CONFIRMED"
+  | "COD_ORDER_CONFIRMED"
+  | "ORDER_FULFILLED"
+  | "ORDER_CANCELLED"
+  | "COD_ORDER_FOLLOW_UP"
+  | "ABANDONED_CART_1"
+  | "ABANDONED_CART_2"
+  | "ABANDONED_CART_3";
 
 export interface UpdateAutomationInput {
-  triggerType?: 'SHOPIFY_EVENT' | 'BUTTON_REPLY';
+  triggerType?: "SHOPIFY_EVENT" | "BUTTON_REPLY";
   name?: string;
   shopifyEvent?: AllShopifyEvents;
   buttonTriggerText?: string;
@@ -33,7 +38,7 @@ export interface UpdateAutomationInput {
 
 export type CreateAutomationInput =
   | {
-      triggerType: 'SHOPIFY_EVENT';
+      triggerType: "SHOPIFY_EVENT";
       name: string;
       shopifyEvent: AllShopifyEvents;
       buttonTriggerText?: never;
@@ -43,7 +48,7 @@ export type CreateAutomationInput =
       delayMinutes: number;
     }
   | {
-      triggerType: 'BUTTON_REPLY';
+      triggerType: "BUTTON_REPLY";
       name: string;
       shopifyEvent?: never;
       buttonTriggerText: string;
@@ -97,74 +102,29 @@ interface TemplateComponent {
 }
 
 function extractButtons(components: TemplateComponent[]): TemplateButton[] {
-  const buttonsComp = components.find((c) => c.type === 'BUTTONS');
+  const buttonsComp = components.find((c) => c.type === "BUTTONS");
   return buttonsComp?.buttons ?? [];
 }
 
-/**
- * Builds a single formatted string from the Razorpay `line_items` array.
- * Format: "Classic T-Shirt (x2), Polo Shirt (x1)"
- * Used when variableMapping contains the virtual path "__line_items_summary__".
- *
- * Tries multiple common field names for the product title (Razorpay uses "name",
- * Shopify uses "title") and multiple common nesting paths for the items array.
- */
-function computeLineItemsSummary(data: Record<string, unknown>): string {
-  // Line items can live at the root or inside a nested checkout/order object.
-  const lineItemsRaw =
-    data['line_items'] ??
-    (data['checkout'] as Record<string, unknown> | undefined)?.['line_items'] ??
-    (data['order'] as Record<string, unknown> | undefined)?.['line_items'];
-
-  if (!Array.isArray(lineItemsRaw) || lineItemsRaw.length === 0) {
-    logger.debug(
-      `computeLineItemsSummary: no line_items found. Top-level keys: ${JSON.stringify(Object.keys(data))}`,
-    );
-    return '';
-  }
-
-  const lineItems = lineItemsRaw as Array<Record<string, unknown>>;
-
-  return lineItems
-    .map((item) => {
-      // Razorpay uses "name"; Shopify uses "title"; fall back through common variants.
-      const rawTitle =
-        item['name'] ??
-        item['title'] ??
-        item['product_title'] ??
-        item['item_name'] ??
-        '';
-      const title = String(rawTitle).trim();
-      const qty = item['quantity'];
-      return title ? (qty !== undefined ? `${title} (x${qty})` : title) : '';
-    })
-    .filter(Boolean)
-    .join(', ');
-}
-
-export function resolvePath(data: Record<string, unknown>, path: string): string {
-  // Virtual computed paths — resolved by function rather than dot-notation traversal.
-  if (path === '__line_items_summary__') {
-    // New queue rows: the webhook handler pre-computes the summary and bakes it into
-    // cartData as "line_items_summary" — read that directly when available.
-    // Old queue rows (created before this change): fall back to computing on-the-fly.
-    if (typeof data['line_items_summary'] === 'string') {
-      return data['line_items_summary'];
-    }
-    return computeLineItemsSummary(data);
-  }
-
-  const parts = path.split('.');
+export function resolvePath(
+  data: Record<string, unknown>,
+  path: string,
+): string {
+  const parts = path.split(".");
   let current: unknown = data;
 
   for (const part of parts) {
-    if (current === null || current === undefined || typeof current !== 'object') {
-      return '';
+    if (
+      current === null ||
+      current === undefined ||
+      typeof current !== "object"
+    ) {
+      return "";
     }
     current = (current as Record<string, unknown>)[part];
   }
 
-  if (current === null || current === undefined) return '';
+  if (current === null || current === undefined) return "";
   return String(current);
 }
 
@@ -180,7 +140,7 @@ export const list = async (
       include: { template: true },
       skip,
       take: limit,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     }),
     prisma.automation.count(),
   ]);
@@ -196,20 +156,26 @@ export const getById = async (id: string): Promise<AutomationWithTemplate> => {
     where: { id },
     include: { template: true },
   });
-  if (!automation) throw notFound('Automation');
+  if (!automation) throw notFound("Automation");
   return automation;
 };
 
-export const create = async (input: CreateAutomationInput): Promise<Automation> => {
-  const template = await prisma.template.findUnique({ where: { id: input.templateId } });
-  if (!template) throw notFound('Template');
+export const create = async (
+  input: CreateAutomationInput,
+): Promise<Automation> => {
+  const template = await prisma.template.findUnique({
+    where: { id: input.templateId },
+  });
+  if (!template) throw notFound("Template");
 
   const automation = await prisma.automation.create({
     data: {
       name: input.name,
       triggerType: input.triggerType as AutomationTrigger,
-      shopifyEvent: input.triggerType === 'SHOPIFY_EVENT' ? input.shopifyEvent : null,
-      buttonTriggerText: input.triggerType === 'BUTTON_REPLY' ? input.buttonTriggerText : null,
+      shopifyEvent:
+        input.triggerType === "SHOPIFY_EVENT" ? input.shopifyEvent : null,
+      buttonTriggerText:
+        input.triggerType === "BUTTON_REPLY" ? input.buttonTriggerText : null,
       templateId: input.templateId,
       variableMapping: input.variableMapping,
       isActive: input.isActive,
@@ -219,14 +185,16 @@ export const create = async (input: CreateAutomationInput): Promise<Automation> 
 
   await prisma.activityLog.create({
     data: {
-      type: 'AUTOMATION_CREATED',
+      type: "AUTOMATION_CREATED",
       entityId: automation.id,
       entityName: automation.name,
       description: `Automation '${automation.name}' created`,
     },
   });
 
-  logger.info(`Automation created: ${automation.id} (${automation.triggerType})`);
+  logger.info(
+    `Automation created: ${automation.id} (${automation.triggerType})`,
+  );
   return automation;
 };
 
@@ -235,30 +203,42 @@ export const update = async (
   input: UpdateAutomationInput,
 ): Promise<Automation> => {
   const existing = await prisma.automation.findUnique({ where: { id } });
-  if (!existing) throw notFound('Automation');
+  if (!existing) throw notFound("Automation");
 
   if (input.templateId !== undefined) {
-    const template = await prisma.template.findUnique({ where: { id: input.templateId } });
-    if (!template) throw notFound('Template');
+    const template = await prisma.template.findUnique({
+      where: { id: input.templateId },
+    });
+    if (!template) throw notFound("Template");
   }
 
   const automation = await prisma.automation.update({
     where: { id },
     data: {
       ...(input.name !== undefined && { name: input.name }),
-      ...(input.triggerType !== undefined && { triggerType: input.triggerType as AutomationTrigger }),
-      ...(input.shopifyEvent !== undefined && { shopifyEvent: input.shopifyEvent }),
-      ...(input.buttonTriggerText !== undefined && { buttonTriggerText: input.buttonTriggerText }),
+      ...(input.triggerType !== undefined && {
+        triggerType: input.triggerType as AutomationTrigger,
+      }),
+      ...(input.shopifyEvent !== undefined && {
+        shopifyEvent: input.shopifyEvent,
+      }),
+      ...(input.buttonTriggerText !== undefined && {
+        buttonTriggerText: input.buttonTriggerText,
+      }),
       ...(input.templateId !== undefined && { templateId: input.templateId }),
-      ...(input.variableMapping !== undefined && { variableMapping: input.variableMapping }),
+      ...(input.variableMapping !== undefined && {
+        variableMapping: input.variableMapping,
+      }),
       ...(input.isActive !== undefined && { isActive: input.isActive }),
-      ...(input.delayMinutes !== undefined && { delayMinutes: input.delayMinutes }),
+      ...(input.delayMinutes !== undefined && {
+        delayMinutes: input.delayMinutes,
+      }),
     },
   });
 
   await prisma.activityLog.create({
     data: {
-      type: 'AUTOMATION_UPDATED',
+      type: "AUTOMATION_UPDATED",
       entityId: automation.id,
       entityName: automation.name,
       description: `Automation '${automation.name}' updated`,
@@ -271,7 +251,7 @@ export const update = async (
 
 export const toggle = async (id: string): Promise<Automation> => {
   const existing = await prisma.automation.findUnique({ where: { id } });
-  if (!existing) throw notFound('Automation');
+  if (!existing) throw notFound("Automation");
 
   const automation = await prisma.automation.update({
     where: { id },
@@ -280,10 +260,10 @@ export const toggle = async (id: string): Promise<Automation> => {
 
   await prisma.activityLog.create({
     data: {
-      type: automation.isActive ? 'AUTOMATION_ENABLED' : 'AUTOMATION_DISABLED',
+      type: automation.isActive ? "AUTOMATION_ENABLED" : "AUTOMATION_DISABLED",
       entityId: automation.id,
       entityName: automation.name,
-      description: `Automation '${automation.name}' ${automation.isActive ? 'enabled' : 'disabled'}`,
+      description: `Automation '${automation.name}' ${automation.isActive ? "enabled" : "disabled"}`,
     },
   });
 
@@ -293,13 +273,13 @@ export const toggle = async (id: string): Promise<Automation> => {
 
 export const remove = async (id: string): Promise<void> => {
   const existing = await prisma.automation.findUnique({ where: { id } });
-  if (!existing) throw notFound('Automation');
+  if (!existing) throw notFound("Automation");
 
   await prisma.automation.delete({ where: { id } });
 
   await prisma.activityLog.create({
     data: {
-      type: 'AUTOMATION_DELETED',
+      type: "AUTOMATION_DELETED",
       entityId: id,
       entityName: existing.name,
       description: `Automation '${existing.name}' deleted`,
@@ -322,7 +302,7 @@ export const getLogs = async (
       where: { automationId },
       skip,
       take: limit,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     }),
     prisma.automationLog.count({ where: { automationId } }),
   ]);
@@ -349,11 +329,13 @@ export const executeAutomation = async (
   }
 
   if (!automation.isActive) {
-    logger.warn(`executeAutomation: automation ${automationId} is inactive — skipping`);
+    logger.warn(
+      `executeAutomation: automation ${automationId} is inactive — skipping`,
+    );
     return;
   }
 
-  if (automation.template.status !== 'APPROVED') {
+  if (automation.template.status !== "APPROVED") {
     logger.warn(
       `executeAutomation: template ${automation.templateId} is not APPROVED (status: ${automation.template.status}) — skipping`,
     );
@@ -370,8 +352,9 @@ export const executeAutomation = async (
       resolvedVars[key] = resolvePath(shopifyData, path);
     }
 
-    const templateComponents = automation.template.components as unknown as TemplateComponent[];
-    const hasBody = templateComponents.some((c) => c.type === 'BODY');
+    const templateComponents = automation.template
+      .components as unknown as TemplateComponent[];
+    const hasBody = templateComponents.some((c) => c.type === "BODY");
 
     const components: whatsappService.TemplateComponent[] = [];
 
@@ -382,10 +365,10 @@ export const executeAutomation = async (
 
     if (hasBody && bodyPositions.length > 0) {
       components.push({
-        type: 'body',
+        type: "body",
         parameters: bodyPositions.map((pos) => ({
-          type: 'text' as const,
-          text: resolvedVars[pos] ?? '',
+          type: "text" as const,
+          text: resolvedVars[pos] ?? "",
         })),
       });
     }
@@ -408,15 +391,18 @@ export const executeAutomation = async (
         return posA - posB;
       });
       components.push({
-        type: 'button',
-        sub_type: 'url',
+        type: "button",
+        sub_type: "url",
         index: btnIdx,
-        parameters: sorted.map((k) => ({ type: 'text' as const, text: resolvedVars[k] ?? '' })),
+        parameters: sorted.map((k) => ({
+          type: "text" as const,
+          text: resolvedVars[k] ?? "",
+        })),
       });
     }
 
     const result = await whatsappService.sendTemplateMessage(customerPhone, {
-      type: 'template',
+      type: "template",
       templateName: automation.template.name,
       languageCode: automation.template.language,
       components,
@@ -426,8 +412,9 @@ export const executeAutomation = async (
       data: {
         automationId,
         customerPhone,
-        shopifyData: shopifyData as import('@prisma/client').Prisma.InputJsonValue,
-        status: 'SENT',
+        shopifyData:
+          shopifyData as import("@prisma/client").Prisma.InputJsonValue,
+        status: "SENT",
         waMessageId: result.messageId,
       },
     });
@@ -441,24 +428,46 @@ export const executeAutomation = async (
     // any failure here does NOT retroactively mark the automation as FAILED.
     try {
       // 1. Upsert customer from Shopify order data
-      const shopifyCustomer = shopifyData.customer as Record<string, unknown> | undefined;
-      const shippingAddress = shopifyData.shipping_address as Record<string, unknown> | undefined;
-      const firstName = shopifyCustomer?.first_name ? String(shopifyCustomer.first_name) : undefined;
-      const lastName  = shopifyCustomer?.last_name  ? String(shopifyCustomer.last_name)  : undefined;
-      const fullName  = [firstName, lastName].filter(Boolean).join(' ').trim() || undefined;
-      const email     = shopifyCustomer?.email ? String(shopifyCustomer.email) : undefined;
-      const city      = shippingAddress?.city  ? String(shippingAddress.city)  : undefined;
-      const shopifyId = shopifyCustomer?.id    ? String(shopifyCustomer.id)    : undefined;
+      const shopifyCustomer = shopifyData.customer as
+        | Record<string, unknown>
+        | undefined;
+      const shippingAddress = shopifyData.shipping_address as
+        | Record<string, unknown>
+        | undefined;
+      const firstName = shopifyCustomer?.first_name
+        ? String(shopifyCustomer.first_name)
+        : undefined;
+      const lastName = shopifyCustomer?.last_name
+        ? String(shopifyCustomer.last_name)
+        : undefined;
+      const fullName =
+        [firstName, lastName].filter(Boolean).join(" ").trim() || undefined;
+      const email = shopifyCustomer?.email
+        ? String(shopifyCustomer.email)
+        : undefined;
+      const city = shippingAddress?.city
+        ? String(shippingAddress.city)
+        : undefined;
+      const shopifyId = shopifyCustomer?.id
+        ? String(shopifyCustomer.id)
+        : undefined;
 
       await prisma.customer.upsert({
         where: { phone: customerPhone },
-        create: { phone: customerPhone, name: fullName, email, city, shopifyId, source: 'SHOPIFY' },
+        create: {
+          phone: customerPhone,
+          name: fullName,
+          email,
+          city,
+          shopifyId,
+          source: "SHOPIFY",
+        },
         update: {
-          ...(fullName  && { name: fullName }),
-          ...(email     && { email }),
-          ...(city      && { city }),
+          ...(fullName && { name: fullName }),
+          ...(email && { email }),
+          ...(city && { city }),
           ...(shopifyId && { shopifyId }),
-          source: 'SHOPIFY',
+          source: "SHOPIFY",
         },
       });
 
@@ -466,7 +475,7 @@ export const executeAutomation = async (
       const { conversationId } = await findOrCreateForCustomer(customerPhone);
 
       // 3. Build resolved body text: replace {{N}} with actual values for display
-      const bodyComp = templateComponents.find((c) => c.type === 'BODY');
+      const bodyComp = templateComponents.find((c) => c.type === "BODY");
       let resolvedBody = automation.template.name;
       if (bodyComp?.text) {
         let text = bodyComp.text;
@@ -482,21 +491,24 @@ export const executeAutomation = async (
         data: {
           conversationId,
           waMessageId: result.messageId,
-          direction: 'OUTBOUND',
-          type: 'TEMPLATE',
+          direction: "OUTBOUND",
+          type: "TEMPLATE",
           body: resolvedBody,
-          status: 'SENT',
+          status: "SENT",
           metadata: {
             templateName: automation.template.name,
             ...(buttons.length > 0 && { buttons }),
-          } as unknown as import('@prisma/client').Prisma.InputJsonValue,
+          } as unknown as import("@prisma/client").Prisma.InputJsonValue,
         },
       });
 
       // 5. Update conversation preview fields
       await prisma.conversation.update({
         where: { id: conversationId },
-        data: { lastMessageAt: message.createdAt, lastMessageText: resolvedBody },
+        data: {
+          lastMessageAt: message.createdAt,
+          lastMessageText: resolvedBody,
+        },
       });
 
       // 6. Emit real-time events so the frontend updates immediately
@@ -507,7 +519,9 @@ export const executeAutomation = async (
       emitNewMessage(conversationId, message);
       emitConversationUpdated(updatedConversation);
 
-      logger.info(`Post-send: customer/conversation/message created for ${customerPhone}`);
+      logger.info(
+        `Post-send: customer/conversation/message created for ${customerPhone}`,
+      );
     } catch (postSendErr) {
       logger.error(
         `Post-send customer/conversation/message creation failed for ${customerPhone}:`,
@@ -515,15 +529,19 @@ export const executeAutomation = async (
       );
     }
   } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-    logger.error(`executeAutomation failed for ${automationId} → ${customerPhone}:`, err);
+    const errorMessage = err instanceof Error ? err.message : "Unknown error";
+    logger.error(
+      `executeAutomation failed for ${automationId} → ${customerPhone}:`,
+      err,
+    );
 
     await prisma.automationLog.create({
       data: {
         automationId,
         customerPhone,
-        shopifyData: shopifyData as import('@prisma/client').Prisma.InputJsonValue,
-        status: 'FAILED',
+        shopifyData:
+          shopifyData as import("@prisma/client").Prisma.InputJsonValue,
+        status: "FAILED",
         errorMessage,
       },
     });
@@ -537,14 +555,16 @@ export const triggerForButtonReply = async (
   // Case-insensitive exact match on buttonTriggerText
   const automations = await prisma.automation.findMany({
     where: {
-      triggerType: 'BUTTON_REPLY',
+      triggerType: "BUTTON_REPLY",
       isActive: true,
-      buttonTriggerText: { equals: buttonText, mode: 'insensitive' },
+      buttonTriggerText: { equals: buttonText, mode: "insensitive" },
     },
   });
 
   if (automations.length === 0) {
-    logger.debug(`triggerForButtonReply: no active automations for button="${buttonText}"`);
+    logger.debug(
+      `triggerForButtonReply: no active automations for button="${buttonText}"`,
+    );
     return;
   }
 
@@ -557,7 +577,7 @@ export const triggerForButtonReply = async (
   );
 
   for (const [i, result] of results.entries()) {
-    if (result.status === 'rejected') {
+    if (result.status === "rejected") {
       logger.error(
         `triggerForButtonReply: automation ${automations[i]?.id} failed:`,
         result.reason,
@@ -572,21 +592,30 @@ const scheduleCodFollowUp = async (
   confirmedAt: Date,
 ): Promise<void> => {
   const followUpAutomation = await prisma.automation.findFirst({
-    where: { triggerType: 'SHOPIFY_EVENT', shopifyEvent: 'COD_ORDER_FOLLOW_UP', isActive: true },
+    where: {
+      triggerType: "SHOPIFY_EVENT",
+      shopifyEvent: "COD_ORDER_FOLLOW_UP",
+      isActive: true,
+    },
   });
 
   if (!followUpAutomation || followUpAutomation.delayMinutes <= 0) {
-    logger.debug('scheduleCodFollowUp: no active COD_ORDER_FOLLOW_UP automation found — skipping');
+    logger.debug(
+      "scheduleCodFollowUp: no active COD_ORDER_FOLLOW_UP automation found — skipping",
+    );
     return;
   }
 
-  const scheduledAt = new Date(confirmedAt.getTime() + followUpAutomation.delayMinutes * 60 * 1000);
+  const scheduledAt = new Date(
+    confirmedAt.getTime() + followUpAutomation.delayMinutes * 60 * 1000,
+  );
 
   await prisma.codFollowUpQueue.create({
     data: {
       customerPhone,
       automationId: followUpAutomation.id,
-      shopifyData: shopifyData as import('@prisma/client').Prisma.InputJsonValue,
+      shopifyData:
+        shopifyData as import("@prisma/client").Prisma.InputJsonValue,
       scheduledAt,
       confirmedAt,
     },
@@ -603,7 +632,11 @@ export const triggerForEvent = async (
   customerPhone: string,
 ): Promise<void> => {
   const automations = await prisma.automation.findMany({
-    where: { triggerType: 'SHOPIFY_EVENT', shopifyEvent: event, isActive: true },
+    where: {
+      triggerType: "SHOPIFY_EVENT",
+      shopifyEvent: event,
+      isActive: true,
+    },
   });
 
   if (automations.length === 0) {
@@ -614,11 +647,13 @@ export const triggerForEvent = async (
     );
 
     const results = await Promise.allSettled(
-      automations.map((a) => executeAutomation(a.id, shopifyData, customerPhone)),
+      automations.map((a) =>
+        executeAutomation(a.id, shopifyData, customerPhone),
+      ),
     );
 
     for (const [i, result] of results.entries()) {
-      if (result.status === 'rejected') {
+      if (result.status === "rejected") {
         logger.error(
           `triggerForEvent: automation ${automations[i]?.id} failed:`,
           result.reason,
@@ -627,10 +662,12 @@ export const triggerForEvent = async (
     }
   }
 
-  if (event === 'COD_ORDER_CONFIRMED') {
-    await scheduleCodFollowUp(shopifyData, customerPhone, new Date()).catch((err: unknown) => {
-      logger.error('scheduleCodFollowUp failed:', err);
-    });
+  if (event === "COD_ORDER_CONFIRMED") {
+    await scheduleCodFollowUp(shopifyData, customerPhone, new Date()).catch(
+      (err: unknown) => {
+        logger.error("scheduleCodFollowUp failed:", err);
+      },
+    );
   }
 };
 
