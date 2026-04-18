@@ -48,10 +48,10 @@ const automationSchema = automationBaseObject
     (d) => {
       const cartEvents = ['ABANDONED_CART_1', 'ABANDONED_CART_2', 'ABANDONED_CART_3'];
       if (!cartEvents.includes(d.shopifyEvent ?? '')) return true;
-      return [1, 30, 60, 180, 360, 720, 1440].includes(d.delayMinutes ?? -1);
+      return [1, 5, 30, 60, 180, 360, 720, 1440].includes(d.delayMinutes ?? -1);
     },
     {
-      message: 'Abandoned cart flows require delayMinutes of 1, 30, 60, 180, 360, 720, or 1440',
+      message: 'Abandoned cart flows require delayMinutes of 1, 5, 30, 60, 180, 360, 720, or 1440',
       path: ['delayMinutes'],
     },
   );

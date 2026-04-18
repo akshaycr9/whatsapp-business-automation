@@ -84,6 +84,7 @@ const CATEGORY_SHELLS: Omit<V2FlowCategory, 'flows'>[] = [
 
 function minutesToTimingLabel(minutes: number): string {
   if (minutes === 1)    return '1 minute (test)';
+  if (minutes === 5)    return '5 minutes (test)';
   if (minutes === 30)   return '30 minutes';
   if (minutes === 60)   return '1 hour';
   if (minutes === 180)  return '3 hours';

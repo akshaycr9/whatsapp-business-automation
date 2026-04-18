@@ -14,15 +14,23 @@ const COD_FOLLOW_UP_DELAY_OPTIONS = [
   { value: 300, label: '5 hours after confirmation' },
 ] as const;
 
-const ABANDONED_CART_DELAY_OPTIONS = [
-  { value: 1,    label: '1 minute (testing)' },
+const ABANDONED_CART_DELAY_OPTIONS_BASE = [
   { value: 30,   label: '30 minutes' },
   { value: 60,   label: '1 hour' },
   { value: 180,  label: '3 hours' },
   { value: 360,  label: '6 hours' },
   { value: 720,  label: '12 hours' },
   { value: 1440, label: '24 hours' },
-] as const;
+];
+
+// Testing options are only injected in development so they never appear in production.
+const ABANDONED_CART_DELAY_OPTIONS = import.meta.env.DEV
+  ? [
+      { value: 1, label: '1 minute (testing)' },
+      { value: 5, label: '5 minutes (testing)' },
+      ...ABANDONED_CART_DELAY_OPTIONS_BASE,
+    ]
+  : ABANDONED_CART_DELAY_OPTIONS_BASE;
 
 interface ConfigureFlowModalProps {
   flow: V2Flow | null;
