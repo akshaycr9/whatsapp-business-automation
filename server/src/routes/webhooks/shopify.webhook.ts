@@ -113,6 +113,17 @@ async function handleOrderCreate(body: Record<string, unknown>): Promise<void> {
       data: { orderCreated: true },
     });
 
+    // Cancel any pending abandoned cart follow-ups — customer converted
+    const cancelledCart = await prisma.abandonedCartQueue.updateMany({
+      where: { customerPhone: normalizedPhone, status: 'PENDING' },
+      data: { status: 'CANCELLED' },
+    });
+    if (cancelledCart.count > 0) {
+      logger.info(
+        `Order ${orderId}: cancelled ${cancelledCart.count} pending abandoned cart queue row(s) for ${normalizedPhone}`,
+      );
+    }
+
     const event =
       financialStatus === 'paid' ? 'PREPAID_ORDER_CONFIRMED' : 'COD_ORDER_CONFIRMED';
     await triggerForEvent(event, body, normalizedPhone);

@@ -12,11 +12,11 @@ const automationBaseObject = z.object({
       'PREPAID_ORDER_CONFIRMED',
       'COD_ORDER_CONFIRMED',
       'ORDER_FULFILLED',
-      'ABANDONED_CART',
       'ORDER_CANCELLED',
       'COD_ORDER_FOLLOW_UP',
-      'ABANDONED_CART_FOLLOW_UP',
-      'ABANDONED_CART_WIN_BACK',
+      'ABANDONED_CART_1',
+      'ABANDONED_CART_2',
+      'ABANDONED_CART_3',
     ])
     .optional(),
   buttonTriggerText: z.string().min(1).optional(),
@@ -41,6 +41,17 @@ const automationSchema = automationBaseObject
       d.shopifyEvent !== 'COD_ORDER_FOLLOW_UP' || [1, 60, 180, 300].includes(d.delayMinutes ?? 0),
     {
       message: 'COD_ORDER_FOLLOW_UP requires delayMinutes of 1, 60, 180, or 300',
+      path: ['delayMinutes'],
+    },
+  )
+  .refine(
+    (d) => {
+      const cartEvents = ['ABANDONED_CART_1', 'ABANDONED_CART_2', 'ABANDONED_CART_3'];
+      if (!cartEvents.includes(d.shopifyEvent ?? '')) return true;
+      return [1, 30, 60, 180, 360, 720, 1440].includes(d.delayMinutes ?? -1);
+    },
+    {
+      message: 'Abandoned cart flows require delayMinutes of 1, 30, 60, 180, 360, 720, or 1440',
       path: ['delayMinutes'],
     },
   );

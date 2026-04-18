@@ -45,9 +45,9 @@ const FLOWS: FlowDef[] = [
   { triggerType: 'BUTTON_REPLY',  name: 'COD Order Cancel',       buttonTriggerText: 'Cancel My Order'                       },
 
   // ── Abandoned Cart ──────────────────────────────────────────────────────────
-  { triggerType: 'SHOPIFY_EVENT', name: 'Cart Reminder',          shopifyEvent: 'ABANDONED_CART',          delayMinutes: 60   },
-  { triggerType: 'SHOPIFY_EVENT', name: 'Recovery Offer',         shopifyEvent: 'ABANDONED_CART_FOLLOW_UP', delayMinutes: 360  },
-  { triggerType: 'SHOPIFY_EVENT', name: 'Win-back Discount',      shopifyEvent: 'ABANDONED_CART_WIN_BACK',  delayMinutes: 1440 },
+  { triggerType: 'SHOPIFY_EVENT', name: 'Abandoned Cart 1', shopifyEvent: 'ABANDONED_CART_1', delayMinutes: 60   },
+  { triggerType: 'SHOPIFY_EVENT', name: 'Abandoned Cart 2', shopifyEvent: 'ABANDONED_CART_2', delayMinutes: 360  },
+  { triggerType: 'SHOPIFY_EVENT', name: 'Abandoned Cart 3', shopifyEvent: 'ABANDONED_CART_3', delayMinutes: 1440 },
 ];
 
 async function main(): Promise<void> {

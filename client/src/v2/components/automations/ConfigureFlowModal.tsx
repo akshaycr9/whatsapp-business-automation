@@ -5,12 +5,23 @@ import { MessagePreviewBubble } from './MessagePreviewBubble';
 import { extractBodyText, detectVariables, extractUrlButtonVars } from '@/lib/automation-utils';
 import type { Template } from '@/types';
 import type { V2Flow } from '@/v2/types';
+import { RAZORPAY_PATH_OPTIONS } from '@/v2/lib/v2-razorpay-paths';
 
-const DELAY_OPTIONS = [
+const COD_FOLLOW_UP_DELAY_OPTIONS = [
   { value: 1,   label: '1 minute (testing)' },
   { value: 60,  label: '1 hour after confirmation' },
   { value: 180, label: '3 hours after confirmation' },
   { value: 300, label: '5 hours after confirmation' },
+] as const;
+
+const ABANDONED_CART_DELAY_OPTIONS = [
+  { value: 1,    label: '1 minute (testing)' },
+  { value: 30,   label: '30 minutes' },
+  { value: 60,   label: '1 hour' },
+  { value: 180,  label: '3 hours' },
+  { value: 360,  label: '6 hours' },
+  { value: 720,  label: '12 hours' },
+  { value: 1440, label: '24 hours' },
 ] as const;
 
 interface ConfigureFlowModalProps {
@@ -38,7 +49,12 @@ export function ConfigureFlowModal({
   const [selectedDelay, setSelectedDelay] = useState<number>(flow?.delayMinutes ?? 60);
   const [saving, setSaving] = useState(false);
 
-  const isFollowUp = flow?.shopifyEvent === 'COD_ORDER_FOLLOW_UP';
+  const isAbandonedCart = ['ABANDONED_CART_1', 'ABANDONED_CART_2', 'ABANDONED_CART_3'].includes(
+    flow?.shopifyEvent ?? '',
+  );
+  const isCODFollowUp = flow?.shopifyEvent === 'COD_ORDER_FOLLOW_UP';
+  const showTimingSelect = isAbandonedCart || isCODFollowUp;
+  const delayOptions = isAbandonedCart ? ABANDONED_CART_DELAY_OPTIONS : COD_FOLLOW_UP_DELAY_OPTIONS;
 
   const selectedTemplate = useMemo(
     () => approvedTemplates.find((t) => t.id === selectedTemplateId) ?? null,
@@ -76,13 +92,13 @@ export function ConfigureFlowModal({
         flow.id,
         selectedTemplateId,
         varMapping,
-        isFollowUp ? selectedDelay : undefined,
+        showTimingSelect ? selectedDelay : undefined,
       );
       onClose();
     } finally {
       setSaving(false);
     }
-  }, [flow, selectedTemplateId, varMapping, isFollowUp, selectedDelay, onSave, onClose]);
+  }, [flow, selectedTemplateId, varMapping, showTimingSelect, selectedDelay, onSave, onClose]);
 
   if (!flow) return null;
 
@@ -133,25 +149,32 @@ export function ConfigureFlowModal({
             )}
           </div>
 
-          {/* Timing — editable select for COD_ORDER_FOLLOW_UP, read-only for all others */}
+          {/* Timing — editable select for COD follow-up and abandoned cart flows */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold uppercase tracking-wider text-stitch-on-surface-variant">
               Timing
             </label>
-            {isFollowUp ? (
+            {showTimingSelect ? (
               <>
                 <select
                   value={selectedDelay}
                   onChange={(e) => setSelectedDelay(Number(e.target.value))}
                   className="w-full h-11 px-3 bg-stitch-surface-low border-none rounded-lg text-sm text-stitch-on-surface focus:outline-none focus:ring-2 focus:ring-stitch-primary-container"
                 >
-                  {DELAY_OPTIONS.map((opt) => (
+                  {delayOptions.map((opt) => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </select>
-                <p className="text-xs text-stitch-on-surface-variant">
-                  Follow-up is only sent if the customer has not replied to the COD confirmation.
-                </p>
+                {isCODFollowUp && (
+                  <p className="text-xs text-stitch-on-surface-variant">
+                    Follow-up is only sent if the customer has not replied to the COD confirmation.
+                  </p>
+                )}
+                {isAbandonedCart && (
+                  <p className="text-xs text-stitch-on-surface-variant">
+                    Sent after the customer abandons their cart, relative to when they left.
+                  </p>
+                )}
               </>
             ) : (
               <div className="h-11 px-3 flex items-center bg-stitch-surface-container rounded-lg text-sm text-stitch-on-surface-variant">
@@ -173,6 +196,7 @@ export function ConfigureFlowModal({
                     label={`{{${v}}}`}
                     shopifyPath={varMapping[v] ?? ''}
                     onPathChange={(path) => handlePathChange(v, path)}
+                    pathOptions={isAbandonedCart ? RAZORPAY_PATH_OPTIONS : undefined}
                   />
                 ))}
                 {urlVars.map((uv) => (
@@ -181,6 +205,7 @@ export function ConfigureFlowModal({
                     label={`{{${uv.varPos}}} (${uv.buttonLabel})`}
                     shopifyPath={varMapping[uv.key] ?? ''}
                     onPathChange={(path) => handlePathChange(uv.key, path)}
+                    pathOptions={isAbandonedCart ? RAZORPAY_PATH_OPTIONS : undefined}
                   />
                 ))}
               </div>

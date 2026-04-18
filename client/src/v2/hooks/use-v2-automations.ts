@@ -38,9 +38,9 @@ const SHOPIFY_FLOW_CONFIG: Record<ShopifyEvent, ShopifyFlowMeta> = {
   ORDER_FULFILLED:          { categoryId: 'order-flow',     displayName: 'Order Fulfilled',        timing: 'Immediate'  },
   COD_ORDER_CONFIRMED:      { categoryId: 'cod-flow',       displayName: 'COD Order Confirmation', timing: 'Immediate'  },
   COD_ORDER_FOLLOW_UP:      { categoryId: 'cod-flow',       displayName: 'COD Order Follow Up',    timing: '30 minutes' },
-  ABANDONED_CART:           { categoryId: 'abandoned-cart', displayName: 'Cart Reminder',          timing: '1 hour'     },
-  ABANDONED_CART_FOLLOW_UP: { categoryId: 'abandoned-cart', displayName: 'Recovery Offer',         timing: '6 hours'    },
-  ABANDONED_CART_WIN_BACK:  { categoryId: 'abandoned-cart', displayName: 'Win-back Discount',      timing: '24 hours'   },
+  ABANDONED_CART_1: { categoryId: 'abandoned-cart', displayName: 'Abandoned Cart 1', timing: '1 hour'  },
+  ABANDONED_CART_2: { categoryId: 'abandoned-cart', displayName: 'Abandoned Cart 2', timing: '6 hours' },
+  ABANDONED_CART_3: { categoryId: 'abandoned-cart', displayName: 'Abandoned Cart 3', timing: '24 hours' },
 };
 
 interface ButtonFlowMeta {
@@ -83,10 +83,14 @@ const CATEGORY_SHELLS: Omit<V2FlowCategory, 'flows'>[] = [
 // ─── Conversion helpers ─────────────────────────────────────────────────────────
 
 function minutesToTimingLabel(minutes: number): string {
-  if (minutes === 1)   return '1 minute (test)';
-  if (minutes === 60)  return '1 hour after confirmation';
-  if (minutes === 180) return '3 hours after confirmation';
-  if (minutes === 300) return '5 hours after confirmation';
+  if (minutes === 1)    return '1 minute (test)';
+  if (minutes === 30)   return '30 minutes';
+  if (minutes === 60)   return '1 hour';
+  if (minutes === 180)  return '3 hours';
+  if (minutes === 300)  return '5 hours';
+  if (minutes === 360)  return '6 hours';
+  if (minutes === 720)  return '12 hours';
+  if (minutes === 1440) return '24 hours';
   return 'Immediate';
 }
 
@@ -100,9 +104,12 @@ function automationToV2Flow(automation: Automation): V2Flow | null {
     if (!meta) return null; // unknown event — skip
     categoryId = meta.categoryId;
     displayName = meta.displayName;
-    timing = automation.shopifyEvent === 'COD_ORDER_FOLLOW_UP'
-      ? minutesToTimingLabel(automation.delayMinutes)
-      : meta.timing;
+    const useDynamicTiming =
+      automation.shopifyEvent === 'COD_ORDER_FOLLOW_UP' ||
+      automation.shopifyEvent === 'ABANDONED_CART_1' ||
+      automation.shopifyEvent === 'ABANDONED_CART_2' ||
+      automation.shopifyEvent === 'ABANDONED_CART_3';
+    timing = useDynamicTiming ? minutesToTimingLabel(automation.delayMinutes) : meta.timing;
   } else if (automation.triggerType === 'BUTTON_REPLY' && automation.buttonTriggerText) {
     const meta = BUTTON_FLOW_CONFIG[automation.buttonTriggerText];
     if (!meta) return null; // unknown button text — skip

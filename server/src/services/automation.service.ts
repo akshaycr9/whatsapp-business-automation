@@ -14,11 +14,11 @@ type AllShopifyEvents =
   | 'PREPAID_ORDER_CONFIRMED'
   | 'COD_ORDER_CONFIRMED'
   | 'ORDER_FULFILLED'
-  | 'ABANDONED_CART'
   | 'ORDER_CANCELLED'
   | 'COD_ORDER_FOLLOW_UP'
-  | 'ABANDONED_CART_FOLLOW_UP'
-  | 'ABANDONED_CART_WIN_BACK';
+  | 'ABANDONED_CART_1'
+  | 'ABANDONED_CART_2'
+  | 'ABANDONED_CART_3';
 
 export interface UpdateAutomationInput {
   triggerType?: 'SHOPIFY_EVENT' | 'BUTTON_REPLY';
@@ -101,7 +101,30 @@ function extractButtons(components: TemplateComponent[]): TemplateButton[] {
   return buttonsComp?.buttons ?? [];
 }
 
+/**
+ * Builds a single formatted string from the Razorpay `line_items` array.
+ * Format: "Classic T-Shirt (x2), Polo Shirt (x1)"
+ * Used when variableMapping contains the virtual path "__line_items_summary__".
+ */
+function computeLineItemsSummary(data: Record<string, unknown>): string {
+  const lineItems = data['line_items'] as Array<Record<string, unknown>> | undefined;
+  if (!Array.isArray(lineItems) || lineItems.length === 0) return '';
+  return lineItems
+    .map((item) => {
+      const title = String(item['title'] ?? '').trim();
+      const qty = item['quantity'];
+      return title ? (qty !== undefined ? `${title} (x${qty})` : title) : '';
+    })
+    .filter(Boolean)
+    .join(', ');
+}
+
 export function resolvePath(data: Record<string, unknown>, path: string): string {
+  // Virtual computed paths — resolved by function rather than dot-notation traversal.
+  if (path === '__line_items_summary__') {
+    return computeLineItemsSummary(data);
+  }
+
   const parts = path.split('.');
   let current: unknown = data;
 

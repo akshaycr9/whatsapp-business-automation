@@ -138,20 +138,20 @@ model Automation {
   delayMinutes      Int               @default(0)
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
-  logs              AutomationLog[]
-  codFollowUpQueues CodFollowUpQueue[]
+  logs                AutomationLog[]
+  codFollowUpQueues   CodFollowUpQueue[]
+  abandonedCartQueues AbandonedCartQueue[]
 }
 
 enum ShopifyEvent {
   PREPAID_ORDER_CONFIRMED
   COD_ORDER_CONFIRMED
   ORDER_FULFILLED
-  ABANDONED_CART
-  // ── V2 additions ──────────────────────────────────────
   ORDER_CANCELLED
   COD_ORDER_FOLLOW_UP
-  ABANDONED_CART_FOLLOW_UP
-  ABANDONED_CART_WIN_BACK
+  ABANDONED_CART_1
+  ABANDONED_CART_2
+  ABANDONED_CART_3
 }
 
 model AutomationLog {
@@ -220,6 +220,30 @@ model CodFollowUpQueue {
 
   @@index([status, scheduledAt])
   @@index([customerPhone, status])
+}
+
+enum AbandonedCartStatus {
+  PENDING
+  SENT
+  SKIPPED
+  CANCELLED
+}
+
+model AbandonedCartQueue {
+  id            String              @id @default(cuid())
+  cartToken     String
+  customerPhone String
+  automationId  String
+  automation    Automation          @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  cartData      Json
+  scheduledAt   DateTime
+  abandonedAt   DateTime
+  status        AbandonedCartStatus @default(PENDING)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@index([status, scheduledAt])
+  @@index([cartToken, automationId])
 }
 
 model PushSubscription {

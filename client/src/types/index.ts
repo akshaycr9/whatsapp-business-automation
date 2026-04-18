@@ -78,12 +78,11 @@ export type ShopifyEvent =
   | 'PREPAID_ORDER_CONFIRMED'
   | 'COD_ORDER_CONFIRMED'
   | 'ORDER_FULFILLED'
-  | 'ABANDONED_CART'
-  // ── V2 additions ───────────────────────────────────────────
   | 'ORDER_CANCELLED'
   | 'COD_ORDER_FOLLOW_UP'
-  | 'ABANDONED_CART_FOLLOW_UP'
-  | 'ABANDONED_CART_WIN_BACK';
+  | 'ABANDONED_CART_1'
+  | 'ABANDONED_CART_2'
+  | 'ABANDONED_CART_3';
 
 export type AutomationTriggerType = 'SHOPIFY_EVENT' | 'BUTTON_REPLY';
 

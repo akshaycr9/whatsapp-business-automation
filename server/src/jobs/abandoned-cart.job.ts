@@ -1,58 +1,63 @@
 import cron from 'node-cron';
 import { prisma } from '../lib/prisma.js';
 import { logger } from '../lib/logger.js';
-import { triggerForEvent } from '../services/automation.service.js';
+import { executeAutomation } from '../services/automation.service.js';
+import { env } from '../config/env.js';
 
-export function startAbandonedCartJob(): void {
-  cron.schedule('*/5 * * * *', () => {
-    void runAbandonedCartCheck();
+const SCHEDULE = env.NODE_ENV === 'production' ? '*/5 * * * *' : '* * * * *';
+const SCHEDULE_LABEL = env.NODE_ENV === 'production' ? 'every 5 minutes' : 'every minute';
+
+export function startAbandonedCartQueueJob(): void {
+  cron.schedule(SCHEDULE, () => {
+    void runAbandonedCartQueueCheck();
   });
-
-  logger.info('Abandoned cart job started (runs every 5 minutes)');
+  logger.info(`Abandoned cart queue job started (${SCHEDULE_LABEL})`);
 }
 
-async function runAbandonedCartCheck(): Promise<void> {
-  logger.info('Abandoned cart job: checking...');
+async function runAbandonedCartQueueCheck(): Promise<void> {
+  const now = new Date();
 
-  try {
-    const cutoff = new Date(Date.now() - 60 * 60 * 1000);
+  const dueRows = await prisma.abandonedCartQueue.findMany({
+    where: { status: 'PENDING', scheduledAt: { lte: now } },
+    take: 50,
+    orderBy: { scheduledAt: 'asc' },
+  });
 
-    const abandoned = await prisma.checkoutTracker.findMany({
-      where: {
-        orderCreated: false,
-        abandonedNotified: false,
-        createdAt: { lt: cutoff },
-        customerPhone: { not: null },
-      },
-      take: 50,
-    });
+  if (dueRows.length === 0) {
+    logger.debug('Abandoned cart queue: nothing due');
+    return;
+  }
 
-    if (abandoned.length === 0) {
-      logger.debug('Abandoned cart job: nothing to process');
-      return;
-    }
+  logger.info(`Abandoned cart queue: ${dueRows.length} due row(s)`);
 
-    logger.info(`Abandoned cart job: processing ${abandoned.length} carts`);
+  for (const row of dueRows) {
+    try {
+      const automation = await prisma.automation.findUnique({ where: { id: row.automationId } });
 
-    for (const cart of abandoned) {
-      if (!cart.customerPhone) continue;
-
-      try {
-        await triggerForEvent(
-          'ABANDONED_CART',
-          cart.checkoutData as Record<string, unknown>,
-          cart.customerPhone,
-        );
-
-        await prisma.checkoutTracker.update({
-          where: { id: cart.id },
-          data: { abandonedNotified: true },
+      if (!automation?.isActive) {
+        await prisma.abandonedCartQueue.update({
+          where: { id: row.id },
+          data: { status: 'CANCELLED' },
         });
-      } catch (err: unknown) {
-        logger.error(`Abandoned cart job: failed for cart ${cart.id}:`, err);
+        logger.info(`Abandoned cart CANCELLED for ${row.customerPhone} — automation inactive`);
+        continue;
       }
+
+      await executeAutomation(
+        row.automationId,
+        row.cartData as Record<string, unknown>,
+        row.customerPhone,
+      );
+
+      await prisma.abandonedCartQueue.update({
+        where: { id: row.id },
+        data: { status: 'SENT' },
+      });
+
+      logger.info(`Abandoned cart SENT to ${row.customerPhone} (${automation.shopifyEvent})`);
+    } catch (err: unknown) {
+      logger.error(`Abandoned cart queue: failed for row ${row.id}:`, err);
+      // Row stays PENDING — retried next tick
     }
-  } catch (err: unknown) {
-    logger.error('Abandoned cart job: unexpected error:', err);
   }
 }
