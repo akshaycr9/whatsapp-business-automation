@@ -29,6 +29,22 @@ async function processRazorpayWebhook(body: Record<string, unknown>): Promise<vo
 
   logger.info(`Razorpay abandoned cart: cartToken=${cartToken}, phone=${customerPhone}`);
 
+  // Log the payload structure once per webhook so we can verify field names.
+  // This runs in all environments — remove after confirming the payload shape.
+  logger.info(
+    `Razorpay payload top-level keys: ${JSON.stringify(Object.keys(body))}`,
+  );
+  const lineItemsRaw = body['line_items'];
+  if (Array.isArray(lineItemsRaw) && lineItemsRaw.length > 0) {
+    logger.info(
+      `Razorpay line_items[0] keys: ${JSON.stringify(Object.keys(lineItemsRaw[0] as Record<string, unknown>))}`,
+    );
+  } else {
+    logger.warn(
+      `Razorpay: line_items missing or empty at root level — cartData will have no line items to summarise`,
+    );
+  }
+
   const automations = await prisma.automation.findMany({
     where: {
       triggerType: 'SHOPIFY_EVENT',

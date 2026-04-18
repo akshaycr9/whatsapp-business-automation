@@ -105,13 +105,36 @@ function extractButtons(components: TemplateComponent[]): TemplateButton[] {
  * Builds a single formatted string from the Razorpay `line_items` array.
  * Format: "Classic T-Shirt (x2), Polo Shirt (x1)"
  * Used when variableMapping contains the virtual path "__line_items_summary__".
+ *
+ * Tries multiple common field names for the product title (Razorpay uses "name",
+ * Shopify uses "title") and multiple common nesting paths for the items array.
  */
 function computeLineItemsSummary(data: Record<string, unknown>): string {
-  const lineItems = data['line_items'] as Array<Record<string, unknown>> | undefined;
-  if (!Array.isArray(lineItems) || lineItems.length === 0) return '';
+  // Line items can live at the root or inside a nested checkout/order object.
+  const lineItemsRaw =
+    data['line_items'] ??
+    (data['checkout'] as Record<string, unknown> | undefined)?.['line_items'] ??
+    (data['order'] as Record<string, unknown> | undefined)?.['line_items'];
+
+  if (!Array.isArray(lineItemsRaw) || lineItemsRaw.length === 0) {
+    logger.debug(
+      `computeLineItemsSummary: no line_items found. Top-level keys: ${JSON.stringify(Object.keys(data))}`,
+    );
+    return '';
+  }
+
+  const lineItems = lineItemsRaw as Array<Record<string, unknown>>;
+
   return lineItems
     .map((item) => {
-      const title = String(item['title'] ?? '').trim();
+      // Razorpay uses "name"; Shopify uses "title"; fall back through common variants.
+      const rawTitle =
+        item['name'] ??
+        item['title'] ??
+        item['product_title'] ??
+        item['item_name'] ??
+        '';
+      const title = String(rawTitle).trim();
       const qty = item['quantity'];
       return title ? (qty !== undefined ? `${title} (x${qty})` : title) : '';
     })
