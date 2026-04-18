@@ -29,20 +29,26 @@ async function processRazorpayWebhook(body: Record<string, unknown>): Promise<vo
 
   logger.info(`Razorpay abandoned cart: cartToken=${cartToken}, phone=${customerPhone}`);
 
-  // Log the payload structure once per webhook so we can verify field names.
-  // This runs in all environments — remove after confirming the payload shape.
-  logger.info(
-    `Razorpay payload top-level keys: ${JSON.stringify(Object.keys(body))}`,
-  );
-  const lineItemsRaw = body['line_items'];
-  if (Array.isArray(lineItemsRaw) && lineItemsRaw.length > 0) {
-    logger.info(
-      `Razorpay line_items[0] keys: ${JSON.stringify(Object.keys(lineItemsRaw[0] as Record<string, unknown>))}`,
-    );
+  // Pre-compute line_items_summary and bake it into the payload before storing.
+  // This way the abandoned-cart cron can resolve it as a plain path ("line_items_summary")
+  // without relying on virtual-path magic at execution time.
+  const rawItems = body['line_items'];
+  if (Array.isArray(rawItems) && rawItems.length > 0) {
+    const summary = (rawItems as Array<Record<string, unknown>>)
+      .map((item) => {
+        // Razorpay uses "name"; Shopify uses "title" — try both.
+        const name = String(item['name'] ?? item['title'] ?? '').trim();
+        const qty = item['quantity'];
+        return name ? (qty !== undefined ? `${name} (x${qty})` : name) : '';
+      })
+      .filter(Boolean)
+      .join(', ');
+
+    body['line_items_summary'] = summary;
+    logger.info(`Razorpay: line_items_summary="${summary}"`);
   } else {
-    logger.warn(
-      `Razorpay: line_items missing or empty at root level — cartData will have no line items to summarise`,
-    );
+    logger.warn('Razorpay: line_items missing or empty — line_items_summary will be blank');
+    body['line_items_summary'] = '';
   }
 
   const automations = await prisma.automation.findMany({

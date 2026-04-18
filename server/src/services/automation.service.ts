@@ -145,6 +145,12 @@ function computeLineItemsSummary(data: Record<string, unknown>): string {
 export function resolvePath(data: Record<string, unknown>, path: string): string {
   // Virtual computed paths — resolved by function rather than dot-notation traversal.
   if (path === '__line_items_summary__') {
+    // New queue rows: the webhook handler pre-computes the summary and bakes it into
+    // cartData as "line_items_summary" — read that directly when available.
+    // Old queue rows (created before this change): fall back to computing on-the-fly.
+    if (typeof data['line_items_summary'] === 'string') {
+      return data['line_items_summary'];
+    }
     return computeLineItemsSummary(data);
   }
 
