@@ -34,6 +34,16 @@ const createTemplateSchema = z.object({
     .min(1),
 });
 
+// GET /api/templates/status-counts — must come before /:id
+router.get('/status-counts', async (_req, res, next) => {
+  try {
+    const counts = await templateService.getStatusCounts();
+    res.json({ data: counts });
+  } catch (err: unknown) {
+    next(err);
+  }
+});
+
 // POST /api/templates/sync-all — must come before /:id
 router.post('/sync-all', async (_req, res, next) => {
   try {
@@ -87,6 +97,16 @@ router.delete('/:id', async (req, res, next) => {
     res.sendStatus(204);
   } catch (err: unknown) {
     next(err);
+  }
+});
+
+// PATCH /api/templates/:id
+router.patch('/:id', async (req, res, next) => {
+  try {
+    const template = await templateService.update(req.params['id'] as string, req.body.components as templateService.TemplateComponent[]);
+    res.json({ data: template });
+  } catch (error: unknown) {
+    next(error);
   }
 });
 

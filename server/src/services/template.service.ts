@@ -366,6 +366,24 @@ export const syncAll = async (): Promise<{ synced: number }> => {
   return { synced };
 };
 
+export const getStatusCounts = async (): Promise<Record<string, number>> => {
+  const [all, approved, pending, rejected] = await Promise.all([
+    prisma.template.count(),
+    prisma.template.count({ where: { status: 'APPROVED' } }),
+    prisma.template.count({ where: { status: 'PENDING' } }),
+    prisma.template.count({ where: { status: 'REJECTED' } }),
+  ]);
+  return { all, APPROVED: approved, PENDING: pending, REJECTED: rejected };
+};
+
+export const update = async (id: string, components: TemplateComponent[]): Promise<Template> => {
+  await getById(id); // throws 404 if not found
+  return prisma.template.update({
+    where: { id },
+    data: { components: components as unknown as import('@prisma/client').Prisma.InputJsonValue },
+  });
+};
+
 export const remove = async (id: string): Promise<void> => {
   const template = await getById(id);
 

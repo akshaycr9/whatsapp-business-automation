@@ -1,78 +1,77 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Import Inter font weights */
 @layer base {
   :root {
-    /* ── Light mode ─────────────────────────────────────── */
-    --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
+    /* ── Light mode — Chatflo teal-green palette ────────────── */
+    --background: 90 4% 96%;           /* #f6f7f5 warm off-white */
+    --foreground: 165 14% 12%;         /* #1b2420 ink-900 */
 
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card: 0 0% 100%;                 /* #ffffff */
+    --card-foreground: 165 14% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 165 14% 12%;
 
-    /* Emerald-600 as primary — #059669 → hsl(160 84% 39%) */
-    --primary: 160 84% 39%;
+    --primary: 172 74% 27%;            /* #107a6d brand-700 */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 20%;
+    --secondary: 90 7% 93%;            /* #eff1ed surface-sunken */
+    --secondary-foreground: 165 10% 25%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 90 7% 93%;                /* #eff1ed surface-sunken */
+    --muted-foreground: 165 5% 44%;    /* #6b7671 ink-500 */
 
-    /* Emerald-50 as accent */
-    --accent: 152 81% 96%;
-    --accent-foreground: 160 84% 20%;
+    --accent: 163 41% 94%;             /* #e7f5f1 brand-100 */
+    --accent-foreground: 172 74% 20%;  /* brand-800 */
 
-    --destructive: 0 84% 60%;
+    --destructive: 350 49% 44%;        /* #a9384d accent-rose */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 160 84% 39%;
+    --border: 90 10% 89%;              /* #e3e6e0 */
+    --input: 90 10% 89%;
+    --ring: 172 74% 27%;
 
-    --radius: 0.5rem;
+    --radius: 0.625rem;                /* 10px */
 
-    /* Custom app variables */
+    /* App layout vars */
     --sidebar-width: 16rem;
     --sidebar-width-collapsed: 4rem;
-    --header-height: 4rem;
+    --header-height: 3.5rem;
   }
 
   .dark {
-    /* ── Dark mode ───────────────────────────────────────── */
-    --background: 222 47% 5%;
-    --foreground: 210 40% 98%;
+    /* ── Dark mode — Chatflo dark palette ───────────────────── */
+    --background: 165 25% 7%;          /* #0e1512 */
+    --foreground: 130 7% 92%;          /* #ebefec */
 
-    --card: 222 47% 8%;
-    --card-foreground: 210 40% 98%;
+    --card: 165 20% 10%;               /* #161e1a */
+    --card-foreground: 130 7% 92%;
 
-    --popover: 222 47% 8%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 165 20% 10%;
+    --popover-foreground: 130 7% 92%;
 
-    --primary: 160 84% 42%;
+    --primary: 172 74% 35%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 165 16% 16%;          /* #242e29 */
+    --secondary-foreground: 130 7% 76%;
 
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 165 20% 10%;
+    --muted-foreground: 165 5% 55%;
 
-    --accent: 160 40% 15%;
-    --accent-foreground: 160 70% 60%;
+    --accent: 165 40% 11%;
+    --accent-foreground: 163 41% 75%;
 
-    --destructive: 0 63% 40%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 350 49% 55%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 160 84% 42%;
+    --border: 165 16% 16%;             /* #242e29 */
+    --input: 165 16% 16%;
+    --ring: 172 74% 35%;
   }
 
   * {
@@ -82,13 +81,13 @@
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', system-ui, sans-serif;
-    font-size: 16px;
-    line-height: 1.6;
+    font-size: 14px;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'cv11', 'ss01';
   }
 
-  /* Improve scrollbar styling */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;

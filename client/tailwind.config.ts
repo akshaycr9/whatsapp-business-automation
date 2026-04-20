@@ -13,38 +13,48 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'ui-monospace', 'Menlo', 'monospace'],
       },
       fontSize: {
-        // Slightly larger defaults for better readability
-        base: ['16px', { lineHeight: '1.6' }],
-        sm: ['14px', { lineHeight: '1.5' }],
+        base: ['14px', { lineHeight: '1.5' }],
+        sm: ['13px', { lineHeight: '1.5' }],
         xs: ['12px', { lineHeight: '1.4' }],
       },
       colors: {
-        // ── V2 / Stitch Material Design color palette ──────────────────
-        // Namespaced under `stitch-*` to avoid any conflict with v1 shadcn tokens.
-        // Usage: bg-stitch-surface, text-stitch-on-surface, etc.
-        stitch: {
-          surface: '#fcf8ff',
-          'surface-low': '#f5f2ff',
-          'surface-lowest': '#ffffff',
-          'surface-container': '#efecff',
-          'surface-high': '#e8e5ff',
-          'surface-highest': '#e2e0fc',
-          'surface-dim': '#dad7f3',
-          primary: '#006d2f',
-          'primary-container': '#25d366',
-          'on-primary': '#ffffff',
-          'on-primary-container': '#005523',
-          'on-surface': '#1a1a2e',
-          'on-surface-variant': '#3c4a3d',
-          'on-background': '#1a1a2e',
-          outline: '#6c7b6b',
-          'outline-variant': '#bbcbb9',
-          secondary: '#5d5c74',
-          sidebar: '#1a1a2e',
+        // ── Chatflo brand palette (teal-green family) ──────────────────
+        brand: {
+          '900': '#07332e',
+          '800': '#0b5d54',
+          '700': '#107a6d',
+          '600': '#128c7e',
+          '500': '#17a398',
+          '400': '#3fbfae',
+          '300': '#8ddccd',
+          '200': '#c6ebe2',
+          '100': '#e7f5f1',
+          '050': '#f2faf7',
         },
-        // ── End V2 colors ───────────────────────────────────────────────
+        // ── Ink (text) scale ───────────────────────────────────────────
+        ink: {
+          '900': '#1b2420',
+          '700': '#3a4641',
+          '500': '#6b7671',
+          '400': '#8a948f',
+          '300': '#b4bcb7',
+        },
+        // ── Surface tokens ─────────────────────────────────────────────
+        surface: {
+          '2': '#fbfcfa',
+          sunken: '#eff1ed',
+        },
+        // ── Accent colors ──────────────────────────────────────────────
+        'accent-amber': '#b5790a',
+        'accent-amber-bg': '#fcf3dd',
+        'accent-rose': '#a9384d',
+        'accent-rose-bg': '#fbe5e8',
+        'accent-violet': '#5b4bb5',
+        'accent-violet-bg': '#eae6fb',
+        // ── shadcn/ui HSL tokens (keep unchanged) ─────────────────────
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
@@ -80,9 +90,16 @@ const config: Config = {
         },
       },
       borderRadius: {
-        lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 2px)',
-        sm: 'calc(var(--radius) - 4px)',
+        xl: '20px',
+        lg: '14px',
+        DEFAULT: '10px',
+        md: '8px',
+        sm: '6px',
+      },
+      boxShadow: {
+        sm: '0 1px 2px rgba(16, 32, 28, 0.04)',
+        DEFAULT: '0 2px 8px rgba(16, 32, 28, 0.06), 0 1px 2px rgba(16, 32, 28, 0.04)',
+        lg: '0 12px 32px -8px rgba(16, 32, 28, 0.14), 0 4px 12px rgba(16, 32, 28, 0.06)',
       },
       keyframes: {
         'accordion-down': {
@@ -93,10 +110,25 @@ const config: Config = {
           from: { height: 'var(--radix-accordion-content-height)' },
           to: { height: '0' },
         },
+        'scale-in': {
+          from: { opacity: '0', transform: 'scale(0.96) translateY(6px)' },
+          to: { opacity: '1', transform: 'scale(1) translateY(0)' },
+        },
+        'fade-in': {
+          from: { opacity: '0' },
+          to: { opacity: '1' },
+        },
+        spin: {
+          from: { transform: 'rotate(0deg)' },
+          to: { transform: 'rotate(360deg)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
+        'scale-in': 'scale-in 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
+        'fade-in': 'fade-in 0.15s ease',
+        spin: 'spin 0.8s linear infinite',
       },
     },
   },

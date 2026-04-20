@@ -37,6 +37,13 @@ interface TemplateMeta {
 
 type LoadStatus = 'idle' | 'loading' | 'succeeded' | 'failed';
 
+export interface StatusCounts {
+  all: number;
+  APPROVED: number;
+  PENDING: number;
+  REJECTED: number;
+}
+
 interface TemplatesState {
   list: Template[];
   meta: TemplateMeta;
@@ -46,9 +53,13 @@ interface TemplatesState {
   search: string;
   statusFilter: StatusFilter;
   page: number;
+  // Accurate per-status totals from the server (independent of current page/filter)
+  statusCounts: StatusCounts;
+  statusCountsLoaded: boolean;
 }
 
 const DEFAULT_META: TemplateMeta = { total: 0, page: 1, limit: 20, totalPages: 0 };
+const DEFAULT_STATUS_COUNTS: StatusCounts = { all: 0, APPROVED: 0, PENDING: 0, REJECTED: 0 };
 
 const initialState: TemplatesState = {
   list: [],
@@ -58,6 +69,8 @@ const initialState: TemplatesState = {
   search: '',
   statusFilter: 'all',
   page: 1,
+  statusCounts: DEFAULT_STATUS_COUNTS,
+  statusCountsLoaded: false,
 };
 
 // ─── Thunks ────────────────────────────────────────────────────────────────────
@@ -143,6 +156,35 @@ export const syncAllTemplates = createAsyncThunk<
   },
 );
 
+export const fetchStatusCounts = createAsyncThunk<StatusCounts, void, { rejectValue: string }>(
+  'templates/fetchStatusCounts',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await api.get<ApiResponse<StatusCounts>>('/templates/status-counts');
+      return res.data.data;
+    } catch (err: unknown) {
+      return rejectWithValue(err instanceof Error ? err.message : 'Failed to fetch status counts');
+    }
+  },
+);
+
+export interface UpdateTemplateInput {
+  id: string;
+  components: TemplateComponentInput[];
+}
+
+export const updateTemplate = createAsyncThunk<Template, UpdateTemplateInput, { rejectValue: string }>(
+  'templates/update',
+  async ({ id, components }, { rejectWithValue }) => {
+    try {
+      const res = await api.patch<ApiResponse<Template>>(`/templates/${id}`, { components });
+      return res.data.data;
+    } catch (err: unknown) {
+      return rejectWithValue(err instanceof Error ? err.message : 'Failed to update template');
+    }
+  },
+);
+
 // ─── Slice ─────────────────────────────────────────────────────────────────────
 
 const templatesSlice = createSlice({
@@ -183,6 +225,14 @@ const templatesSlice = createSlice({
       .addCase(syncTemplate.fulfilled, (state, action) => {
         const idx = state.list.findIndex((t) => t.id === action.payload.id);
         if (idx !== -1) state.list[idx] = action.payload;
+      })
+      .addCase(updateTemplate.fulfilled, (state, action) => {
+        const idx = state.list.findIndex((t) => t.id === action.payload.id);
+        if (idx !== -1) state.list[idx] = action.payload;
+      })
+      .addCase(fetchStatusCounts.fulfilled, (state, action) => {
+        state.statusCounts = action.payload;
+        state.statusCountsLoaded = true;
       });
   },
 });
@@ -201,5 +251,7 @@ export const selectTemplatesSearch = (state: RootState): string => state.templat
 export const selectTemplatesStatusFilter = (state: RootState): StatusFilter =>
   state.templates.statusFilter;
 export const selectTemplatesPage = (state: RootState): number => state.templates.page;
+export const selectStatusCounts = (state: RootState): StatusCounts => state.templates.statusCounts;
+export const selectStatusCountsLoaded = (state: RootState): boolean => state.templates.statusCountsLoaded;
 
 export default templatesSlice.reducer;

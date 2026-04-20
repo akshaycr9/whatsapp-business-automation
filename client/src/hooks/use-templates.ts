@@ -2,10 +2,12 @@ import { useEffect, useCallback, useRef } from 'react';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import {
   fetchTemplates,
+  fetchStatusCounts as fetchStatusCountsThunk,
   createTemplate as createTemplateThunk,
   deleteTemplate as deleteTemplateThunk,
   syncTemplate as syncTemplateThunk,
   syncAllTemplates as syncAllTemplatesThunk,
+  updateTemplate as updateTemplateThunk,
   setSearch,
   setStatusFilter,
   setPage,
@@ -16,8 +18,11 @@ import {
   selectTemplatesSearch,
   selectTemplatesStatusFilter,
   selectTemplatesPage,
+  selectStatusCounts,
+  selectStatusCountsLoaded,
   type StatusFilter,
   type CreateTemplateInput,
+  type StatusCounts,
 } from '@/features/templates/templatesSlice';
 import type { Template } from '@/types';
 
@@ -26,6 +31,8 @@ export type {
   CreateTemplateInput,
   TemplateComponentInput,
   TemplateButtonInput,
+  UpdateTemplateInput,
+  StatusCounts,
 } from '@/features/templates/templatesSlice';
 
 interface TemplateMeta {
@@ -47,7 +54,9 @@ export interface UseTemplatesReturn {
   setSearch: (value: string) => void;
   page: number;
   setPage: (value: number) => void;
+  statusCounts: StatusCounts;
   createTemplate: (input: CreateTemplateInput) => Promise<Template>;
+  updateTemplate: (id: string, components: import('@/features/templates/templatesSlice').TemplateComponentInput[]) => Promise<Template>;
   removeTemplate: (id: string) => Promise<void>;
   syncOne: (id: string) => Promise<Template>;
   syncAll: () => Promise<{ synced: number }>;
@@ -63,6 +72,8 @@ export function useTemplates(): UseTemplatesReturn {
   const search = useAppSelector(selectTemplatesSearch);
   const statusFilter = useAppSelector(selectTemplatesStatusFilter);
   const page = useAppSelector(selectTemplatesPage);
+  const statusCounts = useAppSelector(selectStatusCounts);
+  const statusCountsLoaded = useAppSelector(selectStatusCountsLoaded);
 
   // Debounce timer for search/filter — local implementation detail
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -75,6 +86,13 @@ export function useTemplates(): UseTemplatesReturn {
       void dispatch(fetchTemplates({ search, page, statusFilter }));
     }
   }, [status, dispatch]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch status counts once on mount (and whenever not yet loaded)
+  useEffect(() => {
+    if (!statusCountsLoaded) {
+      void dispatch(fetchStatusCountsThunk());
+    }
+  }, [statusCountsLoaded, dispatch]);
 
   // Debounce search/filter changes — reset to page 1
   useEffect(() => {
@@ -123,11 +141,25 @@ export function useTemplates(): UseTemplatesReturn {
       if (createTemplateThunk.rejected.match(result)) {
         throw new Error((result.payload as string | undefined) ?? 'Failed to create template');
       }
-      // Refetch to get accurate pagination
-      await dispatch(fetchTemplates({ search, page, statusFilter }));
+      // Refetch list and counts
+      await Promise.all([
+        dispatch(fetchTemplates({ search, page, statusFilter })),
+        dispatch(fetchStatusCountsThunk()),
+      ]);
       return result.payload as Template;
     },
     [dispatch, search, page, statusFilter],
+  );
+
+  const handleUpdateTemplate = useCallback(
+    async (id: string, components: import('@/features/templates/templatesSlice').TemplateComponentInput[]): Promise<Template> => {
+      const result = await dispatch(updateTemplateThunk({ id, components }));
+      if (updateTemplateThunk.rejected.match(result)) {
+        throw new Error((result.payload as string | undefined) ?? 'Failed to update template');
+      }
+      return result.payload as Template;
+    },
+    [dispatch],
   );
 
   const handleRemoveTemplate = useCallback(
@@ -136,6 +168,7 @@ export function useTemplates(): UseTemplatesReturn {
       if (deleteTemplateThunk.rejected.match(result)) {
         throw new Error((result.payload as string | undefined) ?? 'Failed to delete template');
       }
+      void dispatch(fetchStatusCountsThunk());
     },
     [dispatch],
   );
@@ -156,8 +189,11 @@ export function useTemplates(): UseTemplatesReturn {
     if (syncAllTemplatesThunk.rejected.match(result)) {
       throw new Error((result.payload as string | undefined) ?? 'Failed to sync templates');
     }
-    // Refetch after sync
-    await dispatch(fetchTemplates({ search, page, statusFilter }));
+    // Refetch list and counts after sync
+    await Promise.all([
+      dispatch(fetchTemplates({ search, page, statusFilter })),
+      dispatch(fetchStatusCountsThunk()),
+    ]);
     return result.payload as { synced: number };
   }, [dispatch, search, page, statusFilter]);
 
@@ -177,7 +213,9 @@ export function useTemplates(): UseTemplatesReturn {
     setSearch: handleSetSearch,
     page,
     setPage: handleSetPage,
+    statusCounts,
     createTemplate: handleCreateTemplate,
+    updateTemplate: handleUpdateTemplate,
     removeTemplate: handleRemoveTemplate,
     syncOne: handleSyncOne,
     syncAll: handleSyncAll,
