@@ -1,144 +1,48 @@
-import { useState } from 'react';
-import { Eye, MoreVertical, Filter, Clock, MessageCircle, Plus } from 'lucide-react';
+import { useState, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Pencil, Clock, MessageCircle, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useV2Automations } from '@/v2/hooks/use-v2-automations';
+import type { V2Flow } from '@/v2/types';
+import type { ShopifyEvent } from '@/types';
 
-interface Rule {
-  id: string;
-  on: boolean;
-  name: string;
-  desc: string;
-  trigger: { label: string; icon: string };
-  delay: string;
-  filter: string | null;
-  template: string;
-}
+// ── Trigger display config ────────────────────────────────────────────────────
 
-interface Flow {
-  id: string;
+interface TriggerInfo {
   label: string;
-  rules: Rule[];
+  icon: string;
 }
 
-const FLOWS: Flow[] = [
-  {
-    id: 'order',
-    label: 'Order Flow',
-    rules: [
-      {
-        id: 'order-confirmed',
-        on: true,
-        name: 'Order Confirmed',
-        desc: 'Send an order receipt and summary immediately when a prepaid order is placed.',
-        trigger: { label: 'Order placed', icon: 'package' },
-        delay: 'Immediate',
-        filter: null,
-        template: 'order_confirm_apparel',
-      },
-      {
-        id: 'order-cancelled',
-        on: true,
-        name: 'Order Cancelled',
-        desc: 'Notify the customer when their order has been cancelled.',
-        trigger: { label: 'Order cancelled', icon: 'package' },
-        delay: 'Immediate',
-        filter: null,
-        template: 'order_cancelled',
-      },
-      {
-        id: 'order-fulfilled',
-        on: true,
-        name: 'Order Fulfilled',
-        desc: 'Send AWB number and tracking link when Shopify marks the order as shipped.',
-        trigger: { label: 'Order shipped', icon: 'truck' },
-        delay: 'Immediate',
-        filter: null,
-        template: 'shipment_tracking',
-      },
-    ],
-  },
-  {
-    id: 'cod',
-    label: 'COD Flow',
-    rules: [
-      {
-        id: 'cod-confirmation',
-        on: true,
-        name: 'COD Order Confirmation',
-        desc: 'Ask the customer to confirm their COD order to reduce RTO rates.',
-        trigger: { label: 'COD order placed', icon: 'cash' },
-        delay: '5 minutes',
-        filter: null,
-        template: 'cod_verification',
-      },
-      {
-        id: 'cod-confirmed',
-        on: true,
-        name: 'COD Order Confirmed',
-        desc: 'Send a confirmation message when the customer confirms their COD order.',
-        trigger: { label: 'COD confirmed', icon: 'cash' },
-        delay: 'Immediate',
-        filter: null,
-        template: 'cod_order_confirmed',
-      },
-      {
-        id: 'cod-cancelled',
-        on: false,
-        name: 'COD Order Cancelled',
-        desc: 'Notify the customer when their COD order has been cancelled.',
-        trigger: { label: 'COD cancelled', icon: 'cash' },
-        delay: 'Immediate',
-        filter: null,
-        template: 'cod_order_cancelled',
-      },
-      {
-        id: 'cod-followup',
-        on: false,
-        name: 'COD Order Follow Up',
-        desc: 'Follow up with customers who haven\'t responded to the COD confirmation request.',
-        trigger: { label: 'COD unconfirmed', icon: 'cash' },
-        delay: '24 hours',
-        filter: 'No response yet',
-        template: 'cod_followup',
-      },
-    ],
-  },
-  {
-    id: 'cart',
-    label: 'Abandoned Cart',
-    rules: [
-      {
-        id: 'cart-1',
-        on: true,
-        name: 'Abandoned Cart 1',
-        desc: 'First nudge — send a cart reminder to customers who left items behind.',
-        trigger: { label: 'Abandoned cart', icon: 'cart' },
-        delay: '1 hour',
-        filter: '> ₹500',
-        template: 'cart_recovery_v1',
-      },
-      {
-        id: 'cart-2',
-        on: true,
-        name: 'Abandoned Cart 2',
-        desc: 'Second nudge with a gentle reminder if the customer still hasn\'t checked out.',
-        trigger: { label: 'Abandoned cart', icon: 'cart' },
-        delay: '6 hours',
-        filter: 'No purchase yet',
-        template: 'cart_recovery_v2',
-      },
-      {
-        id: 'cart-3',
-        on: false,
-        name: 'Abandoned Cart 3',
-        desc: 'Final nudge after 24 hours with a 15% discount code to close the sale.',
-        trigger: { label: 'Abandoned cart', icon: 'cart' },
-        delay: '24 hours',
-        filter: 'No purchase yet',
-        template: 'cart_recovery_offer15',
-      },
-    ],
-  },
-];
+const SHOPIFY_EVENT_TRIGGER: Record<ShopifyEvent, TriggerInfo> = {
+  PREPAID_ORDER_CONFIRMED: { label: 'Order placed',      icon: 'package' },
+  ORDER_CANCELLED:         { label: 'Order cancelled',   icon: 'package' },
+  ORDER_FULFILLED:         { label: 'Order shipped',     icon: 'truck'   },
+  COD_ORDER_CONFIRMED:     { label: 'COD order placed',  icon: 'cash'    },
+  COD_ORDER_FOLLOW_UP:     { label: 'COD unconfirmed',   icon: 'cash'    },
+  ABANDONED_CART_1:        { label: 'Abandoned cart',    icon: 'cart'    },
+  ABANDONED_CART_2:        { label: 'Abandoned cart',    icon: 'cart'    },
+  ABANDONED_CART_3:        { label: 'Abandoned cart',    icon: 'cart'    },
+};
+
+const FLOW_DESCRIPTIONS: Record<string, string> = {
+  'Order Confirmed':        'Send an order receipt and summary immediately when a prepaid order is placed.',
+  'Order Cancelled':        'Notify the customer when their order has been cancelled.',
+  'Order Fulfilled':        'Send AWB number and tracking link when Shopify marks the order as shipped.',
+  'COD Order Confirmation': 'Ask the customer to confirm their COD order to reduce RTO rates.',
+  'COD Order Follow Up':    "Follow up with customers who haven't responded to the COD confirmation request.",
+  'COD Order Confirm':      'Send a confirmation message when the customer confirms their COD order.',
+  'COD Order Cancel':       'Notify the customer when their COD order has been cancelled.',
+  'Abandoned Cart 1':       'First nudge — send a cart reminder to customers who left items behind.',
+  'Abandoned Cart 2':       "Second nudge with a gentle reminder if the customer still hasn't checked out.",
+  'Abandoned Cart 3':       'Final nudge after 24 hours with a discount code to close the sale.',
+};
+
+function getTriggerInfo(flow: V2Flow): TriggerInfo {
+  if (flow.shopifyEvent) {
+    return SHOPIFY_EVENT_TRIGGER[flow.shopifyEvent] ?? { label: flow.name, icon: 'package' };
+  }
+  return { label: 'Button reply', icon: 'cash' };
+}
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -178,27 +82,62 @@ function CashIcon() {
 }
 
 const TRIGGER_ICONS: Record<string, React.ReactNode> = {
-  cart: <CartIcon />,
+  cart:    <CartIcon />,
   package: <PackageIcon />,
-  truck: <TruckIcon />,
-  cash: <CashIcon />,
+  truck:   <TruckIcon />,
+  cash:    <CashIcon />,
 };
+
+// ── Skeleton ──────────────────────────────────────────────────────────────────
+
+function RuleCardSkeleton() {
+  return (
+    <div
+      className="bg-card border border-border rounded-lg shadow-sm animate-pulse grid gap-4 items-center"
+      style={{ padding: '16px 18px', gridTemplateColumns: 'auto 1fr auto' }}
+    >
+      <div className="w-9 h-5 bg-surface-sunken rounded-full flex-shrink-0" />
+      <div className="space-y-2.5">
+        <div className="h-4 bg-surface-sunken rounded w-1/3" />
+        <div className="h-3 bg-surface-sunken rounded w-2/3" />
+        <div className="flex gap-2 mt-1">
+          <div className="h-7 bg-surface-sunken rounded-[9px] w-28" />
+          <div className="h-7 bg-surface-sunken rounded-[9px] w-20" />
+          <div className="h-7 bg-surface-sunken rounded-[9px] w-36" />
+        </div>
+      </div>
+      <div className="w-16 h-8 bg-surface-sunken rounded-md" />
+    </div>
+  );
+}
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AutomationsPage() {
-  const [selectedFlowId, setSelectedFlowId] = useState('order');
+  const navigate = useNavigate();
+  const { flowCategories, loading, error, toggle } = useV2Automations();
+  const [selectedCategoryId, setSelectedCategoryId] = useState('order-flow');
 
-  // Flat map of rule id → active state across all flows
-  const [activeMap, setActiveMap] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(FLOWS.flatMap((f) => f.rules.map((r) => [r.id, r.on]))),
+  const selectedCategory = useMemo(
+    () => flowCategories.find((c) => c.id === selectedCategoryId) ?? flowCategories[0],
+    [flowCategories, selectedCategoryId],
   );
 
-  const toggle = (id: string) => setActiveMap((m) => ({ ...m, [id]: !m[id] }));
+  const activeCount = useMemo(
+    () => selectedCategory?.flows.filter((f) => f.active).length ?? 0,
+    [selectedCategory],
+  );
+  const pausedCount = useMemo(
+    () => selectedCategory?.flows.filter((f) => !f.active).length ?? 0,
+    [selectedCategory],
+  );
 
-  const selectedFlow = FLOWS.find((f) => f.id === selectedFlowId)!;
-  const activeCount = selectedFlow.rules.filter((r) => activeMap[r.id]).length;
-  const pausedCount = selectedFlow.rules.filter((r) => !activeMap[r.id]).length;
+  const handleToggle = useCallback((flowId: string) => { toggle(flowId); }, [toggle]);
+
+  const handleEdit = useCallback(
+    (flowId: string) => { navigate(`/automations/${flowId}/edit`); },
+    [navigate],
+  );
 
   return (
     <div className="flex flex-col h-full">
@@ -219,28 +158,24 @@ export default function AutomationsPage() {
             <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
           </svg>
         </button>
-        <button className="inline-flex items-center gap-1.5 px-3 py-[7px] rounded-md bg-brand-700 text-white border border-brand-800 text-[13px] font-semibold hover:bg-brand-800 transition-colors">
-          <Plus size={13} strokeWidth={2.5} />
-          New automation
-        </button>
       </div>
 
       {/* ── Body ── */}
       <div className="flex flex-1 overflow-hidden">
 
         {/* ── Secondary nav ── */}
-        <div className="w-[188px] flex-shrink-0 border-r border-border bg-card flex flex-col py-3 px-3 overflow-y-auto">
+        <div className="w-64 flex-shrink-0 border-r border-border bg-card flex flex-col py-3 px-3 overflow-y-auto">
           <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-ink-400 px-2.5 pt-1 pb-2">
             Flows
           </p>
           <div className="flex flex-col gap-0.5">
-            {FLOWS.map((flow) => {
-              const flowActive = flow.rules.filter((r) => activeMap[r.id]).length;
-              const isSelected = selectedFlowId === flow.id;
+            {flowCategories.map((category) => {
+              const flowActive = category.flows.filter((f) => f.active).length;
+              const isSelected = selectedCategoryId === category.id;
               return (
                 <button
-                  key={flow.id}
-                  onClick={() => setSelectedFlowId(flow.id)}
+                  key={category.id}
+                  onClick={() => setSelectedCategoryId(category.id)}
                   className={cn(
                     'flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13.5px] font-medium transition-colors text-left w-full',
                     isSelected
@@ -248,7 +183,7 @@ export default function AutomationsPage() {
                       : 'text-ink-700 hover:bg-surface-sunken',
                   )}
                 >
-                  <span className="flex-1 text-left">{flow.label}</span>
+                  <span className="flex-1 text-left">{category.label}</span>
                   <span
                     className={cn(
                       'text-[11px] font-semibold px-[7px] py-0.5 rounded-full min-w-[18px] text-center',
@@ -268,122 +203,157 @@ export default function AutomationsPage() {
         {/* ── Rule cards ── */}
         <div className="flex-1 overflow-auto px-7 pt-6 pb-10">
 
-          {/* Status chip + filter */}
-          <div className="flex items-center gap-3 mb-4">
+          {/* Error state */}
+          {error && (
+            <div className="mb-4 flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">Failed to load automations</p>
+                <p className="text-red-600 text-xs mt-0.5">{error}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Status chip */}
+          <div className="flex items-center mb-4">
             <span className="inline-flex items-center gap-[5px] text-[11.5px] font-semibold px-2 py-0.5 rounded-full bg-brand-100 text-brand-800 leading-[1.6]">
               <span className="w-1.5 h-1.5 rounded-full bg-current" />
               {activeCount} active · {pausedCount} paused
             </span>
-            <div className="flex-1" />
-            <button className="inline-flex items-center gap-1.5 px-3 py-[7px] rounded-md bg-card border border-border text-ink-900 text-[13px] font-semibold hover:bg-surface-sunken hover:border-ink-300 transition-all">
-              <Filter size={13} strokeWidth={2} />
-              Filter
-            </button>
           </div>
 
           {/* Cards */}
           <div className="flex flex-col gap-3">
-            {selectedFlow.rules.map((r) => {
-              const isActive = activeMap[r.id];
-              return (
-                <div
-                  key={r.id}
-                  className="bg-card border border-border rounded-lg shadow-sm grid gap-4 items-center"
-                  style={{ padding: '16px 18px', gridTemplateColumns: 'auto 1fr auto' }}
-                >
-                  {/* Toggle */}
-                  <button
-                    onClick={() => toggle(r.id)}
-                    className={cn(
-                      'relative inline-block w-9 h-5 rounded-full transition-colors duration-150 border-0 p-0 cursor-pointer shrink-0',
-                      isActive ? 'bg-brand-600' : 'bg-[#c9cec4]',
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.2)] transition-[left] duration-150 block',
-                        isActive ? 'left-[18px]' : 'left-0.5',
-                      )}
-                    />
-                  </button>
-
-                  {/* Body */}
-                  <div>
-                    <div className="text-[14px] font-[650] mb-1.5 tracking-[-0.005em] text-ink-900">
-                      {r.name}
-                    </div>
-                    <div className="text-[12.5px] text-ink-500 mb-2.5">{r.desc}</div>
-
-                    {/* IF → WAIT → SEND */}
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                      {/* IF */}
-                      <div className="inline-flex items-center gap-[7px] pl-1.5 pr-2.5 py-1.5 bg-surface-2 border border-border rounded-[9px] text-[12.5px] font-medium text-ink-700">
-                        <span className="w-[22px] h-[22px] rounded-sm grid place-items-center text-[10.5px] font-bold tracking-[0.02em] uppercase shrink-0 bg-accent-violet-bg text-accent-violet">
-                          IF
-                        </span>
-                        <span className="inline-flex items-center gap-[5px]">
-                          {TRIGGER_ICONS[r.trigger.icon]}
-                          {r.trigger.label}
-                        </span>
-                        {r.filter && (
-                          <span className="text-ink-500 text-[11.5px] ml-0.5">· {r.filter}</span>
-                        )}
-                      </div>
-
-                      <span className="text-ink-300 text-sm">→</span>
-
-                      {/* WAIT */}
-                      <div className="inline-flex items-center gap-[7px] pl-1.5 pr-2.5 py-1.5 bg-surface-2 border border-border rounded-[9px] text-[12.5px] font-medium text-ink-700">
-                        <span className="w-[22px] h-[22px] rounded-sm grid place-items-center text-[10.5px] font-bold tracking-[0.02em] uppercase shrink-0 bg-accent-amber-bg text-accent-amber">
-                          WAIT
-                        </span>
-                        <span className="inline-flex items-center gap-[5px]">
-                          <Clock size={13} />
-                          {r.delay}
-                        </span>
-                      </div>
-
-                      <span className="text-ink-300 text-sm">→</span>
-
-                      {/* SEND */}
-                      <div className="inline-flex items-center gap-[7px] pl-1.5 pr-2.5 py-1.5 bg-surface-2 border border-border rounded-[9px] text-[12.5px] font-medium text-ink-700">
-                        <span className="w-[22px] h-[22px] rounded-sm grid place-items-center text-[10.5px] font-bold tracking-[0.02em] uppercase shrink-0 bg-brand-100 text-brand-800">
-                          SEND
-                        </span>
-                        <span className="inline-flex items-center gap-[5px] font-mono text-[11.5px]">
-                          <MessageCircle size={13} />
-                          {r.template}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Paused badge */}
-                    {!isActive && (
-                      <div className="mt-3">
-                        <span className="inline-flex items-center gap-[5px] text-[11.5px] font-semibold px-2 py-0.5 rounded-full bg-surface-sunken text-ink-500 leading-[1.6]">
-                          <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                          Paused
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex flex-col gap-1.5">
-                    <button className="inline-flex items-center justify-center gap-1.5 px-3 py-[7px] rounded-md bg-card border border-border text-ink-900 text-[13px] font-semibold hover:bg-surface-sunken hover:border-ink-300 transition-all">
-                      <Eye size={13} />
-                      View
-                    </button>
-                    <button className="inline-flex items-center justify-center px-3 py-[7px] rounded-md bg-card border border-border text-ink-900 text-[13px] font-semibold hover:bg-surface-sunken hover:border-ink-300 transition-all">
-                      <MoreVertical size={13} />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+            {loading ? (
+              <>
+                <RuleCardSkeleton />
+                <RuleCardSkeleton />
+                <RuleCardSkeleton />
+              </>
+            ) : selectedCategory?.flows.length === 0 ? (
+              <div className="text-center py-16 text-ink-400 text-sm">
+                No automations configured in this flow yet.
+              </div>
+            ) : (
+              selectedCategory?.flows.map((flow) => {
+                const triggerInfo = getTriggerInfo(flow);
+                return (
+                  <RuleCard
+                    key={flow.id}
+                    flow={flow}
+                    triggerInfo={triggerInfo}
+                    onToggle={handleToggle}
+                    onEdit={handleEdit}
+                  />
+                );
+              })
+            )}
           </div>
         </div>
       </div>
     </div>
   );
 }
+
+// ── Rule Card ─────────────────────────────────────────────────────────────────
+
+interface RuleCardProps {
+  flow: V2Flow;
+  triggerInfo: TriggerInfo;
+  onToggle: (id: string) => void;
+  onEdit: (id: string) => void;
+}
+
+const RuleCard = ({ flow, triggerInfo, onToggle, onEdit }: RuleCardProps) => (
+  <div
+    className="bg-card border border-border rounded-lg shadow-sm grid gap-4 items-center"
+    style={{ padding: '16px 18px', gridTemplateColumns: 'auto 1fr auto' }}
+  >
+    {/* Toggle */}
+    <button
+      onClick={() => onToggle(flow.id)}
+      className={cn(
+        'relative inline-block w-9 h-5 rounded-full transition-colors duration-150 border-0 p-0 cursor-pointer shrink-0',
+        flow.active ? 'bg-brand-600' : 'bg-[#c9cec4]',
+      )}
+    >
+      <span
+        className={cn(
+          'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.2)] transition-[left] duration-150 block',
+          flow.active ? 'left-[18px]' : 'left-0.5',
+        )}
+      />
+    </button>
+
+    {/* Body */}
+    <div>
+      <div className="text-[14px] font-[650] mb-1.5 tracking-[-0.005em] text-ink-900">
+        {flow.name}
+      </div>
+      <div className="text-[12.5px] text-ink-500 mb-2.5">
+        {FLOW_DESCRIPTIONS[flow.name] ?? ''}
+      </div>
+
+      {/* IF → WAIT → SEND */}
+      <div className="flex items-center gap-3 flex-wrap">
+        {/* IF */}
+        <div className="inline-flex items-center gap-2 pl-1.5 pr-3 py-1.5 bg-surface-2 border border-border rounded-[9px] text-[12.5px] font-medium text-ink-700">
+          <span className="px-[5px] h-[22px] rounded-sm inline-flex items-center text-[10.5px] font-bold tracking-[0.02em] uppercase shrink-0 bg-accent-violet-bg text-accent-violet">
+            IF
+          </span>
+          <span className="inline-flex items-center gap-[5px]">
+            {TRIGGER_ICONS[triggerInfo.icon]}
+            {triggerInfo.label}
+          </span>
+        </div>
+
+        <span className="text-ink-300 text-sm">→</span>
+
+        {/* WAIT */}
+        <div className="inline-flex items-center gap-2 pl-1.5 pr-3 py-1.5 bg-surface-2 border border-border rounded-[9px] text-[12.5px] font-medium text-ink-700">
+          <span className="px-[5px] h-[22px] rounded-sm inline-flex items-center text-[10.5px] font-bold tracking-[0.02em] uppercase shrink-0 bg-accent-amber-bg text-accent-amber">
+            WAIT
+          </span>
+          <span className="inline-flex items-center gap-[5px]">
+            <Clock size={13} />
+            {flow.timing}
+          </span>
+        </div>
+
+        <span className="text-ink-300 text-sm">→</span>
+
+        {/* SEND */}
+        <div className="inline-flex items-center gap-2 pl-1.5 pr-3 py-1.5 bg-surface-2 border border-border rounded-[9px] text-[12.5px] font-medium text-ink-700">
+          <span className="px-[5px] h-[22px] rounded-sm inline-flex items-center text-[10.5px] font-bold tracking-[0.02em] uppercase shrink-0 bg-brand-100 text-brand-800">
+            SEND
+          </span>
+          <span className="inline-flex items-center gap-[5px] font-mono text-[11.5px]">
+            <MessageCircle size={13} />
+            {flow.templateName}
+          </span>
+        </div>
+      </div>
+
+      {/* Paused badge */}
+      {!flow.active && (
+        <div className="mt-3">
+          <span className="inline-flex items-center gap-[5px] text-[11.5px] font-semibold px-2 py-0.5 rounded-full bg-surface-sunken text-ink-500 leading-[1.6]">
+            <span className="w-1.5 h-1.5 rounded-full bg-current" />
+            Paused
+          </span>
+        </div>
+      )}
+    </div>
+
+    {/* Actions */}
+    <div className="flex flex-col gap-1.5">
+      <button
+        onClick={() => onEdit(flow.id)}
+        className="inline-flex items-center justify-center gap-1.5 px-3 py-[7px] rounded-md bg-card border border-border text-ink-900 text-[13px] font-semibold hover:bg-surface-sunken hover:border-ink-300 transition-all"
+      >
+        <Pencil size={13} />
+        Edit
+      </button>
+    </div>
+  </div>
+);

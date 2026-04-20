@@ -1,0 +1,383 @@
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ChevronLeft, ArrowRight, CheckCheck } from 'lucide-react';
+import { useV2Automations } from '@/v2/hooks/use-v2-automations';
+import { extractBodyText, detectVariables, extractUrlButtonVars } from '@/lib/automation-utils';
+import { SHOPIFY_PATH_OPTIONS, groupPathOptions } from '@/v2/lib/v2-shopify-paths';
+import { RAZORPAY_PATH_OPTIONS } from '@/v2/lib/v2-razorpay-paths';
+import type { Template } from '@/types';
+import { cn } from '@/lib/utils';
+
+// ── Delay options ─────────────────────────────────────────────────────────────
+
+const COD_FOLLOW_UP_DELAY_OPTIONS = [
+  { value: 1,   label: '1 minute (testing)' },
+  { value: 60,  label: '1 hour after confirmation' },
+  { value: 180, label: '3 hours after confirmation' },
+  { value: 300, label: '5 hours after confirmation' },
+] as const;
+
+const ABANDONED_CART_DELAY_OPTIONS_BASE = [
+  { value: 30,   label: '30 minutes' },
+  { value: 60,   label: '1 hour' },
+  { value: 180,  label: '3 hours' },
+  { value: 360,  label: '6 hours' },
+  { value: 720,  label: '12 hours' },
+  { value: 1440, label: '24 hours' },
+];
+
+const ABANDONED_CART_DELAY_OPTIONS = import.meta.env.DEV
+  ? [
+      { value: 1, label: '1 minute (testing)' },
+      { value: 5, label: '5 minutes (testing)' },
+      ...ABANDONED_CART_DELAY_OPTIONS_BASE,
+    ]
+  : ABANDONED_CART_DELAY_OPTIONS_BASE;
+
+// ── Section card ──────────────────────────────────────────────────────────────
+
+function SectionCard({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-card border border-border rounded-lg overflow-hidden">
+      <div className="px-5 py-3 border-b border-border bg-surface-2">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.07em] text-ink-400">
+          {label}
+        </span>
+      </div>
+      <div className="px-5 py-4">{children}</div>
+    </div>
+  );
+}
+
+// ── Parameter mapping row ─────────────────────────────────────────────────────
+
+interface MappingRowProps {
+  label: string;
+  path: string;
+  isAbandonedCart: boolean;
+  onChange: (path: string) => void;
+}
+
+function MappingRow({ label, path, isAbandonedCart, onChange }: MappingRowProps) {
+  const options = isAbandonedCart ? RAZORPAY_PATH_OPTIONS : SHOPIFY_PATH_OPTIONS;
+  const grouped = useMemo(() => groupPathOptions(options), [options]);
+
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex-shrink-0 w-32 px-3 py-2 bg-surface-2 border border-border rounded-md text-[12.5px] text-ink-700 font-mono truncate">
+        {label}
+      </div>
+      <ArrowRight className="w-4 h-4 text-ink-300 flex-shrink-0" />
+      <div className="flex-1">
+        <select
+          value={path}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full h-9 px-3 bg-surface-2 border border-border rounded-md text-[12.5px] text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-500 transition-colors"
+        >
+          <option value="">— select a field —</option>
+          {Array.from(grouped.entries()).map(([group, opts]) => (
+            <optgroup key={group} label={group}>
+              {opts.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+          {path && !options.some((o) => o.value === path) && (
+            <optgroup label="Custom">
+              <option value={path}>{path}</option>
+            </optgroup>
+          )}
+        </select>
+      </div>
+    </div>
+  );
+}
+
+// ── Message preview ───────────────────────────────────────────────────────────
+
+function MessagePreview({ message }: { message: string }) {
+  return (
+    <div className="bg-[#dcf8c6] px-3.5 py-2.5 rounded-lg shadow-sm max-w-xs">
+      <p className="text-[13px] leading-relaxed text-slate-800 whitespace-pre-line">{message}</p>
+      <div className="flex items-center justify-end gap-1 mt-1">
+        <span className="text-[10px] text-slate-500">10:45 AM</span>
+        <CheckCheck className="w-3.5 h-3.5 text-blue-500" />
+      </div>
+    </div>
+  );
+}
+
+// ── Template selector ─────────────────────────────────────────────────────────
+
+interface TemplateSelectorProps {
+  value: string;
+  templates: Template[];
+  onChange: (id: string) => void;
+}
+
+function TemplateSelector({ value, templates, onChange }: TemplateSelectorProps) {
+  if (templates.length === 0) {
+    return (
+      <p className="text-sm text-ink-400 italic">
+        No approved templates yet. Create and get a template approved first.
+      </p>
+    );
+  }
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full h-10 px-3 bg-surface-2 border border-border rounded-md text-[13px] text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-500 transition-colors"
+    >
+      <option value="">— choose a template —</option>
+      {templates.map((t) => (
+        <option key={t.id} value={t.id}>
+          {t.name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+// ── Loading skeleton ──────────────────────────────────────────────────────────
+
+function EditPageSkeleton() {
+  return (
+    <div className="flex flex-col h-full">
+      <div className="h-14 border-b border-border bg-card flex items-center px-5 gap-4 flex-shrink-0 animate-pulse">
+        <div className="w-8 h-8 bg-surface-sunken rounded-md" />
+        <div className="h-4 w-40 bg-surface-sunken rounded" />
+        <div className="flex-1" />
+        <div className="h-8 w-20 bg-surface-sunken rounded-md" />
+        <div className="h-8 w-28 bg-surface-sunken rounded-md" />
+      </div>
+      <div className="flex-1 overflow-auto px-7 pt-8 pb-10">
+        <div className="max-w-xl space-y-4 animate-pulse">
+          <div className="bg-card border border-border rounded-lg h-24" />
+          <div className="bg-card border border-border rounded-lg h-24" />
+          <div className="bg-card border border-border rounded-lg h-32" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
+export default function EditAutomationPage() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { flowCategories, approvedTemplates, loading, updateFlow } = useV2Automations();
+
+  // Find the specific flow across all categories
+  const flow = useMemo(
+    () => flowCategories.flatMap((c) => c.flows).find((f) => f.id === id) ?? null,
+    [flowCategories, id],
+  );
+
+  // Form state
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [varMapping, setVarMapping] = useState<Record<string, string>>({});
+  const [selectedDelay, setSelectedDelay] = useState<number>(60);
+  const [saving, setSaving] = useState(false);
+  const [initialized, setInitialized] = useState(false);
+
+  // Initialize form once flow data arrives
+  useEffect(() => {
+    if (flow && !initialized) {
+      setSelectedTemplateId(flow.templateId);
+      setVarMapping(flow.variableMapping);
+      setSelectedDelay(flow.delayMinutes ?? 60);
+      setInitialized(true);
+    }
+  }, [flow, initialized]);
+
+  // Redirect if not found after loading
+  useEffect(() => {
+    if (!loading && !flow && initialized === false) {
+      // Give it one tick to populate after fetch
+      const t = setTimeout(() => {
+        if (!flow) navigate('/automations', { replace: true });
+      }, 500);
+      return () => clearTimeout(t);
+    }
+  }, [loading, flow, initialized, navigate]);
+
+  // Derived flow type flags
+  const isAbandonedCart = flow?.shopifyEvent
+    ? ['ABANDONED_CART_1', 'ABANDONED_CART_2', 'ABANDONED_CART_3'].includes(flow.shopifyEvent)
+    : false;
+  const isCODFollowUp = flow?.shopifyEvent === 'COD_ORDER_FOLLOW_UP';
+  const showTimingSelect = isAbandonedCart || isCODFollowUp;
+  const delayOptions = isAbandonedCart ? ABANDONED_CART_DELAY_OPTIONS : COD_FOLLOW_UP_DELAY_OPTIONS;
+
+  // Derived template variables from the currently-selected template
+  const selectedTemplate = useMemo(
+    () => approvedTemplates.find((t) => t.id === selectedTemplateId) ?? null,
+    [approvedTemplates, selectedTemplateId],
+  );
+
+  const bodyText = useMemo(
+    () =>
+      selectedTemplate
+        ? extractBodyText(selectedTemplate.components)
+        : (flow?.messagePreview ?? ''),
+    [selectedTemplate, flow?.messagePreview],
+  );
+
+  const bodyVars = useMemo(
+    () => (selectedTemplate ? detectVariables(bodyText) : []),
+    [selectedTemplate, bodyText],
+  );
+
+  const urlVars = useMemo(
+    () => (selectedTemplate ? extractUrlButtonVars(selectedTemplate.components) : []),
+    [selectedTemplate],
+  );
+
+  const handleTemplateChange = useCallback((newId: string) => {
+    setSelectedTemplateId(newId);
+  }, []);
+
+  const handlePathChange = useCallback((key: string, path: string) => {
+    setVarMapping((prev) => ({ ...prev, [key]: path }));
+  }, []);
+
+  const handleSave = useCallback(async () => {
+    if (!id || !selectedTemplateId) return;
+    setSaving(true);
+    try {
+      await updateFlow(
+        id,
+        selectedTemplateId,
+        varMapping,
+        showTimingSelect ? selectedDelay : undefined,
+      );
+      navigate('/automations');
+    } finally {
+      setSaving(false);
+    }
+  }, [id, selectedTemplateId, varMapping, showTimingSelect, selectedDelay, updateFlow, navigate]);
+
+  if (loading || !flow) {
+    return <EditPageSkeleton />;
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* ── Topbar ── */}
+      <div className="h-14 border-b border-border bg-card flex items-center px-5 gap-3 flex-shrink-0">
+        <button
+          onClick={() => navigate('/automations')}
+          className="w-8 h-8 grid place-items-center rounded-md text-ink-700 hover:bg-surface-sunken transition-colors"
+        >
+          <ChevronLeft size={17} strokeWidth={2} />
+        </button>
+        <span className="text-[16px] font-[650] tracking-[-0.01em] text-ink-900">
+          Edit Automation
+        </span>
+        <span className="text-[12.5px] text-ink-500 pl-3 ml-1 border-l border-border">
+          {flow.name}
+        </span>
+        <div className="flex-1" />
+        <button
+          onClick={() => navigate('/automations')}
+          disabled={saving}
+          className="inline-flex items-center px-4 py-[7px] rounded-md bg-card border border-border text-ink-900 text-[13px] font-semibold hover:bg-surface-sunken hover:border-ink-300 transition-all disabled:opacity-50"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={saving || !selectedTemplateId}
+          className={cn(
+            'inline-flex items-center px-4 py-[7px] rounded-md text-[13px] font-semibold transition-all',
+            'bg-brand-700 text-white border border-brand-800 hover:bg-brand-800',
+            'disabled:opacity-50 disabled:cursor-not-allowed',
+          )}
+        >
+          {saving ? 'Saving…' : 'Save changes'}
+        </button>
+      </div>
+
+      {/* ── Form content ── */}
+      <div className="flex-1 overflow-auto px-7 pt-7 pb-12">
+        <div className="max-w-xl space-y-4">
+
+          {/* Template */}
+          <SectionCard label="Template">
+            <TemplateSelector
+              value={selectedTemplateId}
+              templates={approvedTemplates}
+              onChange={handleTemplateChange}
+            />
+          </SectionCard>
+
+          {/* Timing */}
+          <SectionCard label="Timing">
+            {showTimingSelect ? (
+              <div className="space-y-2">
+                <select
+                  value={selectedDelay}
+                  onChange={(e) => setSelectedDelay(Number(e.target.value))}
+                  className="w-full h-10 px-3 bg-surface-2 border border-border rounded-md text-[13px] text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-500 transition-colors"
+                >
+                  {delayOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[12px] text-ink-400">
+                  {isCODFollowUp
+                    ? 'Follow-up is only sent if the customer has not replied to the COD confirmation.'
+                    : 'Sent after the customer abandons their cart, relative to when they left.'}
+                </p>
+              </div>
+            ) : (
+              <div className="h-10 px-3 flex items-center bg-surface-2 border border-border rounded-md text-[13px] text-ink-500">
+                {flow.timing}
+              </div>
+            )}
+          </SectionCard>
+
+          {/* Parameter mapping */}
+          {(bodyVars.length > 0 || urlVars.length > 0) && (
+            <SectionCard label="Parameter Mapping">
+              <div className="space-y-3">
+                {bodyVars.map((v) => (
+                  <MappingRow
+                    key={v}
+                    label={`{{${v}}}`}
+                    path={varMapping[v] ?? ''}
+                    isAbandonedCart={isAbandonedCart}
+                    onChange={(path) => handlePathChange(v, path)}
+                  />
+                ))}
+                {urlVars.map((uv) => (
+                  <MappingRow
+                    key={uv.key}
+                    label={`{{${uv.varPos}}} (${uv.buttonLabel})`}
+                    path={varMapping[uv.key] ?? ''}
+                    isAbandonedCart={isAbandonedCart}
+                    onChange={(path) => handlePathChange(uv.key, path)}
+                  />
+                ))}
+              </div>
+            </SectionCard>
+          )}
+
+          {/* Message preview */}
+          {bodyText && (
+            <SectionCard label="Message Preview">
+              <MessagePreview message={bodyText} />
+            </SectionCard>
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
+}

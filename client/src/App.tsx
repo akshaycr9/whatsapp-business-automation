@@ -12,6 +12,7 @@ import TemplatesPage from '@/pages/TemplatesPage';
 import NewTemplatePage from '@/pages/NewTemplatePage';
 import EditTemplatePage from '@/pages/EditTemplatePage';
 import AutomationsPage from '@/pages/AutomationsPage';
+import EditAutomationPage from '@/pages/EditAutomationPage';
 import CustomersPage from '@/pages/CustomersPage';
 import LoginPage from '@/pages/LoginPage';
 
@@ -66,6 +67,7 @@ export default function App() {
               <Route path="/templates/new" element={<NewTemplatePage />} />
               <Route path="/templates/:id/edit" element={<EditTemplatePage />} />
               <Route path="/automations" element={<AutomationsPage />} />
+              <Route path="/automations/:id/edit" element={<EditAutomationPage />} />
               <Route path="/customers" element={<CustomersPage />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>
