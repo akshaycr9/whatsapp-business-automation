@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ArrowRight, CheckCheck } from 'lucide-react';
+import { ChevronLeft, ArrowRight } from 'lucide-react';
 import { useV2Automations } from '@/v2/hooks/use-v2-automations';
 import { extractBodyText, detectVariables, extractUrlButtonVars } from '@/lib/automation-utils';
 import { SHOPIFY_PATH_OPTIONS, groupPathOptions } from '@/v2/lib/v2-shopify-paths';
 import { RAZORPAY_PATH_OPTIONS } from '@/v2/lib/v2-razorpay-paths';
+import { PhonePreview, type PhoneButton } from '@/components/templates/PhonePreview';
 import type { Template } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -33,6 +34,64 @@ const ABANDONED_CART_DELAY_OPTIONS = import.meta.env.DEV
       ...ABANDONED_CART_DELAY_OPTIONS_BASE,
     ]
   : ABANDONED_CART_DELAY_OPTIONS_BASE;
+
+// ── Template component helpers ────────────────────────────────────────────────
+
+function extractHeaderText(components: unknown): string {
+  if (!Array.isArray(components)) return '';
+  const header = (components as Array<{ type: string; format?: string; text?: string }>).find(
+    (c) => c.type === 'HEADER' && c.format === 'TEXT',
+  );
+  return header?.text ?? '';
+}
+
+function extractFooterText(components: unknown): string {
+  if (!Array.isArray(components)) return '';
+  const footer = (components as Array<{ type: string; text?: string }>).find(
+    (c) => c.type === 'FOOTER',
+  );
+  return footer?.text ?? '';
+}
+
+function extractPhoneButtons(components: unknown): PhoneButton[] {
+  if (!Array.isArray(components)) return [];
+  const buttonsComp = (
+    components as Array<{ type: string; buttons?: Array<{ type: string; text: string }> }>
+  ).find((c) => c.type === 'BUTTONS');
+  if (!buttonsComp?.buttons) return [];
+  return buttonsComp.buttons
+    .filter((b) => b.text?.trim())
+    .map((b) => ({ type: b.type as PhoneButton['type'], text: b.text }));
+}
+
+// ── Preview body builder ──────────────────────────────────────────────────────
+
+function buildPreviewBodyNodes(
+  text: string,
+  mapping: Record<string, string>,
+  findLabel: (path: string) => string,
+): React.ReactNode {
+  if (!text) return 'Your message preview will appear here.';
+  const parts = text.split(/(\{\{\d+\}\})/);
+  return parts.map((part, i) => {
+    const m = part.match(/^\{\{(\d+)\}\}$/);
+    if (!m) return part;
+    const varPos = m[1];
+    const path = mapping[varPos];
+    if (path) {
+      return (
+        <strong key={i} style={{ fontWeight: 700, color: '#0b5d54' }}>
+          [{findLabel(path)}]
+        </strong>
+      );
+    }
+    return (
+      <span key={i} style={{ color: '#9aa39e', fontStyle: 'italic' }}>
+        {part}
+      </span>
+    );
+  });
+}
 
 // ── Section card ──────────────────────────────────────────────────────────────
 
@@ -95,20 +154,6 @@ function MappingRow({ label, path, isAbandonedCart, onChange }: MappingRowProps)
   );
 }
 
-// ── Message preview ───────────────────────────────────────────────────────────
-
-function MessagePreview({ message }: { message: string }) {
-  return (
-    <div className="bg-[#dcf8c6] px-3.5 py-2.5 rounded-lg shadow-sm max-w-xs">
-      <p className="text-[13px] leading-relaxed text-slate-800 whitespace-pre-line">{message}</p>
-      <div className="flex items-center justify-end gap-1 mt-1">
-        <span className="text-[10px] text-slate-500">10:45 AM</span>
-        <CheckCheck className="w-3.5 h-3.5 text-blue-500" />
-      </div>
-    </div>
-  );
-}
-
 // ── Template selector ─────────────────────────────────────────────────────────
 
 interface TemplateSelectorProps {
@@ -153,11 +198,17 @@ function EditPageSkeleton() {
         <div className="h-8 w-20 bg-surface-sunken rounded-md" />
         <div className="h-8 w-28 bg-surface-sunken rounded-md" />
       </div>
-      <div className="flex-1 overflow-auto px-7 pt-8 pb-10">
-        <div className="max-w-xl space-y-4 animate-pulse">
-          <div className="bg-card border border-border rounded-lg h-24" />
-          <div className="bg-card border border-border rounded-lg h-24" />
-          <div className="bg-card border border-border rounded-lg h-32" />
+      <div className="flex-1 overflow-hidden px-5 md:px-7 pt-5 pb-8">
+        <div
+          className="grid gap-5 h-full animate-pulse"
+          style={{ gridTemplateColumns: 'minmax(0, 1fr) 340px' }}
+        >
+          <div className="space-y-4">
+            <div className="bg-card border border-border rounded-lg h-24" />
+            <div className="bg-card border border-border rounded-lg h-24" />
+            <div className="bg-card border border-border rounded-lg h-32" />
+          </div>
+          <div className="bg-card border border-border rounded-lg h-[510px]" />
         </div>
       </div>
     </div>
@@ -171,20 +222,17 @@ export default function EditAutomationPage() {
   const navigate = useNavigate();
   const { flowCategories, approvedTemplates, loading, updateFlow } = useV2Automations();
 
-  // Find the specific flow across all categories
   const flow = useMemo(
     () => flowCategories.flatMap((c) => c.flows).find((f) => f.id === id) ?? null,
     [flowCategories, id],
   );
 
-  // Form state
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [varMapping, setVarMapping] = useState<Record<string, string>>({});
   const [selectedDelay, setSelectedDelay] = useState<number>(60);
   const [saving, setSaving] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
-  // Initialize form once flow data arrives
   useEffect(() => {
     if (flow && !initialized) {
       setSelectedTemplateId(flow.templateId);
@@ -194,10 +242,8 @@ export default function EditAutomationPage() {
     }
   }, [flow, initialized]);
 
-  // Redirect if not found after loading
   useEffect(() => {
     if (!loading && !flow && initialized === false) {
-      // Give it one tick to populate after fetch
       const t = setTimeout(() => {
         if (!flow) navigate('/automations', { replace: true });
       }, 500);
@@ -205,7 +251,6 @@ export default function EditAutomationPage() {
     }
   }, [loading, flow, initialized, navigate]);
 
-  // Derived flow type flags
   const isAbandonedCart = flow?.shopifyEvent
     ? ['ABANDONED_CART_1', 'ABANDONED_CART_2', 'ABANDONED_CART_3'].includes(flow.shopifyEvent)
     : false;
@@ -213,7 +258,6 @@ export default function EditAutomationPage() {
   const showTimingSelect = isAbandonedCart || isCODFollowUp;
   const delayOptions = isAbandonedCart ? ABANDONED_CART_DELAY_OPTIONS : COD_FOLLOW_UP_DELAY_OPTIONS;
 
-  // Derived template variables from the currently-selected template
   const selectedTemplate = useMemo(
     () => approvedTemplates.find((t) => t.id === selectedTemplateId) ?? null,
     [approvedTemplates, selectedTemplateId],
@@ -236,6 +280,40 @@ export default function EditAutomationPage() {
     () => (selectedTemplate ? extractUrlButtonVars(selectedTemplate.components) : []),
     [selectedTemplate],
   );
+
+  // ── Preview derivations ──────────────────────────────────────────────────────
+
+  const previewHeader = useMemo(
+    () => (selectedTemplate ? extractHeaderText(selectedTemplate.components) : ''),
+    [selectedTemplate],
+  );
+
+  const previewFooter = useMemo(
+    () => (selectedTemplate ? extractFooterText(selectedTemplate.components) : ''),
+    [selectedTemplate],
+  );
+
+  const previewButtons = useMemo(
+    () => (selectedTemplate ? extractPhoneButtons(selectedTemplate.components) : []),
+    [selectedTemplate],
+  );
+
+  const pathOptions = useMemo(
+    () => (isAbandonedCart ? RAZORPAY_PATH_OPTIONS : SHOPIFY_PATH_OPTIONS),
+    [isAbandonedCart],
+  );
+
+  const findLabel = useCallback(
+    (path: string) => pathOptions.find((o) => o.value === path)?.label ?? path,
+    [pathOptions],
+  );
+
+  const previewBodyContent = useMemo(
+    () => buildPreviewBodyNodes(bodyText, varMapping, findLabel),
+    [bodyText, varMapping, findLabel],
+  );
+
+  // ── Handlers ──────────────────────────────────────────────────────────────────
 
   const handleTemplateChange = useCallback((newId: string) => {
     setSelectedTemplateId(newId);
@@ -302,79 +380,106 @@ export default function EditAutomationPage() {
         </button>
       </div>
 
-      {/* ── Form content ── */}
-      <div className="flex-1 overflow-auto px-7 pt-7 pb-12">
-        <div className="max-w-xl space-y-4">
+      {/* ── Two-column layout ── */}
+      <div className="flex-1 overflow-hidden px-5 md:px-7 pt-5 pb-8">
+        <div
+          className="grid gap-5 h-full"
+          style={{ gridTemplateColumns: 'minmax(0, 1fr) 340px' }}
+        >
+          {/* ── Left: form ── */}
+          <div className="overflow-y-auto space-y-4 pr-1 pb-4">
 
-          {/* Template */}
-          <SectionCard label="Template">
-            <TemplateSelector
-              value={selectedTemplateId}
-              templates={approvedTemplates}
-              onChange={handleTemplateChange}
-            />
-          </SectionCard>
+            {/* Template */}
+            <SectionCard label="Template">
+              <TemplateSelector
+                value={selectedTemplateId}
+                templates={approvedTemplates}
+                onChange={handleTemplateChange}
+              />
+            </SectionCard>
 
-          {/* Timing */}
-          <SectionCard label="Timing">
-            {showTimingSelect ? (
-              <div className="space-y-2">
-                <select
-                  value={selectedDelay}
-                  onChange={(e) => setSelectedDelay(Number(e.target.value))}
-                  className="w-full h-10 px-3 bg-surface-2 border border-border rounded-md text-[13px] text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-500 transition-colors"
-                >
-                  {delayOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
+            {/* Timing */}
+            <SectionCard label="Timing">
+              {showTimingSelect ? (
+                <div className="space-y-2">
+                  <select
+                    value={selectedDelay}
+                    onChange={(e) => setSelectedDelay(Number(e.target.value))}
+                    className="w-full h-10 px-3 bg-surface-2 border border-border rounded-md text-[13px] text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-500 transition-colors"
+                  >
+                    {delayOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[12px] text-ink-400">
+                    {isCODFollowUp
+                      ? 'Follow-up is only sent if the customer has not replied to the COD confirmation.'
+                      : 'Sent after the customer abandons their cart, relative to when they left.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="h-10 px-3 flex items-center bg-surface-2 border border-border rounded-md text-[13px] text-ink-500">
+                  {flow.timing}
+                </div>
+              )}
+            </SectionCard>
+
+            {/* Parameter mapping */}
+            {(bodyVars.length > 0 || urlVars.length > 0) && (
+              <SectionCard label="Parameter Mapping">
+                <div className="space-y-3">
+                  <p className="text-[12px] text-ink-400 mb-1">
+                    Map each variable to a field from Shopify. Mapped fields appear highlighted in the live preview.
+                  </p>
+                  {bodyVars.map((v) => (
+                    <MappingRow
+                      key={v}
+                      label={`{{${v}}}`}
+                      path={varMapping[v] ?? ''}
+                      isAbandonedCart={isAbandonedCart}
+                      onChange={(path) => handlePathChange(v, path)}
+                    />
                   ))}
-                </select>
-                <p className="text-[12px] text-ink-400">
-                  {isCODFollowUp
-                    ? 'Follow-up is only sent if the customer has not replied to the COD confirmation.'
-                    : 'Sent after the customer abandons their cart, relative to when they left.'}
-                </p>
-              </div>
-            ) : (
-              <div className="h-10 px-3 flex items-center bg-surface-2 border border-border rounded-md text-[13px] text-ink-500">
-                {flow.timing}
-              </div>
+                  {urlVars.map((uv) => (
+                    <MappingRow
+                      key={uv.key}
+                      label={`{{${uv.varPos}}} (${uv.buttonLabel})`}
+                      path={varMapping[uv.key] ?? ''}
+                      isAbandonedCart={isAbandonedCart}
+                      onChange={(path) => handlePathChange(uv.key, path)}
+                    />
+                  ))}
+                </div>
+              </SectionCard>
             )}
-          </SectionCard>
 
-          {/* Parameter mapping */}
-          {(bodyVars.length > 0 || urlVars.length > 0) && (
-            <SectionCard label="Parameter Mapping">
-              <div className="space-y-3">
-                {bodyVars.map((v) => (
-                  <MappingRow
-                    key={v}
-                    label={`{{${v}}}`}
-                    path={varMapping[v] ?? ''}
-                    isAbandonedCart={isAbandonedCart}
-                    onChange={(path) => handlePathChange(v, path)}
-                  />
-                ))}
-                {urlVars.map((uv) => (
-                  <MappingRow
-                    key={uv.key}
-                    label={`{{${uv.varPos}}} (${uv.buttonLabel})`}
-                    path={varMapping[uv.key] ?? ''}
-                    isAbandonedCart={isAbandonedCart}
-                    onChange={(path) => handlePathChange(uv.key, path)}
-                  />
-                ))}
-              </div>
-            </SectionCard>
-          )}
+          </div>
 
-          {/* Message preview */}
-          {bodyText && (
-            <SectionCard label="Message Preview">
-              <MessagePreview message={bodyText} />
-            </SectionCard>
-          )}
+          {/* ── Right: live preview ── */}
+          <div className="sticky top-0 self-start pt-1">
+            <div
+              className="text-center mb-2.5 font-bold uppercase tracking-[0.06em]"
+              style={{ fontSize: 11.5, color: '#6b7671' }}
+            >
+              Live Preview
+            </div>
+            <PhonePreview
+              header={previewHeader || undefined}
+              body={bodyText}
+              bodyContent={previewBodyContent}
+              footer={previewFooter || undefined}
+              buttons={previewButtons.length > 0 ? previewButtons : undefined}
+            />
+            <div className="text-center mt-3" style={{ fontSize: 11, color: '#8a948f' }}>
+              {bodyVars.length > 0
+                ? 'Mapped fields shown in [brackets]'
+                : selectedTemplate
+                  ? 'No variables in this template'
+                  : 'Select a template to preview'}
+            </div>
+          </div>
 
         </div>
       </div>

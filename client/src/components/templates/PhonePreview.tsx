@@ -11,6 +11,7 @@ interface PhonePreviewProps {
   body: string;
   footer?: string;
   buttons?: PhoneButton[];
+  bodyContent?: React.ReactNode;
 }
 
 function ButtonIcon({ type }: { type: PhoneButton['type'] }) {
@@ -26,6 +27,7 @@ export const PhonePreview = React.memo(function PhonePreview({
   body,
   footer,
   buttons,
+  bodyContent,
 }: PhonePreviewProps) {
   const hasButtons = buttons && buttons.length > 0;
 
@@ -92,7 +94,7 @@ export const PhonePreview = React.memo(function PhonePreview({
                 <div style={{ fontWeight: 700, marginBottom: 3 }}>{header}</div>
               )}
               <div style={{ whiteSpace: 'pre-wrap' }}>
-                {body || 'Your template body appears here.'}
+                {bodyContent ?? (body || 'Your template body appears here.')}
               </div>
               {footer && (
                 <div style={{ color: '#8a948f', fontSize: 10.5, marginTop: 4 }}>
