@@ -10,6 +10,8 @@
     --background: 90 4% 96%;           /* #f6f7f5 warm off-white */
     --foreground: 165 14% 12%;         /* #1b2420 ink-900 */
 
+    --outer-bg: 90 6% 80%;             /* #ced3ca — outer chrome behind the app */
+
     --card: 0 0% 100%;                 /* #ffffff */
     --card-foreground: 165 14% 12%;
 
@@ -46,6 +48,8 @@
   .dark {
     /* ── Dark mode — Chatflo dark palette ───────────────────── */
     --background: 165 25% 7%;          /* #0e1512 */
+
+    --outer-bg: 165 22% 4%;            /* #080e0c — deep teal-black outer chrome */
     --foreground: 130 7% 92%;          /* #ebefec */
 
     --card: 165 20% 10%;               /* #161e1a */
@@ -79,13 +83,26 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    background: hsl(var(--outer-bg));
+    @apply text-foreground;
     font-family: 'Inter', system-ui, sans-serif;
     font-size: 14px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: 'cv11', 'ss01';
+  }
+
+  #root {
+    max-width: 1280px;
+    margin-left: auto;
+    margin-right: auto;
+    height: 100vh;
+    overflow: hidden;
+    background: hsl(var(--background));
+    box-shadow:
+      0 0 0 1px hsl(var(--border) / 0.6),
+      0 8px 48px rgba(0, 0, 0, 0.14);
   }
 
   ::-webkit-scrollbar {
