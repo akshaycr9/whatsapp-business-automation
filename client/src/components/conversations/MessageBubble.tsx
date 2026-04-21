@@ -307,14 +307,14 @@ export const MessageBubble = React.memo(function MessageBubble({ message }: Prop
     >
       {/* Interactive / button-reply label */}
       {isInteractive && (
-        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
+        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground w-full text-center">
           Button reply
         </span>
       )}
 
       {/* Media type label */}
       {isMedia && (
-        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground capitalize">
+        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground capitalize w-full text-center">
           {message.type.charAt(0) + message.type.slice(1).toLowerCase()}
         </span>
       )}
@@ -323,7 +323,7 @@ export const MessageBubble = React.memo(function MessageBubble({ message }: Prop
       <div
         title={new Date(message.createdAt).toLocaleString()}
         className={cn(
-          'relative px-3 py-2 rounded-2xl text-sm leading-relaxed',
+          'relative px-3 py-2 rounded-2xl text-sm leading-relaxed w-full',
           isOutbound
             ? 'bg-[#d9fdd3] text-[#111]'
             : 'bg-white text-[#111] shadow-sm',
