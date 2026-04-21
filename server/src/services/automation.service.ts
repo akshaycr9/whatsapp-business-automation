@@ -17,13 +17,15 @@ export interface VariableMapping {
 
 type AllShopifyEvents =
   | "PREPAID_ORDER_CONFIRMED"
-  | "COD_ORDER_CONFIRMED"
+  | "COD_ORDER_CONFIRMATION"
   | "ORDER_FULFILLED"
   | "ORDER_CANCELLED"
   | "COD_ORDER_FOLLOW_UP"
   | "ABANDONED_CART_1"
   | "ABANDONED_CART_2"
-  | "ABANDONED_CART_3";
+  | "ABANDONED_CART_3"
+  | "COD_ORDER_CONFIRMED"
+  | "COD_ORDER_CANCELLED";
 
 export interface UpdateAutomationInput {
   triggerType?: "SHOPIFY_EVENT" | "BUTTON_REPLY";
@@ -42,7 +44,8 @@ export type CreateAutomationInput =
       name: string;
       shopifyEvent: AllShopifyEvents;
       buttonTriggerText?: never;
-      templateId: string;
+      categoryId: string;
+      templateId?: string;
       variableMapping: VariableMapping;
       isActive: boolean;
       delayMinutes: number;
@@ -52,7 +55,8 @@ export type CreateAutomationInput =
       name: string;
       shopifyEvent?: never;
       buttonTriggerText: string;
-      templateId: string;
+      categoryId: string;
+      templateId?: string;
       variableMapping: VariableMapping;
       isActive: boolean;
       delayMinutes: number;
@@ -84,7 +88,7 @@ interface TemplateShape {
 }
 
 export type AutomationWithTemplate = Automation & {
-  template: TemplateShape;
+  template: TemplateShape | null;
 };
 
 interface TemplateButton {
@@ -151,6 +155,30 @@ export const list = async (
   };
 };
 
+export interface AutomationCategoryGroup {
+  categoryId: string;
+  categoryName: string;
+  automations: AutomationWithTemplate[];
+}
+
+export const listGroupedByCategory = async (): Promise<AutomationCategoryGroup[]> => {
+  const categories = await prisma.automationCategory.findMany({
+    include: {
+      automations: {
+        include: { template: true },
+        orderBy: { createdAt: "desc" },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return categories.map((cat) => ({
+    categoryId: cat.id,
+    categoryName: cat.name,
+    automations: cat.automations,
+  }));
+};
+
 export const getById = async (id: string): Promise<AutomationWithTemplate> => {
   const automation = await prisma.automation.findUnique({
     where: { id },
@@ -163,20 +191,23 @@ export const getById = async (id: string): Promise<AutomationWithTemplate> => {
 export const create = async (
   input: CreateAutomationInput,
 ): Promise<Automation> => {
-  const template = await prisma.template.findUnique({
-    where: { id: input.templateId },
-  });
-  if (!template) throw notFound("Template");
+  if (input.templateId) {
+    const template = await prisma.template.findUnique({
+      where: { id: input.templateId },
+    });
+    if (!template) throw notFound("Template");
+  }
 
   const automation = await prisma.automation.create({
     data: {
       name: input.name,
+      categoryId: input.categoryId,
       triggerType: input.triggerType as AutomationTrigger,
       shopifyEvent:
         input.triggerType === "SHOPIFY_EVENT" ? input.shopifyEvent : null,
       buttonTriggerText:
         input.triggerType === "BUTTON_REPLY" ? input.buttonTriggerText : null,
-      templateId: input.templateId,
+      templateId: input.templateId ?? null,
       variableMapping: input.variableMapping,
       isActive: input.isActive,
       delayMinutes: input.delayMinutes,
@@ -331,6 +362,13 @@ export const executeAutomation = async (
   if (!automation.isActive) {
     logger.warn(
       `executeAutomation: automation ${automationId} is inactive — skipping`,
+    );
+    return;
+  }
+
+  if (!automation.template) {
+    logger.warn(
+      `executeAutomation: automation ${automationId} has no template assigned — skipping`,
     );
     return;
   }
@@ -517,7 +555,9 @@ export const executeAutomation = async (
         include: { customer: true },
       });
       emitNewMessage(conversationId, message);
-      emitConversationUpdated(updatedConversation);
+      if (updatedConversation) {
+        emitConversationUpdated(updatedConversation);
+      }
 
       logger.info(
         `Post-send: customer/conversation/message created for ${customerPhone}`,

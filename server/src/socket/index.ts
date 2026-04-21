@@ -3,6 +3,8 @@ import { type Server as HttpServer } from 'http';
 import { Server as SocketServer } from 'socket.io';
 import { logger } from '../lib/logger.js';
 import { env } from '../config/env.js';
+import type { ConversationWithCustomerOnly } from '../services/conversation.service.js';
+import { categorizeConversation } from '../services/conversation.service.js';
 
 let io: SocketServer;
 
@@ -68,8 +70,9 @@ export const emitAutomationTriggered = (automationId: string, log: unknown): voi
   getIO().emit('automation_triggered', { automationId, log });
 };
 
-export const emitConversationUpdated = (conversation: unknown): void => {
-  getIO().emit('conversation_updated', { conversation });
+export const emitConversationUpdated = (conversation: ConversationWithCustomerOnly): void => {
+  const category = categorizeConversation(conversation);
+  getIO().emit('conversation_updated', { conversation, category });
 };
 
 export const emitMessageReaction = (messageId: string, reactions: unknown[]): void => {

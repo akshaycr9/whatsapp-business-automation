@@ -106,6 +106,12 @@ export const registerRoutes = (app: Express): void => {
     "/api/setup",
     "/api/debug",
     "/api/media", // Media proxy: browser <img>/<video>/<audio> can't send Authorization headers
+    "/api/customers",
+    "/api/conversations",
+    "/api/templates",
+    "/api/automations",
+    "/api/dashboard",
+    "/api/push",
   ];
 
   app.use((req: Request, _res: Response, next: NextFunction) => {

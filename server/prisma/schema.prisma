@@ -27,16 +27,17 @@ enum CustomerSource {
 }
 
 model Conversation {
-  id                   String    @id @default(cuid())
-  customerId           String    @unique
-  customer             Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  lastMessageAt        DateTime?
-  lastMessageText      String?
-  lastInboundMessageAt DateTime?
-  unreadCount          Int       @default(0)
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
-  messages             Message[]
+  id                    String    @id @default(cuid())
+  customerId            String    @unique
+  customer              Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  lastMessageAt         DateTime?
+  lastMessageText       String?
+  lastInboundMessageAt  DateTime?
+  lastOutboundMessageAt DateTime?
+  unreadCount           Int       @default(0)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  messages              Message[]
 }
 
 model Message {
@@ -125,33 +126,47 @@ enum AutomationTrigger {
   BUTTON_REPLY
 }
 
+model AutomationCategory {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  automations Automation[]
+}
+
 model Automation {
-  id                String            @id @default(cuid())
+  id                String              @id @default(cuid())
   name              String
-  triggerType       AutomationTrigger @default(SHOPIFY_EVENT)
+  triggerType       AutomationTrigger   @default(SHOPIFY_EVENT)
   shopifyEvent      ShopifyEvent?
   buttonTriggerText String?
-  templateId        String
-  template          Template          @relation(fields: [templateId], references: [id])
-  variableMapping   Json
-  isActive          Boolean           @default(true)
-  delayMinutes      Int               @default(0)
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  logs                AutomationLog[]
-  codFollowUpQueues   CodFollowUpQueue[]
+  templateId        String?
+  template          Template?           @relation(fields: [templateId], references: [id])
+  categoryId        String
+  category          AutomationCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  variableMapping   Json                @default("{}")
+  isActive          Boolean             @default(false)
+  delayMinutes      Int                 @default(0)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  logs              AutomationLog[]
+  codFollowUpQueues CodFollowUpQueue[]
   abandonedCartQueues AbandonedCartQueue[]
+
+  @@index([categoryId])
 }
 
 enum ShopifyEvent {
   PREPAID_ORDER_CONFIRMED
-  COD_ORDER_CONFIRMED
+  COD_ORDER_CONFIRMATION
   ORDER_FULFILLED
   ORDER_CANCELLED
   COD_ORDER_FOLLOW_UP
   ABANDONED_CART_1
   ABANDONED_CART_2
   ABANDONED_CART_3
+  COD_ORDER_CONFIRMED
+  COD_ORDER_CANCELLED
 }
 
 model AutomationLog {

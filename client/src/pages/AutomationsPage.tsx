@@ -1,10 +1,9 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Pencil, Clock, MessageCircle, AlertCircle } from 'lucide-react';
+import { Pencil, AlertCircle, Clock, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useV2Automations } from '@/v2/hooks/use-v2-automations';
-import type { V2Flow } from '@/v2/types';
-import type { ShopifyEvent } from '@/types';
+import { useAutomations } from '@/hooks/use-automations';
+import type { Automation } from '@/types';
 
 // ── Trigger display config ────────────────────────────────────────────────────
 
@@ -13,35 +12,29 @@ interface TriggerInfo {
   icon: string;
 }
 
-const SHOPIFY_EVENT_TRIGGER: Record<ShopifyEvent, TriggerInfo> = {
-  PREPAID_ORDER_CONFIRMED: { label: 'Order placed',      icon: 'package' },
-  ORDER_CANCELLED:         { label: 'Order cancelled',   icon: 'package' },
-  ORDER_FULFILLED:         { label: 'Order shipped',     icon: 'truck'   },
-  COD_ORDER_CONFIRMED:     { label: 'COD order placed',  icon: 'cash'    },
-  COD_ORDER_FOLLOW_UP:     { label: 'COD unconfirmed',   icon: 'cash'    },
-  ABANDONED_CART_1:        { label: 'Abandoned cart',    icon: 'cart'    },
-  ABANDONED_CART_2:        { label: 'Abandoned cart',    icon: 'cart'    },
-  ABANDONED_CART_3:        { label: 'Abandoned cart',    icon: 'cart'    },
-};
-
-const FLOW_DESCRIPTIONS: Record<string, string> = {
-  'Order Confirmed':        'Send an order receipt and summary immediately when a prepaid order is placed.',
-  'Order Cancelled':        'Notify the customer when their order has been cancelled.',
-  'Order Fulfilled':        'Send AWB number and tracking link when Shopify marks the order as shipped.',
-  'COD Order Confirmation': 'Ask the customer to confirm their COD order to reduce RTO rates.',
-  'COD Order Follow Up':    "Follow up with customers who haven't responded to the COD confirmation request.",
-  'COD Order Confirm':      'Send a confirmation message when the customer confirms their COD order.',
-  'COD Order Cancel':       'Notify the customer when their COD order has been cancelled.',
-  'Abandoned Cart 1':       'First nudge — send a cart reminder to customers who left items behind.',
-  'Abandoned Cart 2':       "Second nudge with a gentle reminder if the customer still hasn't checked out.",
-  'Abandoned Cart 3':       'Final nudge after 24 hours with a discount code to close the sale.',
-};
-
-function getTriggerInfo(flow: V2Flow): TriggerInfo {
-  if (flow.shopifyEvent) {
-    return SHOPIFY_EVENT_TRIGGER[flow.shopifyEvent] ?? { label: flow.name, icon: 'package' };
+function getTriggerInfo(automation: Automation): TriggerInfo {
+  if (automation.triggerType === 'SHOPIFY_EVENT') {
+    const eventLabels: Record<string, { label: string; icon: string }> = {
+      PREPAID_ORDER_CONFIRMED: { label: 'Order placed',      icon: 'package' },
+      ORDER_CANCELLED:         { label: 'Order cancelled',   icon: 'package' },
+      ORDER_FULFILLED:         { label: 'Order shipped',     icon: 'truck'   },
+      COD_ORDER_CONFIRMATION:  { label: 'COD order placed',  icon: 'cash'    },
+      COD_ORDER_FOLLOW_UP:     { label: 'COD unconfirmed',   icon: 'cash'    },
+      ABANDONED_CART_1:        { label: 'Abandoned cart',    icon: 'cart'    },
+      ABANDONED_CART_2:        { label: 'Abandoned cart',    icon: 'cart'    },
+      ABANDONED_CART_3:        { label: 'Abandoned cart',    icon: 'cart'    },
+    };
+    return eventLabels[automation.shopifyEvent ?? ''] ?? { label: automation.name, icon: 'package' };
   }
-  return { label: 'Button reply', icon: 'cash' };
+  return { label: automation.buttonTriggerText ?? 'Button reply', icon: 'cash' };
+}
+
+function getDelayDisplay(delayMinutes: number): string {
+  if (delayMinutes === 0) return 'Immediate';
+  if (delayMinutes < 60) return `${delayMinutes}m`;
+  if (delayMinutes === 60) return '1h';
+  if (delayMinutes < 1440) return `${Math.floor(delayMinutes / 60)}h`;
+  return `${Math.floor(delayMinutes / 1440)}d`;
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -115,27 +108,34 @@ function RuleCardSkeleton() {
 
 export default function AutomationsPage() {
   const navigate = useNavigate();
-  const { flowCategories, loading, error, toggle } = useV2Automations();
-  const [selectedCategoryId, setSelectedCategoryId] = useState('order-flow');
+  const { categories, loading, error, toggleAutomation } = useAutomations();
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 
-  const selectedCategory = useMemo(
-    () => flowCategories.find((c) => c.id === selectedCategoryId) ?? flowCategories[0],
-    [flowCategories, selectedCategoryId],
-  );
+  const selectedCategory = useMemo(() => {
+    if (selectedCategoryId === null && categories.length > 0) {
+      return categories[0];
+    }
+    return categories.find((c) => c.categoryId === selectedCategoryId) ?? categories[0];
+  }, [categories, selectedCategoryId]);
 
   const activeCount = useMemo(
-    () => selectedCategory?.flows.filter((f) => f.active).length ?? 0,
+    () => selectedCategory?.automations.filter((a) => a.isActive).length ?? 0,
     [selectedCategory],
   );
   const pausedCount = useMemo(
-    () => selectedCategory?.flows.filter((f) => !f.active).length ?? 0,
+    () => selectedCategory?.automations.filter((a) => !a.isActive).length ?? 0,
     [selectedCategory],
   );
 
-  const handleToggle = useCallback((flowId: string) => { toggle(flowId); }, [toggle]);
+  const handleToggle = useCallback(
+    (automationId: string) => {
+      void toggleAutomation(automationId);
+    },
+    [toggleAutomation],
+  );
 
   const handleEdit = useCallback(
-    (flowId: string) => { navigate(`/automations/${flowId}/edit`); },
+    (automationId: string) => { navigate(`/automations/${automationId}/edit`); },
     [navigate],
   );
 
@@ -166,16 +166,16 @@ export default function AutomationsPage() {
         {/* ── Secondary nav ── */}
         <div className="w-64 flex-shrink-0 border-r border-border bg-card flex flex-col py-3 px-3 overflow-y-auto">
           <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-ink-400 px-2.5 pt-1 pb-2">
-            Flows
+            Categories
           </p>
           <div className="flex flex-col gap-0.5">
-            {flowCategories.map((category) => {
-              const flowActive = category.flows.filter((f) => f.active).length;
-              const isSelected = selectedCategoryId === category.id;
+            {categories.map((category) => {
+              const automationActive = category.automations.filter((a) => a.isActive).length;
+              const isSelected = selectedCategoryId === category.categoryId;
               return (
                 <button
-                  key={category.id}
-                  onClick={() => setSelectedCategoryId(category.id)}
+                  key={category.categoryId}
+                  onClick={() => setSelectedCategoryId(category.categoryId)}
                   className={cn(
                     'flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13.5px] font-medium transition-colors text-left w-full',
                     isSelected
@@ -183,7 +183,7 @@ export default function AutomationsPage() {
                       : 'text-ink-700 hover:bg-surface-sunken',
                   )}
                 >
-                  <span className="flex-1 text-left">{category.label}</span>
+                  <span className="flex-1 text-left">{category.categoryName}</span>
                   <span
                     className={cn(
                       'text-[11px] font-semibold px-[7px] py-0.5 rounded-full min-w-[18px] text-center',
@@ -192,7 +192,7 @@ export default function AutomationsPage() {
                         : 'bg-surface-sunken text-ink-500',
                     )}
                   >
-                    {flowActive}
+                    {automationActive}
                   </span>
                 </button>
               );
@@ -230,17 +230,17 @@ export default function AutomationsPage() {
                 <RuleCardSkeleton />
                 <RuleCardSkeleton />
               </>
-            ) : selectedCategory?.flows.length === 0 ? (
+            ) : selectedCategory?.automations.length === 0 ? (
               <div className="text-center py-16 text-ink-400 text-sm">
-                No automations configured in this flow yet.
+                No automations configured in this category yet.
               </div>
             ) : (
-              selectedCategory?.flows.map((flow) => {
-                const triggerInfo = getTriggerInfo(flow);
+              selectedCategory?.automations.map((automation) => {
+                const triggerInfo = getTriggerInfo(automation);
                 return (
                   <RuleCard
-                    key={flow.id}
-                    flow={flow}
+                    key={automation.id}
+                    automation={automation}
                     triggerInfo={triggerInfo}
                     onToggle={handleToggle}
                     onEdit={handleEdit}
@@ -258,29 +258,29 @@ export default function AutomationsPage() {
 // ── Rule Card ─────────────────────────────────────────────────────────────────
 
 interface RuleCardProps {
-  flow: V2Flow;
+  automation: Automation;
   triggerInfo: TriggerInfo;
   onToggle: (id: string) => void;
   onEdit: (id: string) => void;
 }
 
-const RuleCard = ({ flow, triggerInfo, onToggle, onEdit }: RuleCardProps) => (
+const RuleCard = ({ automation, triggerInfo, onToggle, onEdit }: RuleCardProps) => (
   <div
     className="bg-card border border-border rounded-lg shadow-sm grid gap-4 items-center"
     style={{ padding: '16px 18px', gridTemplateColumns: 'auto 1fr auto' }}
   >
     {/* Toggle */}
     <button
-      onClick={() => onToggle(flow.id)}
+      onClick={() => onToggle(automation.id)}
       className={cn(
         'relative inline-block w-9 h-5 rounded-full transition-colors duration-150 border-0 p-0 cursor-pointer shrink-0',
-        flow.active ? 'bg-brand-600' : 'bg-[#c9cec4]',
+        automation.isActive ? 'bg-brand-600' : 'bg-[#c9cec4]',
       )}
     >
       <span
         className={cn(
           'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.2)] transition-[left] duration-150 block',
-          flow.active ? 'left-[18px]' : 'left-0.5',
+          automation.isActive ? 'left-[18px]' : 'left-0.5',
         )}
       />
     </button>
@@ -288,10 +288,7 @@ const RuleCard = ({ flow, triggerInfo, onToggle, onEdit }: RuleCardProps) => (
     {/* Body */}
     <div>
       <div className="text-[14px] font-[650] mb-1.5 tracking-[-0.005em] text-ink-900">
-        {flow.name}
-      </div>
-      <div className="text-[12.5px] text-ink-500 mb-2.5">
-        {FLOW_DESCRIPTIONS[flow.name] ?? ''}
+        {automation.name}
       </div>
 
       {/* IF → WAIT → SEND */}
@@ -316,7 +313,7 @@ const RuleCard = ({ flow, triggerInfo, onToggle, onEdit }: RuleCardProps) => (
           </span>
           <span className="inline-flex items-center gap-[5px]">
             <Clock size={13} />
-            {flow.timing}
+            {getDelayDisplay(automation.delayMinutes)}
           </span>
         </div>
 
@@ -329,13 +326,13 @@ const RuleCard = ({ flow, triggerInfo, onToggle, onEdit }: RuleCardProps) => (
           </span>
           <span className="inline-flex items-center gap-[5px] font-mono text-[11.5px]">
             <MessageCircle size={13} />
-            {flow.templateName}
+            {automation.template?.name ?? '(No template)'}
           </span>
         </div>
       </div>
 
       {/* Paused badge */}
-      {!flow.active && (
+      {!automation.isActive && (
         <div className="mt-3">
           <span className="inline-flex items-center gap-[5px] text-[11.5px] font-semibold px-2 py-0.5 rounded-full bg-surface-sunken text-ink-500 leading-[1.6]">
             <span className="w-1.5 h-1.5 rounded-full bg-current" />
@@ -348,7 +345,7 @@ const RuleCard = ({ flow, triggerInfo, onToggle, onEdit }: RuleCardProps) => (
     {/* Actions */}
     <div className="flex flex-col gap-1.5">
       <button
-        onClick={() => onEdit(flow.id)}
+        onClick={() => onEdit(automation.id)}
         className="inline-flex items-center justify-center gap-1.5 px-3 py-[7px] rounded-md bg-card border border-border text-ink-900 text-[13px] font-semibold hover:bg-surface-sunken hover:border-ink-300 transition-all"
       >
         <Pencil size={13} />

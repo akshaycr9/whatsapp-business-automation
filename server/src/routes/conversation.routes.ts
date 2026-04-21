@@ -20,8 +20,15 @@ router.get('/', async (req, res, next) => {
     const page = req.query['page'] !== undefined ? Number(req.query['page']) : undefined;
     const limit = req.query['limit'] !== undefined ? Number(req.query['limit']) : undefined;
     const search = typeof req.query['search'] === 'string' ? req.query['search'] : undefined;
+    const category = typeof req.query['category'] === 'string' ? req.query['category'] : undefined;
 
-    const result = await conversationService.list({ page, limit, search });
+    let result;
+    if (category === 'requesting' || category === 'intervened' || category === 'chats') {
+      result = await conversationService.listByCategory(category, { page, limit, search });
+    } else {
+      result = await conversationService.listCategorized({ page, limit, search });
+    }
+
     res.json({ data: result.items, meta: result.meta });
   } catch (err: unknown) {
     next(err);

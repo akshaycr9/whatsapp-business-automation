@@ -7,6 +7,16 @@ export type ConversationWithCustomer = Prisma.ConversationGetPayload<{
   include: { customer: true; messages: { take: 1 } };
 }>;
 
+export type ConversationWithCustomerOnly = Prisma.ConversationGetPayload<{
+  include: { customer: true };
+}>;
+
+export type ConversationCategory = 'requesting' | 'intervened' | 'chats';
+
+export interface CategorizedConversation extends ConversationWithCustomer {
+  category: ConversationCategory;
+}
+
 interface ListParams {
   page?: number;
   limit?: number;
@@ -154,4 +164,68 @@ export const isWithin24HourWindow = async (conversationId: string): Promise<bool
   const isOpen = timeSinceLastInbound < windowMs;
 
   return isOpen;
+};
+
+export const categorizeConversation = (conversation: ConversationWithCustomer | ConversationWithCustomerOnly): ConversationCategory => {
+  const windowMs = 24 * 60 * 60 * 1000;
+
+  // Requesting: customer sent message within 24h and app hasn't replied (or app replied before customer's last message)
+  if (conversation.lastInboundMessageAt) {
+    const timeSinceInbound = Date.now() - conversation.lastInboundMessageAt.getTime();
+    if (timeSinceInbound < windowMs) {
+      // Within 24-hour window
+      if (!conversation.lastOutboundMessageAt || conversation.lastOutboundMessageAt < conversation.lastInboundMessageAt) {
+        // App hasn't replied or replied before customer's last message
+        return 'requesting';
+      }
+    }
+  }
+
+  // Intervened: app has replied within 24-hour window after customer's last inbound message
+  if (conversation.lastOutboundMessageAt && conversation.lastInboundMessageAt) {
+    const timeSinceInbound = Date.now() - conversation.lastInboundMessageAt.getTime();
+    if (timeSinceInbound < windowMs && conversation.lastOutboundMessageAt >= conversation.lastInboundMessageAt) {
+      return 'intervened';
+    }
+  }
+
+  // Chats: everything else (outside 24-hour window, or no inbound messages, or only outbound messages)
+  return 'chats';
+};
+
+export const listCategorized = async (params: ListParams): Promise<ListResult & { items: CategorizedConversation[] }> => {
+  const result = await list(params);
+  return {
+    ...result,
+    items: result.items.map((conv) => ({
+      ...conv,
+      category: categorizeConversation(conv),
+    })),
+  };
+};
+
+export const listByCategory = async (
+  category: ConversationCategory,
+  params: ListParams,
+): Promise<ListResult & { items: CategorizedConversation[] }> => {
+  const result = await list(params);
+  const categorized = result.items.map((conv) => ({
+    ...conv,
+    category: categorizeConversation(conv),
+  }));
+
+  const filtered = categorized.filter((c) => c.category === category);
+  const total = filtered.length;
+  const page = params.page ?? 1;
+  const limit = params.limit ?? 20;
+
+  return {
+    items: filtered,
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
 };

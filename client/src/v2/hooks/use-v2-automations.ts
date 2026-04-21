@@ -36,7 +36,7 @@ const SHOPIFY_FLOW_CONFIG: Record<ShopifyEvent, ShopifyFlowMeta> = {
   PREPAID_ORDER_CONFIRMED:  { categoryId: 'order-flow',     displayName: 'Order Confirmed',        timing: 'Immediate'  },
   ORDER_CANCELLED:          { categoryId: 'order-flow',     displayName: 'Order Cancelled',        timing: 'Immediate'  },
   ORDER_FULFILLED:          { categoryId: 'order-flow',     displayName: 'Order Fulfilled',        timing: 'Immediate'  },
-  COD_ORDER_CONFIRMED:      { categoryId: 'cod-flow',       displayName: 'COD Order Confirmation', timing: 'Immediate'  },
+  COD_ORDER_CONFIRMATION:   { categoryId: 'cod-flow',       displayName: 'COD Order Confirmation', timing: 'Immediate'  },
   COD_ORDER_FOLLOW_UP:      { categoryId: 'cod-flow',       displayName: 'COD Order Follow Up',    timing: '30 minutes' },
   ABANDONED_CART_1: { categoryId: 'abandoned-cart', displayName: 'Abandoned Cart 1', timing: '1 hour'  },
   ABANDONED_CART_2: { categoryId: 'abandoned-cart', displayName: 'Abandoned Cart 2', timing: '6 hours' },
@@ -96,14 +96,12 @@ function minutesToTimingLabel(minutes: number): string {
 }
 
 function automationToV2Flow(automation: Automation): V2Flow | null {
-  let categoryId: string;
   let displayName: string;
   let timing: string;
 
   if (automation.triggerType === 'SHOPIFY_EVENT' && automation.shopifyEvent) {
     const meta = SHOPIFY_FLOW_CONFIG[automation.shopifyEvent];
     if (!meta) return null; // unknown event — skip
-    categoryId = meta.categoryId;
     displayName = meta.displayName;
     const useDynamicTiming =
       automation.shopifyEvent === 'COD_ORDER_FOLLOW_UP' ||
@@ -114,10 +112,14 @@ function automationToV2Flow(automation: Automation): V2Flow | null {
   } else if (automation.triggerType === 'BUTTON_REPLY' && automation.buttonTriggerText) {
     const meta = BUTTON_FLOW_CONFIG[automation.buttonTriggerText];
     if (!meta) return null; // unknown button text — skip
-    categoryId = meta.categoryId;
     displayName = meta.displayName;
     timing = 'Immediate';
   } else {
+    return null;
+  }
+
+  // Skip automations without a template (templates will be linked later)
+  if (!automation.template) {
     return null;
   }
 

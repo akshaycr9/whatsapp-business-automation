@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ArrowRight } from 'lucide-react';
-import { useV2Automations } from '@/v2/hooks/use-v2-automations';
+import { ChevronLeft, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
+import { useAutomations } from '@/hooks/use-automations';
 import { extractBodyText, detectVariables, extractUrlButtonVars } from '@/lib/automation-utils';
 import { SHOPIFY_PATH_OPTIONS, groupPathOptions } from '@/v2/lib/v2-shopify-paths';
 import { RAZORPAY_PATH_OPTIONS } from '@/v2/lib/v2-razorpay-paths';
 import { PhonePreview, type PhoneButton } from '@/components/templates/PhonePreview';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { Template } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -166,7 +167,7 @@ function TemplateSelector({ value, templates, onChange }: TemplateSelectorProps)
   if (templates.length === 0) {
     return (
       <p className="text-sm text-ink-400 italic">
-        No approved templates yet. Create and get a template approved first.
+        No approved templates available. Create and approve a template to send messages. You can still configure the automation and select a template later.
       </p>
     );
   }
@@ -220,11 +221,11 @@ function EditPageSkeleton() {
 export default function EditAutomationPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { flowCategories, approvedTemplates, loading, updateFlow } = useV2Automations();
+  const { categories, approvedTemplates, loading, updateAutomation } = useAutomations();
 
-  const flow = useMemo(
-    () => flowCategories.flatMap((c) => c.flows).find((f) => f.id === id) ?? null,
-    [flowCategories, id],
+  const automation = useMemo(
+    () => categories.flatMap((c) => c.automations).find((a) => a.id === id) ?? null,
+    [categories, id],
   );
 
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
@@ -232,29 +233,30 @@ export default function EditAutomationPage() {
   const [selectedDelay, setSelectedDelay] = useState<number>(60);
   const [saving, setSaving] = useState(false);
   const [initialized, setInitialized] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (flow && !initialized) {
-      setSelectedTemplateId(flow.templateId);
-      setVarMapping(flow.variableMapping);
-      setSelectedDelay(flow.delayMinutes ?? 60);
+    if (automation && !initialized) {
+      setSelectedTemplateId(automation.templateId ?? '');
+      setVarMapping(automation.variableMapping);
+      setSelectedDelay(automation.delayMinutes ?? 60);
       setInitialized(true);
     }
-  }, [flow, initialized]);
+  }, [automation, initialized]);
 
   useEffect(() => {
-    if (!loading && !flow && initialized === false) {
+    if (!loading && !automation && initialized === false) {
       const t = setTimeout(() => {
-        if (!flow) navigate('/automations', { replace: true });
+        if (!automation) navigate('/automations', { replace: true });
       }, 500);
       return () => clearTimeout(t);
     }
-  }, [loading, flow, initialized, navigate]);
+  }, [loading, automation, initialized, navigate]);
 
-  const isAbandonedCart = flow?.shopifyEvent
-    ? ['ABANDONED_CART_1', 'ABANDONED_CART_2', 'ABANDONED_CART_3'].includes(flow.shopifyEvent)
+  const isAbandonedCart = automation?.shopifyEvent
+    ? ['ABANDONED_CART_1', 'ABANDONED_CART_2', 'ABANDONED_CART_3'].includes(automation.shopifyEvent)
     : false;
-  const isCODFollowUp = flow?.shopifyEvent === 'COD_ORDER_FOLLOW_UP';
+  const isCODFollowUp = automation?.shopifyEvent === 'COD_ORDER_FOLLOW_UP';
   const showTimingSelect = isAbandonedCart || isCODFollowUp;
   const delayOptions = isAbandonedCart ? ABANDONED_CART_DELAY_OPTIONS : COD_FOLLOW_UP_DELAY_OPTIONS;
 
@@ -267,8 +269,8 @@ export default function EditAutomationPage() {
     () =>
       selectedTemplate
         ? extractBodyText(selectedTemplate.components)
-        : (flow?.messagePreview ?? ''),
-    [selectedTemplate, flow?.messagePreview],
+        : '',
+    [selectedTemplate],
   );
 
   const bodyVars = useMemo(
@@ -324,22 +326,32 @@ export default function EditAutomationPage() {
   }, []);
 
   const handleSave = useCallback(async () => {
-    if (!id || !selectedTemplateId) return;
+    if (!id || !automation) {
+      setError('Automation not found');
+      return;
+    }
     setSaving(true);
+    setError(null);
     try {
-      await updateFlow(
-        id,
-        selectedTemplateId,
-        varMapping,
-        showTimingSelect ? selectedDelay : undefined,
-      );
+      const updateData: Record<string, unknown> = {
+        variableMapping: varMapping,
+      };
+      if (selectedTemplateId) {
+        updateData.templateId = selectedTemplateId;
+      }
+      if (showTimingSelect) {
+        updateData.delayMinutes = selectedDelay;
+      }
+      await updateAutomation(id, updateData as Partial<Record<string, unknown>>);
       navigate('/automations');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save automation');
     } finally {
       setSaving(false);
     }
-  }, [id, selectedTemplateId, varMapping, showTimingSelect, selectedDelay, updateFlow, navigate]);
+  }, [id, automation, selectedTemplateId, varMapping, showTimingSelect, selectedDelay, updateAutomation, navigate]);
 
-  if (loading || !flow) {
+  if (loading || !automation) {
     return <EditPageSkeleton />;
   }
 
@@ -357,7 +369,7 @@ export default function EditAutomationPage() {
           Edit Automation
         </span>
         <span className="text-[12.5px] text-ink-500 pl-3 ml-1 border-l border-border">
-          {flow.name}
+          {automation.name}
         </span>
         <div className="flex-1" />
         <button
@@ -369,19 +381,29 @@ export default function EditAutomationPage() {
         </button>
         <button
           onClick={handleSave}
-          disabled={saving || !selectedTemplateId}
+          disabled={saving}
           className={cn(
             'inline-flex items-center px-4 py-[7px] rounded-md text-[13px] font-semibold transition-all',
             'bg-brand-700 text-white border border-brand-800 hover:bg-brand-800',
             'disabled:opacity-50 disabled:cursor-not-allowed',
           )}
         >
+          {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
           {saving ? 'Saving…' : 'Save changes'}
         </button>
       </div>
 
       {/* ── Two-column layout ── */}
       <div className="flex-1 overflow-hidden px-5 md:px-7 pt-5 pb-8">
+        {/* Error alert */}
+        {error && (
+          <div className="mb-4">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          </div>
+        )}
         <div
           className="grid gap-5 h-full"
           style={{ gridTemplateColumns: 'minmax(0, 1fr) 340px' }}
@@ -390,7 +412,7 @@ export default function EditAutomationPage() {
           <div className="overflow-y-auto space-y-4 pr-1 pb-4">
 
             {/* Template */}
-            <SectionCard label="Template">
+            <SectionCard label="Template (optional)">
               <TemplateSelector
                 value={selectedTemplateId}
                 templates={approvedTemplates}
@@ -421,13 +443,13 @@ export default function EditAutomationPage() {
                 </div>
               ) : (
                 <div className="h-10 px-3 flex items-center bg-surface-2 border border-border rounded-md text-[13px] text-ink-500">
-                  {flow.timing}
+                  Immediate
                 </div>
               )}
             </SectionCard>
 
             {/* Parameter mapping */}
-            {(bodyVars.length > 0 || urlVars.length > 0) && (
+            {selectedTemplate && (bodyVars.length > 0 || urlVars.length > 0) && (
               <SectionCard label="Parameter Mapping">
                 <div className="space-y-3">
                   <p className="text-[12px] text-ink-400 mb-1">

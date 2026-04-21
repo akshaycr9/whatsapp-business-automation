@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { EVENT_CONFIG } from '@/lib/automation-utils';
+import { EVENT_CONFIG, getCategoryIdForEvent } from '@/lib/automation-utils';
 import { VariableMappingSection } from './VariableMappingSection';
 import type { Template, ShopifyEvent } from '@/types';
 import type { CreateAutomationInput } from '@/hooks/use-automations';
@@ -134,10 +134,6 @@ export function AutomationFormDialog({
       setFormError('Button trigger text is required');
       return;
     }
-    if (!templateId) {
-      setFormError('Please select a template');
-      return;
-    }
     const delay = parseInt(delayMinutes, 10);
     if (isNaN(delay) || delay < 0) {
       setFormError('Delay must be 0 or a positive number');
@@ -146,13 +142,20 @@ export function AutomationFormDialog({
 
     setSaving(true);
     try {
+      const categoryId = getCategoryIdForEvent(triggerType, triggerType === 'SHOPIFY_EVENT' ? shopifyEvent : null, triggerType === 'BUTTON_REPLY' ? buttonTriggerText : null);
+      if (!categoryId) {
+        setFormError('Unable to determine category for this event');
+        setSaving(false);
+        return;
+      }
       await onSubmit({
         name: name.trim(),
+        categoryId,
         triggerType,
         ...(triggerType === 'SHOPIFY_EVENT'
           ? { shopifyEvent }
           : { buttonTriggerText: buttonTriggerText.trim() }),
-        templateId,
+        ...(templateId ? { templateId } : {}),
         variableMapping,
         isActive,
         delayMinutes: delay,
@@ -246,10 +249,10 @@ export function AutomationFormDialog({
           )}
 
           <div className="space-y-1.5">
-            <Label htmlFor="template-select">Template</Label>
+            <Label htmlFor="template-select">Template (optional)</Label>
             {approvedTemplates.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No approved templates available. Approve a template first.
+                No approved templates available. You can still configure the automation and select a template later.
               </p>
             ) : (
               <Select value={templateId} onValueChange={handleTemplateChange}>
@@ -257,6 +260,7 @@ export function AutomationFormDialog({
                   <SelectValue placeholder="Select a template..." />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="">None</SelectItem>
                   {approvedTemplates.map((t) => (
                     <SelectItem key={t.id} value={t.id}>
                       {t.name}

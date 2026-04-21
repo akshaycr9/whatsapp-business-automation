@@ -8,68 +8,67 @@ import type {
   Automation,
   AutomationLog,
   Template,
-  PaginatedResponse,
-  ApiResponse,
+  AutomationCategoryGroup,
 } from "@/types";
 import type { RootState } from "@/app/store";
 
+interface ApiResponse<T> {
+  data: T;
+}
+
+interface PaginatedResponse<T> {
+  data: T[];
+  meta?: { total: number };
+}
+
 export interface CreateAutomationInput {
   name: string;
+  categoryId: string;
   triggerType: "SHOPIFY_EVENT" | "BUTTON_REPLY";
   shopifyEvent?:
     | "PREPAID_ORDER_CONFIRMED"
-    | "COD_ORDER_CONFIRMED"
+    | "COD_ORDER_CONFIRMATION"
     | "ORDER_FULFILLED"
     | "ORDER_CANCELLED"
-    | "ABANDONED_CART";
+    | "COD_ORDER_FOLLOW_UP"
+    | "ABANDONED_CART_1"
+    | "ABANDONED_CART_2"
+    | "ABANDONED_CART_3";
   buttonTriggerText?: string;
-  templateId: string;
+  templateId?: string;
   variableMapping: Record<string, string>;
   isActive: boolean;
   delayMinutes: number;
 }
 
-interface AutomationMeta {
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
-
 type LoadStatus = "idle" | "loading" | "succeeded" | "failed";
 
 interface AutomationsState {
-  list: Automation[];
+  categories: AutomationCategoryGroup[];
   approvedTemplates: Template[];
-  meta: AutomationMeta;
   status: LoadStatus;
   approvedTemplatesStatus: LoadStatus;
   error: string | null;
-  page: number;
 }
 
 const initialState: AutomationsState = {
-  list: [],
+  categories: [],
   approvedTemplates: [],
-  meta: { total: 0, page: 1, limit: 20, totalPages: 0 },
   status: "idle",
   approvedTemplatesStatus: "idle",
   error: null,
-  page: 1,
 };
 
 // ─── Thunks ────────────────────────────────────────────────────────────────────
 
 export const fetchAutomations = createAsyncThunk<
-  { automations: Automation[]; meta: AutomationMeta },
-  number,
+  AutomationCategoryGroup[],
+  void,
   { rejectValue: string }
->("automations/fetchAll", async (page, { rejectWithValue }) => {
+>("automations/fetchAll", async (_, { rejectWithValue }) => {
   try {
-    const res = await api.get<PaginatedResponse<Automation>>("/automations", {
-      params: { page, limit: 20 },
-    });
-    return { automations: res.data.data, meta: res.data.meta };
+    const res = await api.get<{ data: AutomationCategoryGroup[] }>("/automations");
+    return res.data.data;
   } catch (err: unknown) {
     return rejectWithValue(
       err instanceof Error ? err.message : "Failed to load automations",
@@ -164,7 +163,7 @@ export const toggleAutomation = createAsyncThunk<
 });
 
 export const fetchAutomationLogs = createAsyncThunk<
-  { items: AutomationLog[]; meta: AutomationMeta },
+  { items: AutomationLog[]; meta: Record<string, unknown> },
   { automationId: string; page?: number },
   { rejectValue: string }
 >(
@@ -173,7 +172,7 @@ export const fetchAutomationLogs = createAsyncThunk<
     try {
       const res = await api.get<{
         data: AutomationLog[];
-        meta: AutomationMeta;
+        meta: Record<string, unknown>;
       }>(`/automations/${automationId}/logs`, { params: { page, limit: 20 } });
       return { items: res.data.data, meta: res.data.meta };
     } catch (err: unknown) {
@@ -190,14 +189,13 @@ const automationsSlice = createSlice({
   name: "automations",
   initialState,
   reducers: {
-    setPage: (state, action: PayloadAction<number>) => {
-      state.page = action.payload;
-    },
-    // Internal action for optimistic toggle — not exported directly (use toggleAutomation thunk)
     automationToggled: (state, action: PayloadAction<string>) => {
-      const automation = state.list.find((a) => a.id === action.payload);
-      if (automation) {
-        automation.isActive = !automation.isActive;
+      for (const category of state.categories) {
+        const automation = category.automations.find((a) => a.id === action.payload);
+        if (automation) {
+          automation.isActive = !automation.isActive;
+          return;
+        }
       }
     },
   },
@@ -209,8 +207,7 @@ const automationsSlice = createSlice({
       })
       .addCase(fetchAutomations.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.list = action.payload.automations;
-        state.meta = action.payload.meta;
+        state.categories = action.payload;
       })
       .addCase(fetchAutomations.rejected, (state, action) => {
         state.status = "failed";
@@ -227,42 +224,62 @@ const automationsSlice = createSlice({
         state.approvedTemplatesStatus = "failed";
       })
       .addCase(createAutomation.fulfilled, (state, action) => {
-        state.list.unshift(action.payload);
-        state.meta.total += 1;
+        const automation = action.payload;
+        const category = state.categories.find((c) => c.categoryId === automation.categoryId);
+        if (category) {
+          category.automations.unshift(automation);
+        }
       })
       .addCase(updateAutomation.fulfilled, (state, action) => {
-        const idx = state.list.findIndex((a) => a.id === action.payload.id);
-        if (idx !== -1)
-          state.list[idx] = { ...state.list[idx], ...action.payload };
+        const automation = action.payload;
+        const category = state.categories.find((c) => c.categoryId === automation.categoryId);
+        if (category) {
+          const idx = category.automations.findIndex((a) => a.id === automation.id);
+          if (idx !== -1) {
+            category.automations[idx] = { ...category.automations[idx], ...automation };
+          }
+        }
       })
       .addCase(deleteAutomation.fulfilled, (state, action) => {
-        state.list = state.list.filter((a) => a.id !== action.payload);
-        state.meta.total = Math.max(0, state.meta.total - 1);
+        const automationId = action.payload;
+        for (const category of state.categories) {
+          category.automations = category.automations.filter((a) => a.id !== automationId);
+        }
       })
       .addCase(toggleAutomation.fulfilled, (state, action) => {
-        const idx = state.list.findIndex((a) => a.id === action.payload.id);
-        if (idx !== -1)
-          state.list[idx] = { ...state.list[idx], ...action.payload };
+        const automation = action.payload;
+        const category = state.categories.find((c) => c.categoryId === automation.categoryId);
+        if (category) {
+          const idx = category.automations.findIndex((a) => a.id === automation.id);
+          if (idx !== -1) {
+            category.automations[idx] = { ...category.automations[idx], ...automation };
+          }
+        }
       });
   },
 });
 
-const { automationToggled } = automationsSlice.actions;
-export const { setPage } = automationsSlice.actions;
-
 // ─── Selectors ─────────────────────────────────────────────────────────────────
 
-export const selectAutomations = (state: RootState): Automation[] =>
-  state.automations.list;
+export const selectAutomationCategories = (state: RootState): AutomationCategoryGroup[] =>
+  state.automations.categories;
 export const selectApprovedTemplates = (state: RootState): Template[] =>
   state.automations.approvedTemplates;
-export const selectAutomationsMeta = (state: RootState): AutomationMeta =>
-  state.automations.meta;
 export const selectAutomationsStatus = (state: RootState): LoadStatus =>
   state.automations.status;
 export const selectAutomationsError = (state: RootState): string | null =>
   state.automations.error;
-export const selectAutomationsPage = (state: RootState): number =>
-  state.automations.page;
+
+// Selector to get all automations (flattened from categories for backward compatibility)
+export const selectAutomations = (state: RootState): Automation[] => {
+  const categories = state.automations.categories;
+  const automations: Automation[] = [];
+  for (const category of categories) {
+    automations.push(...category.automations);
+  }
+  return automations;
+};
+
+export const { automationToggled } = automationsSlice.actions;
 
 export default automationsSlice.reducer;

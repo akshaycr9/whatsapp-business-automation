@@ -90,7 +90,11 @@ export const sendTextReply = async (conversationId: string, text: string): Promi
 
   const updatedConversation = await prisma.conversation.update({
     where: { id: conversationId },
-    data: { lastMessageAt: now, lastMessageText: text },
+    data: {
+      lastMessageAt: now,
+      lastMessageText: text,
+      lastOutboundMessageAt: now,
+    },
     include: { customer: true },
   });
 
@@ -210,7 +214,11 @@ export const sendTemplateReply = async (
 
   const updatedConversation = await prisma.conversation.update({
     where: { id: conversationId },
-    data: { lastMessageAt: now, lastMessageText: resolvedBody },
+    data: {
+      lastMessageAt: now,
+      lastMessageText: resolvedBody,
+      lastOutboundMessageAt: now,
+    },
     include: { customer: true },
   });
 

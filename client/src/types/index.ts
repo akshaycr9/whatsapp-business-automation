@@ -13,13 +13,18 @@ export interface Customer {
 }
 
 // ── Conversation ─────────────────────────────────────────────
+export type ConversationCategory = 'requesting' | 'intervened' | 'chats';
+
 export interface Conversation {
   id: string;
   customerId: string;
   customer: Customer;
   lastMessageAt: string | null;
   lastMessageText: string | null;
+  lastInboundMessageAt: string | null;
+  lastOutboundMessageAt: string | null;
   unreadCount: number;
+  category?: ConversationCategory;
   createdAt: string;
   updatedAt: string;
 }
@@ -76,7 +81,7 @@ export type AutomationTrigger = 'SHOPIFY_EVENT' | 'BUTTON_REPLY';
 
 export type ShopifyEvent =
   | 'PREPAID_ORDER_CONFIRMED'
-  | 'COD_ORDER_CONFIRMED'
+  | 'COD_ORDER_CONFIRMATION'
   | 'ORDER_FULFILLED'
   | 'ORDER_CANCELLED'
   | 'COD_ORDER_FOLLOW_UP'
@@ -89,16 +94,23 @@ export type AutomationTriggerType = 'SHOPIFY_EVENT' | 'BUTTON_REPLY';
 export interface Automation {
   id: string;
   name: string;
+  categoryId: string;
   triggerType: AutomationTriggerType;
   shopifyEvent: ShopifyEvent | null;
   buttonTriggerText: string | null;
-  templateId: string;
-  template: Template;
+  templateId: string | null;
+  template: Template | null;
   variableMapping: Record<string, string>;
   isActive: boolean;
   delayMinutes: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface AutomationCategoryGroup {
+  categoryId: string;
+  categoryName: string;
+  automations: Automation[];
 }
 
 // ── AutomationLog ────────────────────────────────────────────
@@ -145,6 +157,7 @@ export interface MessageStatusUpdateEvent {
 
 export interface ConversationUpdatedEvent {
   conversation: Conversation;
+  category: ConversationCategory;
 }
 
 export interface MessageReactionEvent {

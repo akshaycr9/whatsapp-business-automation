@@ -25,7 +25,7 @@ interface Props {
   message: Message;
 }
 
-function StatusIcon({ status, isOutbound }: { status: MessageStatus; isOutbound: boolean }) {
+function StatusIcon({ status }: { status: MessageStatus }) {
   const iconClass = 'h-2.5 w-2.5';
   switch (status) {
     case 'PENDING':
@@ -363,7 +363,7 @@ export const MessageBubble = React.memo(function MessageBubble({ message }: Prop
           </span>
           {isOutbound && (
             <span className="text-[#667781]">
-              <StatusIcon status={message.status} isOutbound={isOutbound} />
+              <StatusIcon status={message.status} />
             </span>
           )}
         </div>

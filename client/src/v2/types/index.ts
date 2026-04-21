@@ -9,7 +9,7 @@ export interface V2Flow {
   id: string;
   name: string;
   active: boolean;
-  templateId: string;
+  templateId: string | null;
   templateName: string;
   timing: string;
   parameterMapping: V2ParameterMapping[];

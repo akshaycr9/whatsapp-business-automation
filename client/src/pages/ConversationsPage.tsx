@@ -1,33 +1,41 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Search, MessageSquare } from 'lucide-react';
+import { useAppSelector } from '@/app/hooks';
+import { selectAllConversations } from '@/features/conversations/conversationsSlice';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ChatPanel } from '@/components/conversations/ChatPanel';
 import { ConversationListItem } from '@/components/conversations/ConversationListItem';
 import { ConversationListSkeleton } from '@/components/conversations/ConversationListSkeleton';
 import { useConversations } from '@/hooks/use-conversations';
 import { formatPhoneDisplay } from '@/lib/utils';
-
-type Tab = 'chats' | 'requesting' | 'intervened';
+import type { ConversationCategory } from '@/types';
 
 export default function ConversationsPage() {
   const { id: activeId } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { conversations, loading, error, search, setSearch, refetch, markConversationRead } =
-    useConversations();
+  const {
+    conversations,
+    loading,
+    error,
+    search,
+    setSearch,
+    activeCategory,
+    setActiveCategory,
+    refetch,
+    markConversationRead,
+  } = useConversations();
 
-  const [activeTab, setActiveTab] = useState<Tab>('chats');
+  const allConversations = useAppSelector(selectAllConversations);
 
-  const unreadCount = useMemo(
-    () => conversations.filter((c) => c.unreadCount > 0).length,
-    [conversations],
-  );
-
-  const filteredConversations = useMemo(() => {
-    if (activeTab === 'requesting') return conversations.filter((c) => c.unreadCount > 0);
-    // 'intervened' tab — no backend flag yet, show all as fallback
-    return conversations;
-  }, [conversations, activeTab]);
+  const categoryCounts = useMemo(() => {
+    const counts = { chats: 0, requesting: 0, intervened: 0 };
+    allConversations.forEach((c) => {
+      const cat = c.category || 'chats';
+      counts[cat as ConversationCategory]++;
+    });
+    return counts;
+  }, [allConversations]);
 
   const handleSelectConversation = useCallback(
     (id: string) => navigate(`/conversations/${id}`),
@@ -35,6 +43,13 @@ export default function ConversationsPage() {
   );
 
   const handleBack = useCallback(() => navigate('/conversations'), [navigate]);
+
+  // If the active conversation is not in the current tab, clear the selection
+  useEffect(() => {
+    if (activeId && !conversations.find((c) => c.id === activeId)) {
+      navigate('/conversations');
+    }
+  }, [activeId, conversations, navigate]);
 
   const showListOnMobile = !activeId;
   const showChatOnMobile = !!activeId;
@@ -90,21 +105,21 @@ export default function ConversationsPage() {
           >
             {(
               [
-                { id: 'chats', label: 'Chats', count: conversations.length },
-                { id: 'requesting', label: 'Requesting', count: unreadCount },
-                { id: 'intervened', label: 'Intervened', count: 0 },
-              ] as { id: Tab; label: string; count: number }[]
+                { id: 'chats' as const, label: 'Chats', count: categoryCounts.chats },
+                { id: 'requesting' as const, label: 'Requesting', count: categoryCounts.requesting },
+                { id: 'intervened' as const, label: 'Intervened', count: categoryCounts.intervened },
+              ] as { id: ConversationCategory | null; label: string; count: number }[]
             ).map((tab) => (
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => setActiveCategory(tab.id === 'chats' ? null : tab.id)}
                 style={{
                   padding: '10px 8px',
                   fontSize: 12.5,
                   fontWeight: 600,
-                  color: activeTab === tab.id ? 'var(--brand-800)' : 'var(--ink-500)',
-                  borderBottom: activeTab === tab.id
+                  color: (activeCategory === tab.id || (activeCategory === null && tab.id === 'chats')) ? 'var(--brand-800)' : 'var(--ink-500)',
+                  borderBottom: (activeCategory === tab.id || (activeCategory === null && tab.id === 'chats'))
                     ? '2px solid var(--brand-700)'
                     : '2px solid transparent',
                   marginBottom: -1,
@@ -113,7 +128,7 @@ export default function ConversationsPage() {
                   borderBottomStyle: 'solid',
                   borderBottomWidth: 2,
                   borderBottomColor:
-                    activeTab === tab.id ? 'var(--brand-700)' : 'transparent',
+                    (activeCategory === tab.id || (activeCategory === null && tab.id === 'chats')) ? 'var(--brand-700)' : 'transparent',
                   cursor: 'pointer',
                   transition: 'color 0.12s, border-color 0.12s',
                 }}
@@ -123,9 +138,9 @@ export default function ConversationsPage() {
                   style={{
                     display: 'inline-block',
                     background:
-                      activeTab === tab.id ? 'var(--brand-100)' : 'var(--cf-surface-sunken)',
+                      (activeCategory === tab.id || (activeCategory === null && tab.id === 'chats')) ? 'var(--brand-100)' : 'var(--cf-surface-sunken)',
                     color:
-                      activeTab === tab.id ? 'var(--brand-700)' : 'var(--ink-500)',
+                      (activeCategory === tab.id || (activeCategory === null && tab.id === 'chats')) ? 'var(--brand-700)' : 'var(--ink-500)',
                     padding: '0px 6px',
                     borderRadius: 99,
                     fontSize: 10.5,
@@ -156,7 +171,7 @@ export default function ConversationsPage() {
               </div>
             )}
 
-            {!loading && !error && filteredConversations.length === 0 && (
+            {!loading && !error && conversations.length === 0 && (
               <div className="flex flex-col items-center justify-center p-8 text-center h-full min-h-[200px]">
                 <div
                   className="flex items-center justify-center mb-3"
@@ -182,7 +197,7 @@ export default function ConversationsPage() {
 
             {!loading &&
               !error &&
-              filteredConversations.map((conversation) => (
+              conversations.map((conversation) => (
                 <ConversationListItem
                   key={conversation.id}
                   id={conversation.id}
