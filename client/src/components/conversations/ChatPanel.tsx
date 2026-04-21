@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback } from 'react';
-import { MessageSquare, Search, MoreVertical, ArrowLeft, Loader2 } from 'lucide-react';
+import { MessageSquare, ArrowLeft, Loader2 } from 'lucide-react';
 import { MessageBubble } from './MessageBubble';
 import { ChatInput } from './ChatInput';
 import { DateSeparator } from './DateSeparator';
@@ -174,58 +174,6 @@ export const ChatPanel = React.memo(function ChatPanel({
 
         {/* Spacer */}
         <div style={{ flex: 1 }} />
-
-        {/* Search icon button */}
-        <button
-          type="button"
-          onClick={refetchMessages}
-          title="Refresh messages"
-          style={{
-            width: 32,
-            height: 32,
-            display: 'grid',
-            placeItems: 'center',
-            borderRadius: 8,
-            color: 'var(--ink-700)',
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-          }}
-          onMouseEnter={(e) =>
-            ((e.currentTarget as HTMLButtonElement).style.background =
-              'var(--cf-surface-sunken)')
-          }
-          onMouseLeave={(e) =>
-            ((e.currentTarget as HTMLButtonElement).style.background = 'none')
-          }
-        >
-          <Search style={{ width: 17, height: 17, strokeWidth: 1.75 }} />
-        </button>
-
-        {/* More icon button */}
-        <button
-          type="button"
-          style={{
-            width: 32,
-            height: 32,
-            display: 'grid',
-            placeItems: 'center',
-            borderRadius: 8,
-            color: 'var(--ink-700)',
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-          }}
-          onMouseEnter={(e) =>
-            ((e.currentTarget as HTMLButtonElement).style.background =
-              'var(--cf-surface-sunken)')
-          }
-          onMouseLeave={(e) =>
-            ((e.currentTarget as HTMLButtonElement).style.background = 'none')
-          }
-        >
-          <MoreVertical style={{ width: 17, height: 17, strokeWidth: 1.75 }} />
-        </button>
       </div>
 
       {/* Messages area */}
