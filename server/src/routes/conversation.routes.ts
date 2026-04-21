@@ -32,7 +32,16 @@ router.get('/', async (req, res, next) => {
 router.get('/:id', async (req, res, next) => {
   try {
     const result = await conversationService.getById(req.params['id'] as string);
-    res.json({ data: result });
+
+    // Calculate window status and include in response
+    const isOpen = await conversationService.isWithin24HourWindow(result.id);
+
+    res.json({
+      data: {
+        ...result,
+        isWithin24HourWindow: isOpen,
+      }
+    });
   } catch (err: unknown) {
     next(err);
   }
@@ -47,7 +56,17 @@ router.get('/:id/messages', async (req, res, next) => {
       req.query['limit'] !== undefined ? Number(req.query['limit']) : 50;
 
     const result = await conversationService.getMessages(conversationId, { cursor, limit });
-    res.json({ data: result.items, meta: result.meta });
+
+    // Calculate window status and include in response meta
+    const isWithin24HourWindow = await conversationService.isWithin24HourWindow(conversationId);
+
+    res.json({
+      data: result.items,
+      meta: {
+        ...result.meta,
+        isWithin24HourWindow,
+      }
+    });
   } catch (err: unknown) {
     next(err);
   }

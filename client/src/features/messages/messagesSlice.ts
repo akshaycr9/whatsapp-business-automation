@@ -47,7 +47,13 @@ type MessagesThunkConfig = {
 // ─── Thunks ────────────────────────────────────────────────────────────────────
 
 export const fetchMessages = createAsyncThunk<
-  { conversationId: string; messages: Message[]; cursor: string | null; hasMore: boolean },
+  {
+    conversationId: string;
+    messages: Message[];
+    cursor: string | null;
+    hasMore: boolean;
+    isWithin24HourWindow: boolean;
+  },
   string,
   { rejectValue: string }
 >(
@@ -56,7 +62,7 @@ export const fetchMessages = createAsyncThunk<
     try {
       const res = await api.get<{
         data: Message[];
-        meta: { cursor: string | null; hasMore: boolean };
+        meta: { cursor: string | null; hasMore: boolean; isWithin24HourWindow?: boolean };
       }>(`/conversations/${conversationId}/messages`, { params: { limit: 50 } });
       // Backend returns newest-first (DESC); reverse to oldest-first for chat display
       const messages = [...res.data.data]
@@ -67,6 +73,7 @@ export const fetchMessages = createAsyncThunk<
         messages,
         cursor: res.data.meta.cursor,
         hasMore: res.data.meta.hasMore,
+        isWithin24HourWindow: res.data.meta.isWithin24HourWindow ?? false,
       };
     } catch (err: unknown) {
       return rejectWithValue(err instanceof Error ? err.message : 'Failed to load messages');
@@ -200,13 +207,14 @@ const messagesSlice = createSlice({
         };
       })
       .addCase(fetchMessages.fulfilled, (state, action) => {
-        const { conversationId, messages, cursor, hasMore } = action.payload;
+        const { conversationId, messages, cursor, hasMore, isWithin24HourWindow } = action.payload;
         state.byConversationId[conversationId] = {
           ...defaultConvMessages(),
           status: 'succeeded',
           items: messages,
           cursor,
           hasMore,
+          isWithin24HourWindow,
         };
       })
       .addCase(fetchMessages.rejected, (state, action) => {
