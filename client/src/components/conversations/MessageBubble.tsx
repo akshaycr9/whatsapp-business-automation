@@ -301,7 +301,7 @@ export const MessageBubble = React.memo(function MessageBubble({ message }: Prop
   const bubble = (
     <div
       className={cn(
-        'flex flex-col gap-1 max-w-[45%]',
+        'flex flex-col gap-1 w-[45%]',
         isOutbound ? 'items-end' : 'items-start',
       )}
     >
