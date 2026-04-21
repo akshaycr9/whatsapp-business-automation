@@ -301,20 +301,20 @@ export const MessageBubble = React.memo(function MessageBubble({ message }: Prop
   const bubble = (
     <div
       className={cn(
-        'flex flex-col gap-1 w-[45%]',
+        'flex flex-col gap-1 w-auto max-w-[45%]',
         isOutbound ? 'items-end' : 'items-start',
       )}
     >
       {/* Interactive / button-reply label */}
       {isInteractive && (
-        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground w-full text-center">
+        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
           Button reply
         </span>
       )}
 
       {/* Media type label */}
       {isMedia && (
-        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground capitalize w-full text-center">
+        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground capitalize">
           {message.type.charAt(0) + message.type.slice(1).toLowerCase()}
         </span>
       )}
@@ -323,7 +323,7 @@ export const MessageBubble = React.memo(function MessageBubble({ message }: Prop
       <div
         title={new Date(message.createdAt).toLocaleString()}
         className={cn(
-          'relative px-3 py-2 rounded-2xl text-sm leading-relaxed w-full',
+          'relative px-3 py-2 rounded-2xl text-sm leading-relaxed',
           isOutbound
             ? 'bg-[#d9fdd3] text-[#111]'
             : 'bg-white text-[#111] shadow-sm',
