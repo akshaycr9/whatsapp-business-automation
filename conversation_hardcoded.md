@@ -4,6 +4,37 @@ Track all UI elements in the conversations screen that are currently hardcoded a
 
 ---
 
+## CRITICAL FEATURE: 24-Hour Messaging Window
+
+**Status:** ✅ FULLY IMPLEMENTED & STABLE
+
+**What:** WhatsApp Business API compliance feature that prevents spam and enforces messaging policy.
+
+**How it works:**
+- Customer messages → Opens 24-hour window for free-form replies
+- Within 24h: Editor visible, text/media/reactions allowed
+- After 24h: Send Template button only (templates don't require window)
+- Customer messages again → Window instantly reopens
+
+**Implementation (STABLE):**
+- Backend: `Conversation.lastInboundMessageAt` tracks last customer message time
+- Calculation: `isWithin24HourWindow = (now - lastInboundMessageAt) < 24 hours`
+- Frontend: Window status included in messages response (zero race condition)
+- Validation: Server rejects text messages if window is closed
+
+**Files:**
+- Backend: `server/src/services/conversation.service.ts`, `message.service.ts`
+- Frontend: `client/src/features/messages/messagesSlice.ts`, `ChatInput.tsx`
+
+**Why this matters:**
+- Security: Prevents automated spam outside the window
+- Compliance: Required by WhatsApp Business API policy
+- User experience: Users always see the correct input method (editor vs template)
+
+**See:** Memory file `24hour_window.md` for detailed implementation notes.
+
+---
+
 ## 1. "online" Status in Chat Header
 
 **File:** `client/src/components/conversations/ChatPanel.tsx`
