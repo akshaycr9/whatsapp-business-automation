@@ -142,6 +142,10 @@ const messagesSlice = createSlice({
       // Avoid duplicates
       if (conv.items.some((m) => m.id === message.id)) return;
       conv.items.push({ ...message, reactions: message.reactions ?? [] });
+      // If inbound message, window may have just opened — mark for rechecking
+      if (message.direction === 'INBOUND') {
+        conv.isWithin24HourWindow = true; // Optimistically set to true for inbound
+      }
     },
     messageStatusUpdated: (state, action: PayloadAction<MessageStatusUpdateEvent>) => {
       const statusPriority: Record<string, number> = {

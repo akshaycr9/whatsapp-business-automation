@@ -61,6 +61,22 @@ export const sendTextReply = async (conversationId: string, text: string): Promi
   });
   if (!conversation) throw notFound('Conversation');
 
+  // Check 24-hour window — find last INBOUND message
+  const lastInbound = await prisma.message.findFirst({
+    where: { conversationId, direction: 'INBOUND' },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (!lastInbound) {
+    throw badRequest('No inbound message from customer yet. Use a template message to initiate contact.');
+  }
+
+  const windowMs = 24 * 60 * 60 * 1000;
+  const windowExpiredAt = new Date(lastInbound.createdAt.getTime() + windowMs);
+  if (Date.now() > windowExpiredAt.getTime()) {
+    throw badRequest(`24-hour window closed. Last message from customer was ${lastInbound.createdAt.toISOString()}. Use a template message to re-engage.`);
+  }
+
   const result = await whatsappService.sendTextMessage(conversation.customer.phone, text);
 
   const now = new Date();
