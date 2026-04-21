@@ -35,9 +35,10 @@ export function useMessages(conversationId: string | undefined): UseMessagesRetu
     if (!conversationId) return;
     if (convState.status === 'idle') {
       void dispatch(fetchMessages(conversationId));
-      void dispatch(checkWindow(conversationId));
     }
-  }, [conversationId, convState.status, dispatch]);
+    // Always check window when conversation changes (not just when idle)
+    void dispatch(checkWindow(conversationId));
+  }, [conversationId, dispatch]);
 
   const loadMore = useCallback(() => {
     if (!conversationId || !convState.hasMore || convState.loadingMore) return;

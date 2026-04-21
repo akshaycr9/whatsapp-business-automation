@@ -142,13 +142,16 @@ export const markRead = async (id: string): Promise<void> => {
 };
 
 export const isWithin24HourWindow = async (conversationId: string): Promise<boolean> => {
-  const lastInbound = await prisma.message.findFirst({
-    where: { conversationId, direction: 'INBOUND' },
-    orderBy: { createdAt: 'desc' },
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    select: { lastInboundMessageAt: true },
   });
 
-  if (!lastInbound) return false;
+  if (!conversation?.lastInboundMessageAt) return false;
 
   const windowMs = 24 * 60 * 60 * 1000;
-  return Date.now() - lastInbound.createdAt.getTime() < windowMs;
+  const timeSinceLastInbound = Date.now() - conversation.lastInboundMessageAt.getTime();
+  const isOpen = timeSinceLastInbound < windowMs;
+
+  return isOpen;
 };

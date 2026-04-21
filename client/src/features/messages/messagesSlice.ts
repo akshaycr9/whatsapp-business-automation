@@ -120,10 +120,11 @@ export const checkWindow = createAsyncThunk<
   async (conversationId, { rejectWithValue }) => {
     try {
       const res = await api.get<{ data: { isOpen: boolean } }>(
-        `/conversations/${conversationId}/window`,
+        `/conversations/${conversationId}/window?t=${Date.now()}`,
       );
       return { conversationId, isOpen: res.data.data.isOpen };
-    } catch {
+    } catch (err) {
+      console.error('checkWindow failed:', err);
       return rejectWithValue('Failed to check window');
     }
   },
@@ -142,9 +143,9 @@ const messagesSlice = createSlice({
       // Avoid duplicates
       if (conv.items.some((m) => m.id === message.id)) return;
       conv.items.push({ ...message, reactions: message.reactions ?? [] });
-      // If inbound message, window may have just opened — mark for rechecking
+      // If inbound message, window is definitely open now
       if (message.direction === 'INBOUND') {
-        conv.isWithin24HourWindow = true; // Optimistically set to true for inbound
+        conv.isWithin24HourWindow = true;
       }
     },
     messageStatusUpdated: (state, action: PayloadAction<MessageStatusUpdateEvent>) => {
