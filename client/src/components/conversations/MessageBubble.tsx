@@ -26,18 +26,18 @@ interface Props {
 }
 
 function StatusIcon({ status, isOutbound }: { status: MessageStatus; isOutbound: boolean }) {
-  const color = isOutbound ? '#667781' : '#667781';
+  const iconClass = 'h-2.5 w-2.5';
   switch (status) {
     case 'PENDING':
-      return <Clock style={{ width: 11, height: 11, opacity: 0.5, color }} />;
+      return <Clock className={cn(iconClass, 'opacity-50')} />;
     case 'SENT':
-      return <Check style={{ width: 11, height: 11, opacity: 0.6, color }} />;
+      return <Check className={cn(iconClass, 'opacity-60')} />;
     case 'DELIVERED':
-      return <CheckCheck style={{ width: 11, height: 11, opacity: 0.6, color }} />;
+      return <CheckCheck className={cn(iconClass, 'opacity-60')} />;
     case 'READ':
-      return <CheckCheck style={{ width: 11, height: 11, color: '#53BDEB' }} />;
+      return <CheckCheck className={cn(iconClass, 'text-[#53BDEB]')} />;
     case 'FAILED':
-      return <AlertCircle style={{ width: 11, height: 11, color: '#a9384d' }} />;
+      return <AlertCircle className={cn(iconClass, 'text-[#a9384d]')} />;
     default:
       return null;
   }
@@ -223,37 +223,19 @@ interface StoredButton {
 
 function TemplateButtons({ buttons }: { buttons: StoredButton[] }) {
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 4,
-        marginTop: 8,
-        paddingTop: 8,
-        borderTop: '1px solid rgba(0,0,0,0.08)',
-      }}
-    >
+    <div className="flex flex-col gap-2 mt-3 pt-3 border-t border-black/10">
       {buttons.map((btn, i) => {
         const isUrl = btn.type === 'URL';
         const isPhone = btn.type === 'PHONE_NUMBER';
         return (
           <div
             key={i}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 5,
-              fontSize: 12,
-              fontWeight: 600,
-              color: '#0a7cff',
-              padding: '3px 0',
-            }}
+            className="flex items-center justify-center gap-1.5 text-sm font-medium text-primary bg-white rounded-lg py-2 px-3 border border-primary/20"
           >
-            {isUrl && <ExternalLink style={{ width: 12, height: 12, flexShrink: 0 }} />}
-            {isPhone && <Phone style={{ width: 12, height: 12, flexShrink: 0 }} />}
+            {isUrl && <ExternalLink className="h-4 w-4 flex-shrink-0" />}
+            {isPhone && <Phone className="h-4 w-4 flex-shrink-0" />}
             {!isUrl && !isPhone && (
-              <MousePointerClick style={{ width: 12, height: 12, flexShrink: 0, opacity: 0.7 }} />
+              <MousePointerClick className="h-4 w-4 flex-shrink-0 opacity-70" />
             )}
             <span>{btn.text}</span>
           </div>
@@ -265,54 +247,15 @@ function TemplateButtons({ buttons }: { buttons: StoredButton[] }) {
 
 function ReplyContext({ body, templateName }: { body: string; templateName?: string }) {
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'stretch',
-        gap: 6,
-        marginBottom: 6,
-        borderRadius: 8,
-        background: 'rgba(0,0,0,0.06)',
-        padding: '6px 8px',
-        overflow: 'hidden',
-      }}
-    >
-      <div
-        style={{
-          width: 2,
-          borderRadius: 99,
-          background: 'rgba(0,0,0,0.25)',
-          flexShrink: 0,
-        }}
-      />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+    <div className="flex items-stretch gap-1.5 mb-1.5 rounded-lg bg-black/10 px-2 py-1.5 overflow-hidden">
+      <div className="w-0.5 rounded-full bg-muted-foreground/50 flex-shrink-0" />
+      <div className="flex flex-col gap-0.5 min-w-0">
         {templateName && (
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 600,
-              color: '#54656f',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
+          <span className="text-[10px] font-semibold text-muted-foreground truncate">
             {templateName}
           </span>
         )}
-        <p
-          style={{
-            fontSize: 12,
-            color: '#3a4641',
-            overflow: 'hidden',
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            wordBreak: 'break-word',
-          }}
-        >
-          {body}
-        </p>
+        <p className="text-xs text-muted-foreground line-clamp-2 break-words">{body}</p>
       </div>
     </div>
   );
@@ -328,30 +271,14 @@ function ReactionPills({ reactions, isOutbound }: { reactions: Reaction[]; isOut
   if (entries.length === 0) return null;
 
   return (
-    <div
-      className={cn('flex gap-1 flex-wrap -mt-1', isOutbound ? 'justify-end' : 'justify-start')}
-    >
+    <div className={cn('flex gap-1 flex-wrap -mt-1', isOutbound ? 'justify-end' : 'justify-start')}>
       {entries.map(([emoji, count]) => (
         <span
           key={emoji}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 2,
-            background: '#fff',
-            border: '1px solid var(--cf-border)',
-            borderRadius: 99,
-            padding: '2px 6px',
-            fontSize: 13,
-            boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
-            lineHeight: 1,
-            userSelect: 'none',
-          }}
+          className="flex items-center gap-0.5 bg-white border border-border rounded-full px-1.5 py-0.5 text-sm shadow-sm leading-none select-none"
         >
           {emoji}
-          {count > 1 && (
-            <span style={{ fontSize: 10, color: 'var(--ink-500)', fontWeight: 500 }}>{count}</span>
-          )}
+          {count > 1 && <span className="text-[10px] text-muted-foreground font-medium">{count}</span>}
         </span>
       ))}
     </div>
@@ -371,69 +298,23 @@ export const MessageBubble = React.memo(function MessageBubble({ message }: Prop
   const replyToBody = meta?.replyToBody as string | undefined;
   const replyToTemplateName = meta?.replyToTemplateName as string | undefined;
 
-  // WhatsApp-style bubble colors
-  const bubbleBg = isOutbound ? '#d9fdd3' : '#ffffff';
-  const bubbleColor = '#111';
-  const bubbleShadow = '0 1px 0.5px rgba(0,0,0,0.08)';
-
   const bubble = (
     <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 4,
-        maxWidth: '62%',
-        alignItems: isOutbound ? 'flex-end' : 'flex-start',
-      }}
-    >
-      {/* Auto-tag for template messages */}
-      {isTemplate && isOutbound && (
-        <div
-          style={{
-            fontSize: 9.5,
-            fontWeight: 700,
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase',
-            color: 'var(--accent-violet)',
-            background: 'var(--accent-violet-bg)',
-            padding: '1px 5px',
-            borderRadius: 4,
-            marginBottom: 2,
-          }}
-        >
-          Sent by automation · template
-        </div>
+      className={cn(
+        'flex flex-col gap-1 max-w-[45%]',
+        isOutbound ? 'items-end' : 'items-start',
       )}
-
+    >
       {/* Interactive / button-reply label */}
       {isInteractive && (
-        <span
-          style={{
-            fontSize: 9.5,
-            fontWeight: 600,
-            padding: '2px 8px',
-            borderRadius: 99,
-            background: 'rgba(0,0,0,0.08)',
-            color: '#54656f',
-          }}
-        >
+        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
           Button reply
         </span>
       )}
 
       {/* Media type label */}
       {isMedia && (
-        <span
-          style={{
-            fontSize: 9.5,
-            fontWeight: 600,
-            padding: '2px 8px',
-            borderRadius: 99,
-            background: 'rgba(0,0,0,0.08)',
-            color: '#54656f',
-            textTransform: 'capitalize',
-          }}
-        >
+        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground capitalize">
           {message.type.charAt(0) + message.type.slice(1).toLowerCase()}
         </span>
       )}
@@ -441,17 +322,16 @@ export const MessageBubble = React.memo(function MessageBubble({ message }: Prop
       {/* Bubble */}
       <div
         title={new Date(message.createdAt).toLocaleString()}
+        className={cn(
+          'relative px-3 py-2 rounded-2xl text-sm leading-relaxed',
+          isOutbound
+            ? 'bg-[#d9fdd3] text-[#111]'
+            : 'bg-white text-[#111] shadow-sm',
+        )}
         style={{
-          background: bubbleBg,
-          color: bubbleColor,
-          boxShadow: bubbleShadow,
-          padding: '7px 10px 6px',
-          borderRadius: 8,
-          fontSize: 13,
-          lineHeight: 1.45,
-          wordBreak: 'break-word',
-          whiteSpace: 'pre-wrap',
-          position: 'relative',
+          boxShadow: isOutbound
+            ? '0 1px 0.5px rgba(0,0,0,0.08)'
+            : '0 1px 0.5px rgba(0,0,0,0.08)',
         }}
       >
         {/* Reply-to context for inbound button replies */}
@@ -463,7 +343,7 @@ export const MessageBubble = React.memo(function MessageBubble({ message }: Prop
         {isMedia ? (
           <MediaContent message={message} />
         ) : (
-          <span>{message.body ?? ''}</span>
+          <p className="whitespace-pre-wrap break-words">{message.body ?? ''}</p>
         )}
 
         {/* Template buttons */}
@@ -472,41 +352,34 @@ export const MessageBubble = React.memo(function MessageBubble({ message }: Prop
         )}
 
         {/* Timestamp + status row */}
-        <span
-          style={{
-            fontSize: 10,
-            color: '#667781',
-            float: 'right',
-            margin: '6px -3px -2px 8px',
-            display: 'inline-flex',
-            gap: 3,
-            alignItems: 'center',
-          }}
+        <div
+          className={cn(
+            'flex items-center gap-1 mt-1',
+            isOutbound ? 'justify-end' : 'justify-end',
+          )}
         >
-          {formatRelativeTime(message.createdAt)}
-          {isOutbound && <StatusIcon status={message.status} isOutbound={isOutbound} />}
-        </span>
+          <span className="text-[10px] opacity-70 text-[#667781]">
+            {formatRelativeTime(message.createdAt)}
+          </span>
+          {isOutbound && (
+            <span className="text-[#667781]">
+              <StatusIcon status={message.status} isOutbound={isOutbound} />
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Reaction pills */}
+      {/* Reaction pills — sit below the bubble, overlapping slightly */}
       <ReactionPills reactions={message.reactions} isOutbound={isOutbound} />
     </div>
   );
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: isOutbound ? 'flex-end' : 'flex-start',
-      }}
-    >
+    <div className={cn('flex', isOutbound ? 'justify-end' : 'justify-start', 'px-4 py-0.5')}>
       {isOutbound ? (
         <Tooltip>
           <TooltipTrigger asChild>{bubble}</TooltipTrigger>
-          <TooltipContent
-            side="left"
-            className="bg-popover text-popover-foreground border shadow-md"
-          >
+          <TooltipContent side="left" className="bg-popover text-popover-foreground border shadow-md">
             <StatusTooltipContent message={message} />
           </TooltipContent>
         </Tooltip>
