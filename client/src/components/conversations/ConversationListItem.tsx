@@ -1,6 +1,22 @@
 import React from 'react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { cn, formatRelativeTime, getInitials, formatPhoneDisplay } from '@/lib/utils';
+import { cn, formatRelativeTime, getInitials } from '@/lib/utils';
+
+// Deterministic avatar color from display name
+const AVATAR_COLORS = [
+  '#9b6c3a',
+  '#3a7a9b',
+  '#6c6b3a',
+  '#7a3a6c',
+  '#3a9b7a',
+  '#7a5a3a',
+  '#5c5c5c',
+];
+
+function getAvatarColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash += name.charCodeAt(i);
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
+}
 
 interface ConversationListItemProps {
   id: string;
@@ -9,6 +25,7 @@ interface ConversationListItemProps {
   lastMessageAt: string | null;
   unreadCount: number;
   isActive: boolean;
+  isAuto?: boolean;
   onClick: () => void;
 }
 
@@ -18,62 +35,144 @@ export const ConversationListItem = React.memo(function ConversationListItem({
   lastMessageAt,
   unreadCount,
   isActive,
+  isAuto = false,
   onClick,
 }: ConversationListItemProps) {
   const initials = getInitials(displayName);
+  const avatarColor = getAvatarColor(displayName);
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={cn(
-        'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors duration-150',
-        'hover:bg-muted/50',
-        isActive && 'bg-primary/10 border-l-2 border-primary',
-        !isActive && 'border-l-2 border-transparent',
-      )}
+      className={cn('w-full text-left transition-colors duration-100')}
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'auto 1fr auto',
+        gap: 10,
+        padding: '12px',
+        borderBottom: '1px solid var(--cf-border)',
+        background: isActive ? 'var(--brand-050)' : 'var(--cf-surface)',
+        cursor: 'pointer',
+      }}
+      onMouseEnter={(e) => {
+        if (!isActive)
+          (e.currentTarget as HTMLButtonElement).style.background = 'var(--cf-surface-2)';
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLButtonElement).style.background = isActive
+          ? 'var(--brand-050)'
+          : 'var(--cf-surface)';
+      }}
     >
       {/* Avatar */}
-      <Avatar className="h-10 w-10 flex-shrink-0">
-        <AvatarFallback className="bg-primary/15 text-primary font-semibold text-sm">
-          {initials}
-        </AvatarFallback>
-      </Avatar>
+      <div
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: '50%',
+          background: avatarColor,
+          display: 'grid',
+          placeItems: 'center',
+          color: '#fff',
+          fontWeight: 650,
+          fontSize: 13.5,
+          flexShrink: 0,
+        }}
+      >
+        {initials}
+      </div>
 
       {/* Content */}
-      <div className="flex-1 min-w-0">
-        {/* Top row: name + timestamp */}
-        <div className="flex items-center justify-between gap-2 mb-0.5">
+      <div style={{ minWidth: 0 }}>
+        {/* Name row */}
+        <div
+          style={{
+            fontSize: 13.5,
+            fontWeight: 600,
+            lineHeight: 1.2,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+          }}
+        >
           <span
-            className={cn(
-              'text-sm font-medium truncate',
-              isActive ? 'text-foreground' : 'text-foreground',
-            )}
+            style={{
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              color: 'var(--ink-900)',
+            }}
           >
             {displayName}
           </span>
-          {lastMessageAt && (
-            <span className="text-[11px] text-muted-foreground flex-shrink-0">
-              {formatRelativeTime(lastMessageAt)}
+          {isAuto && (
+            <span
+              style={{
+                fontSize: 9.5,
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                color: 'var(--accent-violet)',
+                background: 'var(--accent-violet-bg)',
+                padding: '1px 5px',
+                borderRadius: 4,
+                flexShrink: 0,
+              }}
+            >
+              AUTO
             </span>
           )}
         </div>
+        {/* Preview row */}
+        <div
+          style={{
+            fontSize: 12,
+            color: 'var(--ink-500)',
+            marginTop: 3,
+            overflow: 'hidden',
+            display: '-webkit-box',
+            WebkitLineClamp: 1,
+            WebkitBoxOrient: 'vertical',
+            maxWidth: 190,
+          }}
+        >
+          {lastMessageText ?? 'No messages yet'}
+        </div>
+      </div>
 
-        {/* Bottom row: last message + unread badge */}
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground truncate">
-            {lastMessageText ?? 'No messages yet'}
-          </span>
-          {unreadCount > 0 && (
-            <span className="flex-shrink-0 inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-emerald-500 text-white text-[10px] font-bold leading-none">
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </span>
-          )}
-        </div>
+      {/* Right column: time + unread */}
+      <div
+        style={{
+          textAlign: 'right',
+          fontSize: 11,
+          color: 'var(--ink-500)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-end',
+          gap: 4,
+        }}
+      >
+        {lastMessageAt && <div>{formatRelativeTime(lastMessageAt)}</div>}
+        {unreadCount > 0 && (
+          <div
+            style={{
+              background: 'var(--brand-600)',
+              color: '#fff',
+              fontSize: 10.5,
+              fontWeight: 700,
+              padding: '1px 6px',
+              borderRadius: 99,
+              minWidth: 18,
+              textAlign: 'center',
+            }}
+          >
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </div>
+        )}
       </div>
     </button>
   );
 });
 
-// Keep formatPhoneDisplay available for callers who need to map Conversation -> props
-export { formatPhoneDisplay };
+export { getAvatarColor };

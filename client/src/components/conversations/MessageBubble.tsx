@@ -1,5 +1,19 @@
 import React, { useState } from 'react';
-import { Check, CheckCheck, AlertCircle, Clock, FileText, Image, Video, Music, File, MousePointerClick, ExternalLink, Phone, Play } from 'lucide-react';
+import {
+  Check,
+  CheckCheck,
+  AlertCircle,
+  Clock,
+  FileText,
+  Image,
+  Video,
+  Music,
+  File,
+  MousePointerClick,
+  ExternalLink,
+  Phone,
+  Play,
+} from 'lucide-react';
 import Lightbox from 'yet-another-react-lightbox';
 import VideoPlugin from 'yet-another-react-lightbox/plugins/video';
 import 'yet-another-react-lightbox/styles.css';
@@ -11,22 +25,19 @@ interface Props {
   message: Message;
 }
 
-function StatusIcon({ status }: { status: MessageStatus }) {
+function StatusIcon({ status, isOutbound }: { status: MessageStatus; isOutbound: boolean }) {
+  const color = isOutbound ? '#667781' : '#667781';
   switch (status) {
     case 'PENDING':
-      // Clock: queued, not yet accepted by Meta servers
-      return <Clock className="h-3 w-3 opacity-50" />;
+      return <Clock style={{ width: 11, height: 11, opacity: 0.5, color }} />;
     case 'SENT':
-      // Single grey tick: accepted by Meta servers
-      return <Check className="h-3 w-3 opacity-60" />;
+      return <Check style={{ width: 11, height: 11, opacity: 0.6, color }} />;
     case 'DELIVERED':
-      // Double grey tick: delivered to recipient's device
-      return <CheckCheck className="h-3 w-3 opacity-60" />;
+      return <CheckCheck style={{ width: 11, height: 11, opacity: 0.6, color }} />;
     case 'READ':
-      // Double blue tick: recipient opened the message (#53BDEB — WhatsApp blue)
-      return <CheckCheck className="h-3 w-3 text-[#53BDEB]" />;
+      return <CheckCheck style={{ width: 11, height: 11, color: '#53BDEB' }} />;
     case 'FAILED':
-      return <AlertCircle className="h-3 w-3 text-destructive" />;
+      return <AlertCircle style={{ width: 11, height: 11, color: '#a9384d' }} />;
     default:
       return null;
   }
@@ -52,7 +63,6 @@ function MediaContent({ message }: { message: Message }) {
                 alt={message.caption ?? 'Image'}
                 className="block w-full max-w-[280px] sm:max-w-xs max-h-64 object-cover rounded-lg"
               />
-              {/* Expand hint on hover */}
               <span className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-colors rounded-lg">
                 <span className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-medium bg-black/50 px-2 py-1 rounded-full">
                   View
@@ -93,7 +103,6 @@ function MediaContent({ message }: { message: Message }) {
                 src={src}
                 className="block w-full max-w-[280px] sm:max-w-xs max-h-64 object-cover rounded-lg"
               />
-              {/* Play icon overlay */}
               <span className="absolute inset-0 flex items-center justify-center">
                 <span className="flex items-center justify-center w-12 h-12 rounded-full bg-black/50 group-hover:bg-black/70 transition-colors">
                   <Play className="h-5 w-5 text-white fill-white ml-0.5" />
@@ -113,10 +122,7 @@ function MediaContent({ message }: { message: Message }) {
             open={lightboxOpen}
             close={() => setLightboxOpen(false)}
             plugins={[VideoPlugin]}
-            slides={[{
-              type: 'video',
-              sources: [{ src, type: mimeType ?? 'video/mp4' }],
-            }]}
+            slides={[{ type: 'video', sources: [{ src, type: mimeType ?? 'video/mp4' }] }]}
           />
         )}
       </>
@@ -185,7 +191,6 @@ function StatusTooltipContent({ message }: { message: Message }) {
   if (deliveredAt) {
     rows.push({ label: 'Delivered', time: formatTimestamp(deliveredAt) });
   } else if (message.status === 'DELIVERED' || message.status === 'READ') {
-    // statusUpdatedAt is available only if status was updated after creation
     if (message.statusUpdatedAt) {
       rows.push({ label: 'Delivered', time: formatTimestamp(message.statusUpdatedAt) });
     }
@@ -194,7 +199,6 @@ function StatusTooltipContent({ message }: { message: Message }) {
   if (readAt) {
     rows.push({ label: 'Read', time: formatTimestamp(readAt) });
   } else if (message.status === 'READ' && message.statusUpdatedAt && !deliveredAt) {
-    // If we only have statusUpdatedAt and status is READ, it's the read time
     rows.push({ label: 'Read', time: formatTimestamp(message.statusUpdatedAt) });
   }
 
@@ -210,8 +214,6 @@ function StatusTooltipContent({ message }: { message: Message }) {
   );
 }
 
-// ── Template buttons ────────────────────────────────────────────────────────
-
 interface StoredButton {
   type: string;
   text: string;
@@ -221,18 +223,38 @@ interface StoredButton {
 
 function TemplateButtons({ buttons }: { buttons: StoredButton[] }) {
   return (
-    <div className="flex flex-col gap-1 mt-2 pt-2 border-t border-primary-foreground/20">
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 4,
+        marginTop: 8,
+        paddingTop: 8,
+        borderTop: '1px solid rgba(0,0,0,0.08)',
+      }}
+    >
       {buttons.map((btn, i) => {
         const isUrl = btn.type === 'URL';
         const isPhone = btn.type === 'PHONE_NUMBER';
         return (
           <div
             key={i}
-            className="flex items-center justify-center gap-1.5 text-xs font-medium text-primary-foreground/90 py-0.5"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 5,
+              fontSize: 12,
+              fontWeight: 600,
+              color: '#0a7cff',
+              padding: '3px 0',
+            }}
           >
-            {isUrl && <ExternalLink className="h-3 w-3 flex-shrink-0" />}
-            {isPhone && <Phone className="h-3 w-3 flex-shrink-0" />}
-            {!isUrl && !isPhone && <MousePointerClick className="h-3 w-3 flex-shrink-0 opacity-70" />}
+            {isUrl && <ExternalLink style={{ width: 12, height: 12, flexShrink: 0 }} />}
+            {isPhone && <Phone style={{ width: 12, height: 12, flexShrink: 0 }} />}
+            {!isUrl && !isPhone && (
+              <MousePointerClick style={{ width: 12, height: 12, flexShrink: 0, opacity: 0.7 }} />
+            )}
             <span>{btn.text}</span>
           </div>
         );
@@ -241,25 +263,60 @@ function TemplateButtons({ buttons }: { buttons: StoredButton[] }) {
   );
 }
 
-// ── Reply context (shown on inbound button-reply bubbles) ───────────────────
-
 function ReplyContext({ body, templateName }: { body: string; templateName?: string }) {
   return (
-    <div className="flex items-stretch gap-1.5 mb-1.5 rounded-lg bg-black/10 dark:bg-white/10 px-2 py-1.5 overflow-hidden">
-      <div className="w-0.5 rounded-full bg-muted-foreground/50 flex-shrink-0" />
-      <div className="flex flex-col gap-0.5 min-w-0">
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'stretch',
+        gap: 6,
+        marginBottom: 6,
+        borderRadius: 8,
+        background: 'rgba(0,0,0,0.06)',
+        padding: '6px 8px',
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          width: 2,
+          borderRadius: 99,
+          background: 'rgba(0,0,0,0.25)',
+          flexShrink: 0,
+        }}
+      />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
         {templateName && (
-          <span className="text-[10px] font-semibold text-muted-foreground truncate">
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: '#54656f',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
             {templateName}
           </span>
         )}
-        <p className="text-xs text-muted-foreground line-clamp-2 break-words">{body}</p>
+        <p
+          style={{
+            fontSize: 12,
+            color: '#3a4641',
+            overflow: 'hidden',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            wordBreak: 'break-word',
+          }}
+        >
+          {body}
+        </p>
       </div>
     </div>
   );
 }
-
-// ── Reaction pills ───────────────────────────────────────────────────────────
 
 function ReactionPills({ reactions, isOutbound }: { reactions: Reaction[]; isOutbound: boolean }) {
   const grouped = reactions.reduce<Record<string, number>>((acc, r) => {
@@ -271,15 +328,29 @@ function ReactionPills({ reactions, isOutbound }: { reactions: Reaction[]; isOut
   if (entries.length === 0) return null;
 
   return (
-    <div className={cn('flex gap-1 flex-wrap -mt-1', isOutbound ? 'justify-end' : 'justify-start')}>
+    <div
+      className={cn('flex gap-1 flex-wrap -mt-1', isOutbound ? 'justify-end' : 'justify-start')}
+    >
       {entries.map(([emoji, count]) => (
         <span
           key={emoji}
-          className="flex items-center gap-0.5 bg-background border border-border rounded-full px-1.5 py-0.5 text-sm shadow-sm leading-none select-none"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 2,
+            background: '#fff',
+            border: '1px solid var(--cf-border)',
+            borderRadius: 99,
+            padding: '2px 6px',
+            fontSize: 13,
+            boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+            lineHeight: 1,
+            userSelect: 'none',
+          }}
         >
           {emoji}
           {count > 1 && (
-            <span className="text-[10px] text-muted-foreground font-medium">{count}</span>
+            <span style={{ fontSize: 10, color: 'var(--ink-500)', fontWeight: 500 }}>{count}</span>
           )}
         </span>
       ))}
@@ -287,7 +358,7 @@ function ReactionPills({ reactions, isOutbound }: { reactions: Reaction[]; isOut
   );
 }
 
-// ── Main bubble ─────────────────────────────────────────────────────────────
+// ── Main bubble ──────────────────────────────────────────────────────────────
 
 export const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
   const isOutbound = message.direction === 'OUTBOUND';
@@ -300,30 +371,69 @@ export const MessageBubble = React.memo(function MessageBubble({ message }: Prop
   const replyToBody = meta?.replyToBody as string | undefined;
   const replyToTemplateName = meta?.replyToTemplateName as string | undefined;
 
+  // WhatsApp-style bubble colors
+  const bubbleBg = isOutbound ? '#d9fdd3' : '#ffffff';
+  const bubbleColor = '#111';
+  const bubbleShadow = '0 1px 0.5px rgba(0,0,0,0.08)';
+
   const bubble = (
     <div
-      className={cn(
-        'flex flex-col gap-1 max-w-[75%] sm:max-w-sm md:max-w-md',
-        isOutbound ? 'items-end' : 'items-start',
-      )}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 4,
+        maxWidth: '62%',
+        alignItems: isOutbound ? 'flex-end' : 'flex-start',
+      }}
     >
-      {/* Template label */}
-      {isTemplate && (
-        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-          {String(message.metadata?.templateName ?? 'Template')}
-        </span>
+      {/* Auto-tag for template messages */}
+      {isTemplate && isOutbound && (
+        <div
+          style={{
+            fontSize: 9.5,
+            fontWeight: 700,
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+            color: 'var(--accent-violet)',
+            background: 'var(--accent-violet-bg)',
+            padding: '1px 5px',
+            borderRadius: 4,
+            marginBottom: 2,
+          }}
+        >
+          Sent by automation · template
+        </div>
       )}
 
       {/* Interactive / button-reply label */}
       {isInteractive && (
-        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800/50 dark:text-slate-400">
+        <span
+          style={{
+            fontSize: 9.5,
+            fontWeight: 600,
+            padding: '2px 8px',
+            borderRadius: 99,
+            background: 'rgba(0,0,0,0.08)',
+            color: '#54656f',
+          }}
+        >
           Button reply
         </span>
       )}
 
       {/* Media type label */}
       {isMedia && (
-        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400 capitalize">
+        <span
+          style={{
+            fontSize: 9.5,
+            fontWeight: 600,
+            padding: '2px 8px',
+            borderRadius: 99,
+            background: 'rgba(0,0,0,0.08)',
+            color: '#54656f',
+            textTransform: 'capitalize',
+          }}
+        >
           {message.type.charAt(0) + message.type.slice(1).toLowerCase()}
         </span>
       )}
@@ -331,13 +441,18 @@ export const MessageBubble = React.memo(function MessageBubble({ message }: Prop
       {/* Bubble */}
       <div
         title={new Date(message.createdAt).toLocaleString()}
-        className={cn(
-          'relative px-3 py-2 rounded-2xl text-sm leading-relaxed',
-          isOutbound
-            ? 'bg-primary text-primary-foreground rounded-br-sm'
-            : 'bg-muted text-foreground rounded-bl-sm',
-          isTemplate && isOutbound && 'rounded-tr-sm',
-        )}
+        style={{
+          background: bubbleBg,
+          color: bubbleColor,
+          boxShadow: bubbleShadow,
+          padding: '7px 10px 6px',
+          borderRadius: 8,
+          fontSize: 13,
+          lineHeight: 1.45,
+          wordBreak: 'break-word',
+          whiteSpace: 'pre-wrap',
+          position: 'relative',
+        }}
       >
         {/* Reply-to context for inbound button replies */}
         {isInteractive && !isOutbound && replyToBody && (
@@ -348,9 +463,7 @@ export const MessageBubble = React.memo(function MessageBubble({ message }: Prop
         {isMedia ? (
           <MediaContent message={message} />
         ) : (
-          <p className="whitespace-pre-wrap break-words">
-            {message.body ?? ''}
-          </p>
+          <span>{message.body ?? ''}</span>
         )}
 
         {/* Template buttons */}
@@ -359,47 +472,41 @@ export const MessageBubble = React.memo(function MessageBubble({ message }: Prop
         )}
 
         {/* Timestamp + status row */}
-        <div
-          className={cn(
-            'flex items-center gap-1 mt-1',
-            isOutbound ? 'justify-end' : 'justify-end',
-          )}
+        <span
+          style={{
+            fontSize: 10,
+            color: '#667781',
+            float: 'right',
+            margin: '6px -3px -2px 8px',
+            display: 'inline-flex',
+            gap: 3,
+            alignItems: 'center',
+          }}
         >
-          <span
-            className={cn(
-              'text-[10px] opacity-70',
-              isOutbound ? 'text-primary-foreground' : 'text-muted-foreground',
-            )}
-          >
-            {formatRelativeTime(message.createdAt)}
-          </span>
-          {isOutbound && (
-            <span className={cn(isOutbound ? 'text-primary-foreground' : '')}>
-              <StatusIcon status={message.status} />
-            </span>
-          )}
-        </div>
+          {formatRelativeTime(message.createdAt)}
+          {isOutbound && <StatusIcon status={message.status} isOutbound={isOutbound} />}
+        </span>
       </div>
 
-      {/* Reaction pills — sit below the bubble, overlapping slightly */}
+      {/* Reaction pills */}
       <ReactionPills reactions={message.reactions} isOutbound={isOutbound} />
     </div>
   );
 
   return (
     <div
-      className={cn(
-        'flex',
-        isOutbound ? 'justify-end' : 'justify-start',
-        'px-4 py-0.5',
-      )}
+      style={{
+        display: 'flex',
+        justifyContent: isOutbound ? 'flex-end' : 'flex-start',
+      }}
     >
       {isOutbound ? (
         <Tooltip>
-          <TooltipTrigger asChild>
-            {bubble}
-          </TooltipTrigger>
-          <TooltipContent side="left" className="bg-popover text-popover-foreground border shadow-md">
+          <TooltipTrigger asChild>{bubble}</TooltipTrigger>
+          <TooltipContent
+            side="left"
+            className="bg-popover text-popover-foreground border shadow-md"
+          >
             <StatusTooltipContent message={message} />
           </TooltipContent>
         </Tooltip>

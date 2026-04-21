@@ -18,10 +18,19 @@ export function DateSeparator({ date }: DateSeparatorProps) {
   }
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2">
-      <div className="flex-1 h-px bg-border" />
-      <span className="text-[11px] text-muted-foreground font-medium flex-shrink-0">{label}</span>
-      <div className="flex-1 h-px bg-border" />
+    <div
+      style={{
+        alignSelf: 'center',
+        background: 'rgba(255, 255, 255, 0.7)',
+        color: '#54656f',
+        fontSize: 11.5,
+        fontWeight: 600,
+        padding: '3px 10px',
+        borderRadius: 8,
+        margin: '8px 0',
+      }}
+    >
+      {label}
     </div>
   );
 }

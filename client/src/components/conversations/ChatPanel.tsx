@@ -1,8 +1,5 @@
 import React, { useEffect, useRef, useCallback } from 'react';
-import { MessageSquare, RefreshCw, ArrowLeft, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { MessageSquare, Search, MoreVertical, ArrowLeft, Loader2 } from 'lucide-react';
 import { MessageBubble } from './MessageBubble';
 import { ChatInput } from './ChatInput';
 import { DateSeparator } from './DateSeparator';
@@ -10,7 +7,10 @@ import { MessagesSkeleton } from './MessagesSkeleton';
 import { useMessages } from '@/hooks/use-messages';
 import { api } from '@/lib/api';
 import { formatPhoneDisplay, getInitials } from '@/lib/utils';
+import { getAvatarColor } from './ConversationListItem';
 import type { Message, Conversation } from '@/types';
+
+const CHAT_BG_PATTERN = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><g fill='%23e0d8cb' opacity='0.5'><circle cx='20' cy='20' r='1.5'/><circle cx='55' cy='15' r='1'/><circle cx='80' cy='30' r='1.3'/><circle cx='30' cy='50' r='1.1'/><circle cx='65' cy='55' r='1.5'/><circle cx='90' cy='70' r='1'/><circle cx='15' cy='80' r='1.3'/><circle cx='50' cy='85' r='1.1'/></g></svg>")`;
 
 interface ChatPanelProps {
   conversationId: string;
@@ -47,8 +47,6 @@ export const ChatPanel = React.memo(function ChatPanel({
     const count = messages.length;
     const prevCount = prevMessageCountRef.current;
     prevMessageCountRef.current = count;
-
-    // Don't scroll if we loaded older messages (count increased but it's loadMore)
     if (count > prevCount && isNearBottomRef.current) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
@@ -67,37 +65,25 @@ export const ChatPanel = React.memo(function ChatPanel({
     const distanceFromBottom =
       container.scrollHeight - container.scrollTop - container.clientHeight;
     isNearBottomRef.current = distanceFromBottom < 100;
-
-    // Infinite scroll: load more when scrolled to top
-    if (container.scrollTop < 50 && hasMore && !loadingMore) {
-      loadMore();
-    }
+    if (container.scrollTop < 50 && hasMore && !loadingMore) loadMore();
   }, [hasMore, loadingMore, loadMore]);
 
-  // Mark conversation as read when it becomes active
+  // Mark conversation as read when opened
   useEffect(() => {
     if (!conversationId) return;
-    // Optimistically clear the unread badge immediately
     onMarkRead(conversationId);
-    void api.patch(`/conversations/${conversationId}/read`).catch(() => {
-      // Ignore errors for read marking
-    });
+    void api.patch(`/conversations/${conversationId}/read`).catch(() => {});
   }, [conversationId, onMarkRead]);
 
-  const handleMessageSent = useCallback(
-    (_message: Message) => {
-      // The server emits a new_message socket event after persisting the message,
-      // which dispatches messageReceived and adds it to Redux without clearing state.
-      // Calling refetchMessages() here resets items to [] (fetchMessages.pending),
-      // creating a race window where status-update socket events are silently dropped.
-      isNearBottomRef.current = true;
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    },
-    [],
-  );
+  const handleMessageSent = useCallback((_message: Message) => {
+    isNearBottomRef.current = true;
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
 
-  // Group messages by day for date separators
-  const messagesWithDates: Array<{ type: 'date'; date: string } | { type: 'message'; message: Message }> = [];
+  // Group messages by day
+  const messagesWithDates: Array<
+    { type: 'date'; date: string } | { type: 'message'; message: Message }
+  > = [];
   let lastDateString = '';
   for (const msg of messages) {
     const dateString = new Date(msg.createdAt).toDateString();
@@ -113,44 +99,135 @@ export const ChatPanel = React.memo(function ChatPanel({
     ? (customer.name ?? formatPhoneDisplay(customer.phone))
     : 'Loading...';
   const initials = customer ? getInitials(customer.name ?? customer.phone) : '?';
+  const avatarColor = getAvatarColor(displayName);
 
   return (
     <div className="flex flex-col h-full">
       {/* Chat header */}
-      <div className="flex items-center gap-3 border-b bg-background px-4 py-3 flex-shrink-0">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="md:hidden h-8 w-8"
+      <div
+        style={{
+          background: 'var(--cf-surface)',
+          borderBottom: '1px solid var(--cf-border)',
+          padding: '10px 18px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          flexShrink: 0,
+        }}
+      >
+        {/* Mobile back button */}
+        <button
+          type="button"
+          className="md:hidden"
           onClick={onBack}
+          style={{
+            width: 32,
+            height: 32,
+            display: 'grid',
+            placeItems: 'center',
+            borderRadius: 8,
+            color: 'var(--ink-700)',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+          }}
         >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
+          <ArrowLeft style={{ width: 17, height: 17, strokeWidth: 1.75 }} />
+        </button>
 
-        <Avatar className="h-9 w-9 flex-shrink-0">
-          <AvatarFallback className="bg-primary/15 text-primary font-semibold text-sm">
-            {initials}
-          </AvatarFallback>
-        </Avatar>
-
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground truncate">{displayName}</p>
-          {customer && (
-            <p className="text-xs text-muted-foreground">
-              {formatPhoneDisplay(customer.phone)}
-            </p>
-          )}
+        {/* Avatar */}
+        <div
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: '50%',
+            background: avatarColor,
+            display: 'grid',
+            placeItems: 'center',
+            color: '#fff',
+            fontWeight: 650,
+            fontSize: 12.5,
+            flexShrink: 0,
+          }}
+        >
+          {initials}
         </div>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 flex-shrink-0"
+        {/* Name + phone */}
+        <div style={{ minWidth: 0, flexShrink: 1 }}>
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: 'var(--ink-900)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {displayName}
+          </div>
+          <div style={{ fontSize: 11.5, color: 'var(--ink-500)', marginTop: 2 }}>
+            {customer ? formatPhoneDisplay(customer.phone) : ''}
+            {' · '}
+            <span style={{ color: 'var(--brand-700)', fontWeight: 600 }}>online</span>
+          </div>
+        </div>
+
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
+
+        {/* Search icon button */}
+        <button
+          type="button"
           onClick={refetchMessages}
           title="Refresh messages"
+          style={{
+            width: 32,
+            height: 32,
+            display: 'grid',
+            placeItems: 'center',
+            borderRadius: 8,
+            color: 'var(--ink-700)',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+          onMouseEnter={(e) =>
+            ((e.currentTarget as HTMLButtonElement).style.background =
+              'var(--cf-surface-sunken)')
+          }
+          onMouseLeave={(e) =>
+            ((e.currentTarget as HTMLButtonElement).style.background = 'none')
+          }
         >
-          <RefreshCw className="h-4 w-4" />
-        </Button>
+          <Search style={{ width: 17, height: 17, strokeWidth: 1.75 }} />
+        </button>
+
+        {/* More icon button */}
+        <button
+          type="button"
+          style={{
+            width: 32,
+            height: 32,
+            display: 'grid',
+            placeItems: 'center',
+            borderRadius: 8,
+            color: 'var(--ink-700)',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+          onMouseEnter={(e) =>
+            ((e.currentTarget as HTMLButtonElement).style.background =
+              'var(--cf-surface-sunken)')
+          }
+          onMouseLeave={(e) =>
+            ((e.currentTarget as HTMLButtonElement).style.background = 'none')
+          }
+        >
+          <MoreVertical style={{ width: 17, height: 17, strokeWidth: 1.75 }} />
+        </button>
       </div>
 
       {/* Messages area */}
@@ -158,63 +235,110 @@ export const ChatPanel = React.memo(function ChatPanel({
         ref={messagesContainerRef}
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto"
+        style={{
+          background: `#efeae2 ${CHAT_BG_PATTERN}`,
+          padding: '0',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
       >
-        {/* Load more spinner */}
-        {loadingMore && (
-          <div className="flex justify-center py-3">
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-          </div>
-        )}
+        {/* Inner scroll container */}
+        <div
+          style={{
+            flex: 1,
+            padding: '16px 20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 4,
+          }}
+        >
+          {/* Load more spinner */}
+          {loadingMore && (
+            <div className="flex justify-center py-3">
+              <Loader2
+                style={{ width: 16, height: 16, color: '#54656f' }}
+                className="animate-spin"
+              />
+            </div>
+          )}
 
-        {/* Load more trigger text */}
-        {hasMore && !loadingMore && messages.length > 0 && (
-          <div className="flex justify-center py-2">
-            <button
-              type="button"
-              onClick={loadMore}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Load older messages
-            </button>
-          </div>
-        )}
+          {/* Load more trigger */}
+          {hasMore && !loadingMore && messages.length > 0 && (
+            <div className="flex justify-center py-2">
+              <button
+                type="button"
+                onClick={loadMore}
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  color: '#54656f',
+                  background: 'rgba(255,255,255,0.7)',
+                  padding: '3px 10px',
+                  borderRadius: 8,
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                Load older messages
+              </button>
+            </div>
+          )}
 
-        {loadingInitial && <MessagesSkeleton />}
+          {loadingInitial && <MessagesSkeleton />}
 
-        {!loadingInitial && messagesError && (
-          <div className="p-4">
-            <Alert variant="destructive">
-              <AlertDescription>
+          {!loadingInitial && messagesError && (
+            <div className="p-4">
+              <div
+                style={{
+                  background: 'rgba(255,255,255,0.85)',
+                  border: '1px solid var(--cf-border)',
+                  borderRadius: 10,
+                  padding: '12px 16px',
+                  fontSize: 13,
+                  color: 'var(--accent-rose)',
+                }}
+              >
                 {messagesError}
                 <button
                   type="button"
                   onClick={refetchMessages}
-                  className="ml-2 underline"
+                  style={{ marginLeft: 8, textDecoration: 'underline', cursor: 'pointer' }}
                 >
                   Try again
                 </button>
-              </AlertDescription>
-            </Alert>
-          </div>
-        )}
+              </div>
+            </div>
+          )}
 
-        {!loadingInitial && !messagesError && messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-            <MessageSquare className="h-8 w-8 text-muted-foreground mb-3" />
-            <p className="text-sm text-muted-foreground">No messages yet</p>
-          </div>
-        )}
+          {!loadingInitial && !messagesError && messages.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+              <div
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.7)',
+                  display: 'grid',
+                  placeItems: 'center',
+                  marginBottom: 12,
+                }}
+              >
+                <MessageSquare style={{ width: 24, height: 24, color: '#54656f' }} />
+              </div>
+              <p style={{ fontSize: 13, color: '#54656f' }}>No messages yet</p>
+            </div>
+          )}
 
-        {!loadingInitial &&
-          messagesWithDates.map((item, idx) => {
-            if (item.type === 'date') {
-              return <DateSeparator key={`date-${idx}`} date={item.date} />;
-            }
-            return <MessageBubble key={item.message.id} message={item.message} />;
-          })}
+          {!loadingInitial &&
+            messagesWithDates.map((item, idx) => {
+              if (item.type === 'date') {
+                return <DateSeparator key={`date-${idx}`} date={item.date} />;
+              }
+              return <MessageBubble key={item.message.id} message={item.message} />;
+            })}
 
-        {/* Scroll anchor */}
-        <div ref={messagesEndRef} className="h-1" />
+          <div ref={messagesEndRef} style={{ height: 4 }} />
+        </div>
       </div>
 
       {/* Chat input */}

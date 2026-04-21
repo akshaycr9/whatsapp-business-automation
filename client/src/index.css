@@ -43,6 +43,41 @@
     --sidebar-width: 16rem;
     --sidebar-width-collapsed: 4rem;
     --header-height: 3.5rem;
+
+    /* ── Chatflo raw design tokens (used directly in conversation components) ── */
+    --brand-900: #07332e;
+    --brand-800: #0b5d54;
+    --brand-700: #107a6d;
+    --brand-600: #128c7e;
+    --brand-500: #17a398;
+    --brand-400: #3fbfae;
+    --brand-300: #8ddccd;
+    --brand-200: #c6ebe2;
+    --brand-100: #e7f5f1;
+    --brand-050: #f2faf7;
+
+    --ink-900: #1b2420;
+    --ink-700: #3a4641;
+    --ink-500: #6b7671;
+    --ink-400: #8a948f;
+    --ink-300: #b4bcb7;
+
+    --cf-surface: #ffffff;
+    --cf-surface-2: #fbfcfa;
+    --cf-surface-sunken: #eff1ed;
+    --cf-border: #e3e6e0;
+    --cf-border-strong: #c9cec4;
+
+    --accent-amber: #b5790a;
+    --accent-amber-bg: #fcf3dd;
+    --accent-rose: #a9384d;
+    --accent-rose-bg: #fbe5e8;
+    --accent-violet: #5b4bb5;
+    --accent-violet-bg: #eae6fb;
+
+    --shadow-sm-cf: 0 1px 2px rgba(16, 32, 28, 0.04);
+    --shadow-cf: 0 2px 8px rgba(16, 32, 28, 0.06), 0 1px 2px rgba(16, 32, 28, 0.04);
+    --shadow-lg-cf: 0 12px 32px -8px rgba(16, 32, 28, 0.14), 0 4px 12px rgba(16, 32, 28, 0.06);
   }
 
   .dark {
