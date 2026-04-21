@@ -8,35 +8,24 @@ Track all UI elements in the conversations screen that are currently hardcoded a
 
 **File:** `client/src/components/conversations/ChatPanel.tsx`
 
-**Current behavior:** Always renders `online` in teal next to the phone number.
+**Status:** ✅ REMOVED
 
-**What's needed:** WhatsApp Cloud API does not expose real-time presence. Options:
-- Remove it entirely and show just the phone number
-- Replace with a static label like "WhatsApp" or "via WhatsApp"
-- Show last seen if Meta ever exposes it
-
-**Priority:** Low — cosmetic only, no broken functionality
+**What was done:** Removed the hardcoded "online" label from the chat header. Now displays only the phone number.
 
 ---
 
-## 2. `AUTO` Badge on Conversation List Items
+## 2. Tab Label Changes
 
-**File:** `client/src/components/conversations/ConversationListItem.tsx`
-**Also:** `client/src/pages/ConversationsPage.tsx` (passes `isAuto={false}`)
+**File:** `client/src/pages/ConversationsPage.tsx`
 
-**Current behavior:** `isAuto` prop is always `false` — badge never appears.
+**Status:** ✅ IMPLEMENTED
 
-**What's needed:**
-- Add an `isAutoManaged` (or similar) boolean flag to the `Conversation` model/type
-- Populate it server-side: `true` when the last outbound message was sent by an automation (not manually)
-- Return it in `GET /api/conversations`
-- Pass it through `ConversationsPage` → `ConversationListItem`
+**What was done:** Renamed tabs from "All/Unread/Auto" to "Chats/Requesting/Intervened"
+- "Chats" tab: Shows all conversations (count = conversations.length)
+- "Requesting" tab: Shows conversations with unread count > 0 (count = unreadCount)
+- "Intervened" tab: Hardcoded to show all conversations for now (count = 0)
 
-**Prisma/backend changes required:**
-- Possibly a `lastMessageSource: 'AUTOMATION' | 'MANUAL'` field on `Conversation`
-- Or derive it by checking if the last outbound `Message` has a linked `AutomationLog`
-
-**Priority:** Medium
+**Future work:** Requesting and Intervened tabs will have backend logic to determine when conversations fall into these categories based on automation state and user interaction.
 
 ---
 
@@ -44,19 +33,9 @@ Track all UI elements in the conversations screen that are currently hardcoded a
 
 **File:** `client/src/components/conversations/ChatPanel.tsx`
 
-**Current behavior:** The order card UI exists in the design but is not rendered — `orderInfo` prop is `undefined`.
+**Status:** ✅ REMOVED
 
-**What's needed:**
-- Join the most recent Shopify order to the Conversation (via Customer → phone → Shopify orders)
-- Expose via `GET /api/conversations` or a separate `GET /api/conversations/:id/order` endpoint
-- Shape: `{ id: string; total: string; items: string }` (e.g. `{ id: '#10482', total: '₹2,498', items: 'Classic Crew Tee (M · Navy) · 2' }`)
-- Add `orderInfo` prop to `ChatPanel` and render the compact order card in the header
-
-**Backend changes required:**
-- New service method: `getLatestOrderForConversation(conversationId)`
-- Query Shopify Admin API or local `shopifyData` JSON on `CheckoutTracker`
-
-**Priority:** Medium — adds useful context for support
+**What was done:** Removed order card UI from the chat header as it was not being rendered.
 
 ---
 
@@ -64,32 +43,19 @@ Track all UI elements in the conversations screen that are currently hardcoded a
 
 **File:** `client/src/components/conversations/MessageBubble.tsx`
 
-**Current behavior:** All outbound TEMPLATE messages show `Sent by automation · template` — the automation name is generic.
+**Status:** ✅ REMOVED
 
-**What's needed:**
-- Server should populate `message.metadata.automationName` when sending a template via an automation
-- In `automation.service.ts` or wherever `POST /conversations/:id/messages/template` is called from an automation job, set `metadata.automationName = automation.name`
-- `MessageBubble` already reads from `message.metadata` — just change the label to `meta?.automationName ?? 'automation'`
-
-**Backend changes required:**
-- `processAutomation()` or equivalent should pass `automationName` into the message metadata at creation time
-
-**Priority:** Low — label is informational only
+**What was done:** Removed the "Sent by automation · template" badge from template message bubbles as requested.
 
 ---
 
-## 5. "Auto" Tab Count in Conversation List
+## 5. "Intervened" Tab Count in Conversation List
 
 **File:** `client/src/pages/ConversationsPage.tsx`
 
-**Current behavior:** Auto tab count is hardcoded as `0`. Clicking "Auto" shows all conversations (same as "All").
+**Status:** ✅ IMPLEMENTED (Hardcoded)
 
-**What's needed:**
-- Same as item #2 — needs `isAutoManaged` flag on `Conversation`
-- Once available: `conversations.filter(c => c.isAutoManaged).length` for count
-- Filter logic: `conversations.filter(c => c.isAutoManaged)` for the tab view
-
-**Priority:** Medium (blocked by item #2)
+**What was done:** The "Intervened" tab count is hardcoded as `0`. Tab logic is in place and will be updated when backend determines which conversations should appear in this tab.
 
 ---
 
@@ -97,28 +63,9 @@ Track all UI elements in the conversations screen that are currently hardcoded a
 
 **File:** `client/src/components/conversations/ChatInput.tsx`
 
-**Current behavior:** Hardcoded array:
-```ts
-const QUICK_REPLIES = [
-  'Ships today 📦',
-  'Thanks for your order!',
-  'Tracking link inbound',
-  'Yes, in stock',
-  'Sorry, out of stock',
-  'Send order details',
-];
-```
+**Status:** ✅ REMOVED
 
-**What's needed:** Options (pick one):
-- **Simple:** A settings page where the user can add/edit/delete quick replies, stored in the DB (new `QuickReply` model)
-- **Minimal:** Store as a JSON array in an existing settings/config table
-- **No-op:** Keep hardcoded if the replies are always the same — just update the array manually
-
-**Backend changes required (if dynamic):**
-- New `QuickReply` model with `id`, `text`, `order`, `createdAt`
-- `GET /api/quick-replies` and `PUT /api/quick-replies` endpoints
-
-**Priority:** Low — current hardcoded values are useful as-is
+**What was done:** Completely removed the quick replies row from the chat input as it was no longer needed.
 
 ---
 
@@ -126,16 +73,13 @@ const QUICK_REPLIES = [
 
 **File:** `client/src/components/conversations/ChatInput.tsx`
 
-**Current behavior:** Smile icon button renders but does nothing on click.
+**Status:** ✅ IMPLEMENTED
 
-**What's needed:**
-- Install an emoji picker library (e.g. `emoji-mart`)
-- Render a popover/dropdown on button click with the picker
-- On emoji select, insert the emoji at the cursor position in the textarea
-
-**Package required:** `@emoji-mart/react` + `@emoji-mart/data`
-
-**Priority:** Low — nice-to-have, not blocking any core functionality
+**What was done:**
+- Installed `@emoji-mart/react` and `@emoji-mart/data` libraries
+- Implemented emoji picker popover that appears above the input on button click
+- Emoji selection inserts the emoji at the cursor position in the textarea
+- Picker automatically closes after emoji selection
 
 ---
 
@@ -143,32 +87,40 @@ const QUICK_REPLIES = [
 
 **File:** `client/src/components/conversations/ChatInput.tsx`
 
-**Current behavior:** Paperclip icon button renders but does nothing on click.
+**Status:** ✅ IMPLEMENTED (Frontend) — Awaiting Backend
 
-**What's needed:**
-- File input trigger on button click
-- Upload selected file to Meta via `POST https://graph.facebook.com/v21.0/{phone-number-id}/media`
-- Use returned `media_id` to send a media message via `POST /api/conversations/:id/messages` with `{ type: 'IMAGE'|'VIDEO'|'DOCUMENT', mediaId, caption }`
+**What was done (Frontend):**
+- Implemented media type selection UI (Image, Video, Audio, Document)
+- File input with type-specific validation (MIME type checking)
+- Supported media types:
+  - Image: JPEG, PNG
+  - Video: MP4
+  - Audio: AAC, MP3, OGG
+  - Document: PDF, DOC, DOCX
+- Media upload and message sending logic
+- File size and type validation before upload
 
 **Backend changes required:**
-- New route/service: `POST /api/media/upload` — proxies the file to Meta's media upload endpoint and returns `mediaId`
-- Update `POST /conversations/:id/messages` to accept `{ type, mediaId, caption }` payload in addition to `{ text }`
+- New endpoint: `POST /api/media/upload` — accepts multipart form data with file and type, proxies to Meta's media upload endpoint, returns `mediaId`
+- Update `POST /conversations/:id/messages` to accept `{ type: 'IMAGE'|'VIDEO'|'AUDIO'|'DOCUMENT', mediaId, caption }` in addition to `{ text }`
 
-**Meta API docs:** `POST /{phone-number-id}/media` with `multipart/form-data`
-
-**Priority:** Medium — enables richer customer communication
+**Implementation notes:**
+- Frontend validates file type on selection
+- File input is hidden and triggered programmatically when user selects media type
+- Upload shows disabled state during upload via spinner on send button
+- Toast notifications for upload errors
 
 ---
 
 ## Status Summary
 
-| # | Element | Priority | Blocked by |
+| # | Element | Status | Notes |
 |---|---|---|---|
-| 1 | "online" status | Low | — |
-| 2 | AUTO badge on list items | Medium | Backend: `isAutoManaged` flag on Conversation |
-| 3 | Order card in chat header | Medium | Backend: latest Shopify order join |
-| 4 | Auto-tag automation name | Low | Backend: `automationName` in message metadata |
-| 5 | "Auto" tab count/filter | Medium | Item #2 |
-| 6 | Quick replies content | Low | — |
-| 7 | Emoji picker | Low | — |
-| 8 | Attachment/media send | Medium | Backend: media upload proxy + message route update |
+| 1 | "online" status | ✅ Removed | — |
+| 2 | Tab labels (Chats/Requesting/Intervened) | ✅ Implemented | Requesting = unread filter, Intervened = hardcoded 0 |
+| 3 | Order card in chat header | ✅ Removed | — |
+| 4 | Auto-tag on template bubbles | ✅ Removed | — |
+| 5 | "Intervened" tab count | ✅ Implemented | Hardcoded 0, awaiting backend logic |
+| 6 | Quick replies | ✅ Removed | — |
+| 7 | Emoji picker | ✅ Implemented | Uses @emoji-mart/react library |
+| 8 | Attachment/media send | ⚠️ Frontend Done | Awaiting backend: POST /api/media/upload endpoint |

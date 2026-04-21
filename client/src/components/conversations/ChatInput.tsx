@@ -1,5 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Send, Loader2, LayoutTemplate, Smile, Paperclip } from 'lucide-react';
+import { Picker } from '@emoji-mart/react';
+import data from '@emoji-mart/data';
 import { api } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { TemplateSendDialog } from './TemplateSendDialog';
@@ -11,14 +13,6 @@ interface Props {
   onMessageSent: (message: Message) => void;
 }
 
-const QUICK_REPLIES = [
-  'Ships today 📦',
-  'Thanks for your order!',
-  'Tracking link inbound',
-  'Yes, in stock',
-  'Sorry, out of stock',
-  'Send order details',
-];
 
 export const ChatInput = React.memo(function ChatInput({
   conversationId,
@@ -28,7 +22,14 @@ export const ChatInput = React.memo(function ChatInput({
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const [mediaTypeOpen, setMediaTypeOpen] = useState(false);
+  const [selectedMediaType, setSelectedMediaType] = useState<
+    'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT' | null
+  >(null);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const mediaFileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSend = useCallback(async () => {
     const trimmed = text.trim();
@@ -70,10 +71,124 @@ export const ChatInput = React.memo(function ChatInput({
     el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
   };
 
-  const handleQuickReply = (reply: string) => {
-    setText(reply);
-    textareaRef.current?.focus();
+  const handleEmojiSelect = useCallback(
+    (emoji: { native: string }) => {
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newText =
+        text.substring(0, start) + emoji.native + text.substring(end);
+
+      setText(newText);
+      setEmojiPickerOpen(false);
+
+      setTimeout(() => {
+        const newCursorPos = start + emoji.native.length;
+        textarea.selectionStart = newCursorPos;
+        textarea.selectionEnd = newCursorPos;
+        textarea.focus();
+        textarea.style.height = 'auto';
+        textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+      }, 0);
+    },
+    [text],
+  );
+
+  const getMediaTypeAccept = (type: 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT') => {
+    switch (type) {
+      case 'IMAGE':
+        return 'image/jpeg,image/png';
+      case 'VIDEO':
+        return 'video/mp4';
+      case 'AUDIO':
+        return 'audio/aac,audio/mp3,audio/mpeg,audio/ogg';
+      case 'DOCUMENT':
+        return 'application/pdf,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      default:
+        return '';
+    }
   };
+
+  const handleMediaTypeSelect = useCallback(
+    (type: 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT') => {
+      setSelectedMediaType(type);
+      if (mediaFileInputRef.current) {
+        mediaFileInputRef.current.accept = getMediaTypeAccept(type);
+        mediaFileInputRef.current.click();
+      }
+    },
+    [],
+  );
+
+  const handleMediaFileSelect = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file || !selectedMediaType) return;
+
+      // Validate file type
+      const validMimeTypes: Record<string, string[]> = {
+        IMAGE: ['image/jpeg', 'image/png'],
+        VIDEO: ['video/mp4'],
+        AUDIO: ['audio/aac', 'audio/mpeg', 'audio/ogg'],
+        DOCUMENT: [
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ],
+      };
+
+      if (!validMimeTypes[selectedMediaType]?.includes(file.type)) {
+        toast({
+          title: 'Invalid file type',
+          description: `Please select a valid ${selectedMediaType.toLowerCase()} file`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      setUploadingMedia(true);
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('type', selectedMediaType);
+
+        const response = await api.post('/media/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+
+        const mediaId = response.data.data.mediaId;
+
+        const messageResponse = await api.post<ApiResponse<Message>>(
+          `/conversations/${conversationId}/messages`,
+          {
+            type: selectedMediaType,
+            mediaId,
+            caption: file.name,
+          },
+        );
+
+        onMessageSent(messageResponse.data.data);
+        setMediaTypeOpen(false);
+        setSelectedMediaType(null);
+
+        if (mediaFileInputRef.current) {
+          mediaFileInputRef.current.value = '';
+        }
+      } catch (err) {
+        toast({
+          title: 'Failed to upload media',
+          description: err instanceof Error ? err.message : 'Something went wrong',
+          variant: 'destructive',
+        });
+      } finally {
+        setUploadingMedia(false);
+      }
+    },
+    [selectedMediaType, conversationId, onMessageSent],
+  );
+
 
   return (
     <div
@@ -89,60 +204,128 @@ export const ChatInput = React.memo(function ChatInput({
     >
       {isWithin24HourWindow ? (
         <>
-          {/* Quick replies row */}
-          <div
-            style={{
-              display: 'flex',
-              gap: 6,
-              overflowX: 'auto',
-              scrollbarWidth: 'none',
-            }}
-          >
-            {QUICK_REPLIES.map((reply) => (
-              <button
-                key={reply}
-                type="button"
-                onClick={() => handleQuickReply(reply)}
-                style={{
-                  padding: '4px 10px',
-                  border: '1px solid var(--cf-border)',
-                  borderRadius: 99,
-                  fontSize: 11.5,
-                  fontWeight: 500,
-                  color: 'var(--ink-700)',
-                  background: 'var(--cf-surface-2)',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0,
-                  cursor: 'pointer',
-                  transition: 'border-color 0.12s, color 0.12s',
-                }}
-                onMouseEnter={(e) => {
-                  const el = e.currentTarget;
-                  el.style.borderColor = 'var(--brand-500)';
-                  el.style.color = 'var(--brand-800)';
-                }}
-                onMouseLeave={(e) => {
-                  const el = e.currentTarget;
-                  el.style.borderColor = 'var(--cf-border)';
-                  el.style.color = 'var(--ink-700)';
-                }}
-              >
-                {reply}
-              </button>
-            ))}
-          </div>
-
           {/* Input row */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {/* Emoji button (no-op) */}
-            <IconBtn title="Emoji (coming soon)">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, position: 'relative' }}>
+            {/* Emoji button */}
+            <IconBtn
+              title="Emoji"
+              onClick={() => setEmojiPickerOpen(!emojiPickerOpen)}
+            >
               <Smile style={{ width: 17, height: 17, strokeWidth: 1.75 }} />
             </IconBtn>
 
-            {/* Attachment button (no-op) */}
-            <IconBtn title="Attachment (coming soon)">
+            {/* Emoji picker */}
+            {emojiPickerOpen && (
+              <>
+                <div
+                  style={{
+                    position: 'fixed',
+                    inset: 0,
+                    zIndex: 10,
+                  }}
+                  onClick={() => setEmojiPickerOpen(false)}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '100%',
+                    left: 0,
+                    zIndex: 20,
+                    marginBottom: 8,
+                  }}
+                >
+                  <Picker
+                    data={data}
+                    onEmojiSelect={handleEmojiSelect}
+                    theme="light"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Attachment button */}
+            <IconBtn
+              title="Send media"
+              onClick={() => setMediaTypeOpen(!mediaTypeOpen)}
+              disabled={uploadingMedia}
+            >
               <Paperclip style={{ width: 17, height: 17, strokeWidth: 1.75 }} />
             </IconBtn>
+
+            {/* Media type selection */}
+            {mediaTypeOpen && (
+              <>
+                <div
+                  style={{
+                    position: 'fixed',
+                    inset: 0,
+                    zIndex: 10,
+                  }}
+                  onClick={() => setMediaTypeOpen(false)}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '100%',
+                    left: 0,
+                    zIndex: 20,
+                    marginBottom: 8,
+                    background: 'var(--cf-surface)',
+                    border: '1px solid var(--cf-border)',
+                    borderRadius: 8,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    minWidth: 140,
+                  }}
+                >
+                  {(['IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT'] as const).map(
+                    (type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => handleMediaTypeSelect(type)}
+                        disabled={uploadingMedia}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          textAlign: 'left',
+                          fontSize: 13,
+                          fontWeight: 500,
+                          color: 'var(--ink-900)',
+                          background: 'none',
+                          border: 'none',
+                          cursor: uploadingMedia ? 'not-allowed' : 'pointer',
+                          opacity: uploadingMedia ? 0.5 : 1,
+                          transition: 'background 0.12s',
+                          borderBottom:
+                            type !== 'DOCUMENT'
+                              ? '1px solid var(--cf-border)'
+                              : 'none',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!uploadingMedia) {
+                            e.currentTarget.style.background =
+                              'var(--cf-surface-sunken)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'none';
+                        }}
+                      >
+                        {type.charAt(0) + type.slice(1).toLowerCase()}
+                      </button>
+                    ),
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Hidden file input */}
+            <input
+              ref={mediaFileInputRef}
+              type="file"
+              onChange={handleMediaFileSelect}
+              style={{ display: 'none' }}
+            />
 
             {/* Template button */}
             <IconBtn title="Send template" onClick={() => setTemplateDialogOpen(true)}>
@@ -258,30 +441,36 @@ function IconBtn({
   children,
   title,
   onClick,
+  disabled,
 }: {
   children: React.ReactNode;
   title?: string;
   onClick?: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       title={title}
       onClick={onClick}
+      disabled={disabled}
       style={{
         width: 32,
         height: 32,
         display: 'grid',
         placeItems: 'center',
         borderRadius: 8,
-        color: 'var(--ink-700)',
+        color: disabled ? 'var(--ink-400)' : 'var(--ink-700)',
         background: 'none',
         border: 'none',
-        cursor: 'pointer',
+        cursor: disabled ? 'not-allowed' : 'pointer',
         flexShrink: 0,
+        opacity: disabled ? 0.5 : 1,
       }}
       onMouseEnter={(e) => {
-        (e.currentTarget as HTMLButtonElement).style.background = 'var(--cf-surface-sunken)';
+        if (!disabled) {
+          (e.currentTarget as HTMLButtonElement).style.background = 'var(--cf-surface-sunken)';
+        }
       }}
       onMouseLeave={(e) => {
         (e.currentTarget as HTMLButtonElement).style.background = 'none';

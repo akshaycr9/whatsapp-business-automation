@@ -8,7 +8,7 @@ import { ConversationListSkeleton } from '@/components/conversations/Conversatio
 import { useConversations } from '@/hooks/use-conversations';
 import { formatPhoneDisplay } from '@/lib/utils';
 
-type Tab = 'all' | 'unread' | 'auto';
+type Tab = 'chats' | 'requesting' | 'intervened';
 
 export default function ConversationsPage() {
   const { id: activeId } = useParams<{ id: string }>();
@@ -16,7 +16,7 @@ export default function ConversationsPage() {
   const { conversations, loading, error, search, setSearch, refetch, markConversationRead } =
     useConversations();
 
-  const [activeTab, setActiveTab] = useState<Tab>('all');
+  const [activeTab, setActiveTab] = useState<Tab>('chats');
 
   const unreadCount = useMemo(
     () => conversations.filter((c) => c.unreadCount > 0).length,
@@ -24,8 +24,8 @@ export default function ConversationsPage() {
   );
 
   const filteredConversations = useMemo(() => {
-    if (activeTab === 'unread') return conversations.filter((c) => c.unreadCount > 0);
-    // 'auto' tab — no backend flag yet, show all as fallback
+    if (activeTab === 'requesting') return conversations.filter((c) => c.unreadCount > 0);
+    // 'intervened' tab — no backend flag yet, show all as fallback
     return conversations;
   }, [conversations, activeTab]);
 
@@ -90,9 +90,9 @@ export default function ConversationsPage() {
           >
             {(
               [
-                { id: 'all', label: 'All', count: conversations.length },
-                { id: 'unread', label: 'Unread', count: unreadCount },
-                { id: 'auto', label: 'Auto', count: 0 },
+                { id: 'chats', label: 'Chats', count: conversations.length },
+                { id: 'requesting', label: 'Requesting', count: unreadCount },
+                { id: 'intervened', label: 'Intervened', count: 0 },
               ] as { id: Tab; label: string; count: number }[]
             ).map((tab) => (
               <button

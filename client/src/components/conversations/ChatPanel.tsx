@@ -169,8 +169,6 @@ export const ChatPanel = React.memo(function ChatPanel({
           </div>
           <div style={{ fontSize: 11.5, color: 'var(--ink-500)', marginTop: 2 }}>
             {customer ? formatPhoneDisplay(customer.phone) : ''}
-            {' · '}
-            <span style={{ color: 'var(--brand-700)', fontWeight: 600 }}>online</span>
           </div>
         </div>
 
