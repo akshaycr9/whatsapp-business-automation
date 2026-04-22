@@ -39,7 +39,7 @@ export const ChatInput = React.memo(function ChatInput({
     try {
       const response = await api.post<ApiResponse<Message>>(
         `/conversations/${conversationId}/messages`,
-        { text: trimmed },
+        { type: 'TEXT', text: trimmed },
       );
       setText('');
       if (textareaRef.current) {
@@ -152,20 +152,24 @@ export const ChatInput = React.memo(function ChatInput({
       try {
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('type', selectedMediaType);
 
-        const response = await api.post('/media/upload', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        const response = await api.post(
+          `/media/upload?mediaType=${selectedMediaType.toLowerCase()}`,
+          formData,
+          {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          }
+        );
 
-        const mediaId = response.data.data.mediaId;
+        const { mediaId, mimeType } = response.data.data;
 
         const messageResponse = await api.post<ApiResponse<Message>>(
           `/conversations/${conversationId}/messages`,
           {
             type: selectedMediaType,
             mediaId,
-            caption: file.name,
+            mimeType,
+            caption: selectedMediaType === 'DOCUMENT' ? file.name : undefined,
           },
         );
 

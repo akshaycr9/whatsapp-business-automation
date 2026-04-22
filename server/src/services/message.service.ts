@@ -229,6 +229,235 @@ export const sendTemplateReply = async (
   return message;
 };
 
+export const sendImageMessage = async (
+  conversationId: string,
+  mediaId: string,
+  caption?: string,
+  mimeType?: string
+): Promise<Message> => {
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    include: { customer: true },
+  });
+  if (!conversation) throw notFound('Conversation');
+
+  if (!conversation.lastInboundMessageAt) {
+    throw badRequest('No inbound message from customer yet. Use a template message to initiate contact.');
+  }
+
+  const windowMs = 24 * 60 * 60 * 1000;
+  const timeSinceLastInbound = Date.now() - conversation.lastInboundMessageAt.getTime();
+
+  if (timeSinceLastInbound >= windowMs) {
+    const hoursAgo = Math.floor(timeSinceLastInbound / (60 * 60 * 1000));
+    throw badRequest(`24-hour window closed (last customer message ${hoursAgo} hours ago). Use a template message to re-engage.`);
+  }
+
+  const result = await whatsappService.sendImageMessage(conversation.customer.phone, mediaId, caption);
+
+  const now = new Date();
+  const message = await prisma.message.create({
+    data: {
+      conversationId,
+      direction: 'OUTBOUND',
+      type: 'IMAGE',
+      mediaId,
+      mediaMimeType: mimeType ?? 'image/jpeg',
+      caption,
+      status: 'SENT',
+      waMessageId: result.messageId,
+    },
+  });
+
+  const updatedConversation = await prisma.conversation.update({
+    where: { id: conversationId },
+    data: {
+      lastMessageAt: now,
+      lastMessageText: caption || '[Image]',
+      lastOutboundMessageAt: now,
+    },
+    include: { customer: true },
+  });
+
+  emitNewMessage(conversationId, message);
+  emitConversationUpdated(updatedConversation);
+
+  return message;
+};
+
+export const sendVideoMessage = async (
+  conversationId: string,
+  mediaId: string,
+  caption?: string,
+  mimeType?: string
+): Promise<Message> => {
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    include: { customer: true },
+  });
+  if (!conversation) throw notFound('Conversation');
+
+  if (!conversation.lastInboundMessageAt) {
+    throw badRequest('No inbound message from customer yet. Use a template message to initiate contact.');
+  }
+
+  const windowMs = 24 * 60 * 60 * 1000;
+  const timeSinceLastInbound = Date.now() - conversation.lastInboundMessageAt.getTime();
+
+  if (timeSinceLastInbound >= windowMs) {
+    const hoursAgo = Math.floor(timeSinceLastInbound / (60 * 60 * 1000));
+    throw badRequest(`24-hour window closed (last customer message ${hoursAgo} hours ago). Use a template message to re-engage.`);
+  }
+
+  const result = await whatsappService.sendVideoMessage(conversation.customer.phone, mediaId, caption);
+
+  const now = new Date();
+  const message = await prisma.message.create({
+    data: {
+      conversationId,
+      direction: 'OUTBOUND',
+      type: 'VIDEO',
+      mediaId,
+      mediaMimeType: mimeType ?? 'video/mp4',
+      caption,
+      status: 'SENT',
+      waMessageId: result.messageId,
+    },
+  });
+
+  const updatedConversation = await prisma.conversation.update({
+    where: { id: conversationId },
+    data: {
+      lastMessageAt: now,
+      lastMessageText: caption || '[Video]',
+      lastOutboundMessageAt: now,
+    },
+    include: { customer: true },
+  });
+
+  emitNewMessage(conversationId, message);
+  emitConversationUpdated(updatedConversation);
+
+  return message;
+};
+
+export const sendAudioMessage = async (
+  conversationId: string,
+  mediaId: string,
+  mimeType?: string
+): Promise<Message> => {
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    include: { customer: true },
+  });
+  if (!conversation) throw notFound('Conversation');
+
+  if (!conversation.lastInboundMessageAt) {
+    throw badRequest('No inbound message from customer yet. Use a template message to initiate contact.');
+  }
+
+  const windowMs = 24 * 60 * 60 * 1000;
+  const timeSinceLastInbound = Date.now() - conversation.lastInboundMessageAt.getTime();
+
+  if (timeSinceLastInbound >= windowMs) {
+    const hoursAgo = Math.floor(timeSinceLastInbound / (60 * 60 * 1000));
+    throw badRequest(`24-hour window closed (last customer message ${hoursAgo} hours ago). Use a template message to re-engage.`);
+  }
+
+
+  const result = await whatsappService.sendAudioMessage(conversation.customer.phone, mediaId);
+
+  const now = new Date();
+  const message = await prisma.message.create({
+    data: {
+      conversationId,
+      direction: 'OUTBOUND',
+      type: 'AUDIO',
+      mediaId,
+      mediaMimeType: mimeType ?? 'audio/mpeg',
+      status: 'SENT',
+      waMessageId: result.messageId,
+    },
+  });
+
+  const updatedConversation = await prisma.conversation.update({
+    where: { id: conversationId },
+    data: {
+      lastMessageAt: now,
+      lastMessageText: '[Audio]',
+      lastOutboundMessageAt: now,
+    },
+    include: { customer: true },
+  });
+
+  emitNewMessage(conversationId, message);
+  emitConversationUpdated(updatedConversation);
+
+  return message;
+};
+
+export const sendDocumentMessage = async (
+  conversationId: string,
+  mediaId: string,
+  filename?: string,
+  caption?: string,
+  mimeType?: string
+): Promise<Message> => {
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    include: { customer: true },
+  });
+  if (!conversation) throw notFound('Conversation');
+
+  if (!conversation.lastInboundMessageAt) {
+    throw badRequest('No inbound message from customer yet. Use a template message to initiate contact.');
+  }
+
+  const windowMs = 24 * 60 * 60 * 1000;
+  const timeSinceLastInbound = Date.now() - conversation.lastInboundMessageAt.getTime();
+
+  if (timeSinceLastInbound >= windowMs) {
+    const hoursAgo = Math.floor(timeSinceLastInbound / (60 * 60 * 1000));
+    throw badRequest(`24-hour window closed (last customer message ${hoursAgo} hours ago). Use a template message to re-engage.`);
+  }
+
+  const result = await whatsappService.sendDocumentMessage(
+    conversation.customer.phone,
+    mediaId,
+    filename,
+    caption
+  );
+
+  const now = new Date();
+  const message = await prisma.message.create({
+    data: {
+      conversationId,
+      direction: 'OUTBOUND',
+      type: 'DOCUMENT',
+      mediaId,
+      mediaMimeType: mimeType ?? 'application/pdf',
+      caption: filename || caption,
+      status: 'SENT',
+      waMessageId: result.messageId,
+    },
+  });
+
+  const updatedConversation = await prisma.conversation.update({
+    where: { id: conversationId },
+    data: {
+      lastMessageAt: now,
+      lastMessageText: filename || '[Document]',
+      lastOutboundMessageAt: now,
+    },
+    include: { customer: true },
+  });
+
+  emitNewMessage(conversationId, message);
+  emitConversationUpdated(updatedConversation);
+
+  return message;
+};
+
 export const updateMessageStatus = async (
   waMessageId: string,
   newStatus: 'SENT' | 'DELIVERED' | 'READ' | 'FAILED',

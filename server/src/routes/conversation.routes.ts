@@ -5,14 +5,41 @@ import * as messageService from '../services/message.service.js';
 
 const router = Router();
 
-const sendTextSchema = z.object({
-  text: z.string().min(1),
-});
-
 const sendTemplateSchema = z.object({
   templateId: z.string().min(1),
   variables: z.record(z.string(), z.string()).optional().default({}),
 });
+
+const sendMessageSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('TEXT'),
+    text: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal('IMAGE'),
+    mediaId: z.string().min(1),
+    mimeType: z.string().optional(),
+    caption: z.string().optional(),
+  }),
+  z.object({
+    type: z.literal('VIDEO'),
+    mediaId: z.string().min(1),
+    mimeType: z.string().optional(),
+    caption: z.string().optional(),
+  }),
+  z.object({
+    type: z.literal('AUDIO'),
+    mediaId: z.string().min(1),
+    mimeType: z.string().optional(),
+  }),
+  z.object({
+    type: z.literal('DOCUMENT'),
+    mediaId: z.string().min(1),
+    mimeType: z.string().optional(),
+    filename: z.string().optional(),
+    caption: z.string().optional(),
+  }),
+]);
 
 // GET /api/conversations
 router.get('/', async (req, res, next) => {
@@ -79,12 +106,37 @@ router.get('/:id/messages', async (req, res, next) => {
   }
 });
 
-// POST /api/conversations/:id/messages — send text reply
+// POST /api/conversations/:id/messages — send text or media reply
 router.post('/:id/messages', async (req, res, next) => {
   try {
     const conversationId = req.params['id'] as string;
-    const { text } = sendTextSchema.parse(req.body);
-    const message = await messageService.sendTextReply(conversationId, text);
+    const payload = sendMessageSchema.parse(req.body);
+
+    let message;
+    switch (payload.type) {
+      case 'TEXT':
+        message = await messageService.sendTextReply(conversationId, payload.text);
+        break;
+      case 'IMAGE':
+        message = await messageService.sendImageMessage(conversationId, payload.mediaId, payload.caption, payload.mimeType);
+        break;
+      case 'VIDEO':
+        message = await messageService.sendVideoMessage(conversationId, payload.mediaId, payload.caption, payload.mimeType);
+        break;
+      case 'AUDIO':
+        message = await messageService.sendAudioMessage(conversationId, payload.mediaId, payload.mimeType);
+        break;
+      case 'DOCUMENT':
+        message = await messageService.sendDocumentMessage(
+          conversationId,
+          payload.mediaId,
+          payload.filename,
+          payload.caption,
+          payload.mimeType
+        );
+        break;
+    }
+
     res.status(201).json({ data: message });
   } catch (err: unknown) {
     next(err);

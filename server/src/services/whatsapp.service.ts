@@ -1,4 +1,5 @@
 import axios from 'axios';
+import FormData from 'form-data';
 import { metaApi } from '../lib/meta-api.js';
 import { env } from '../config/env.js';
 import { AppError } from '../lib/app-error.js';
@@ -62,10 +63,13 @@ function handleMetaError(error: unknown, context: string): never {
     const errorCode = metaError?.['code'] as number | undefined;
     const hint = errorCode !== undefined ? META_ERROR_HINTS[errorCode] : undefined;
     const fullMessage = hint ? `${rawMessage} | ${hint}` : rawMessage;
-    logger.error(`${context} [code=${errorCode ?? 'unknown'}]:`, fullMessage);
+    logger.error(`${context} [code=${errorCode ?? 'unknown'}]: ${fullMessage}`, {
+      status: error.response?.status,
+      data: error.response?.data,
+    });
     throw new AppError(502, fullMessage ?? 'Meta API error', 'META_API_ERROR');
   }
-  logger.error(`${context}:`, error);
+  logger.error(`${context}: ${String(error)}`);
   throw new AppError(502, 'Meta API error', 'META_API_ERROR');
 }
 
@@ -129,5 +133,134 @@ export const downloadMedia = async (mediaUrl: string): Promise<Buffer> => {
     return Buffer.from(response.data);
   } catch (error) {
     handleMetaError(error, 'downloadMedia');
+  }
+};
+
+export const uploadMedia = async (
+  file: { buffer: Buffer; mimetype: string }
+): Promise<{ mediaId: string; mimeType: string }> => {
+  try {
+    logger.info('Uploading media to Meta', { mimetype: file.mimetype, size: file.buffer.length });
+
+    const form = new FormData();
+    form.append('messaging_product', 'whatsapp');
+    form.append('file', file.buffer, { filename: 'media', contentType: file.mimetype });
+
+    const url = `https://graph.facebook.com/v21.0/${env.META_PHONE_NUMBER_ID}/media`;
+    logger.debug('Media upload request', { url, phoneNumberId: env.META_PHONE_NUMBER_ID });
+
+    const response = await axios.post<{ id: string }>(
+      url,
+      form,
+      {
+        headers: {
+          ...form.getHeaders(),
+          Authorization: `Bearer ${env.META_ACCESS_TOKEN}`,
+        },
+      }
+    );
+
+    logger.info('Media uploaded successfully', { mediaId: response.data.id });
+    return { mediaId: response.data.id, mimeType: file.mimetype };
+  } catch (error) {
+    handleMetaError(error, 'uploadMedia');
+  }
+};
+
+export const sendImageMessage = async (
+  to: string,
+  mediaId: string,
+  caption?: string
+): Promise<SendMessageResult> => {
+  try {
+    const response = await metaApi.post<{ messages: Array<{ id: string }> }>(
+      `/${env.META_PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to,
+        type: 'image',
+        image: {
+          id: mediaId,
+          ...(caption && { caption }),
+        },
+      }
+    );
+    return { messageId: response.data.messages[0]!.id };
+  } catch (error) {
+    handleMetaError(error, 'sendImageMessage');
+  }
+};
+
+export const sendVideoMessage = async (
+  to: string,
+  mediaId: string,
+  caption?: string
+): Promise<SendMessageResult> => {
+  try {
+    const response = await metaApi.post<{ messages: Array<{ id: string }> }>(
+      `/${env.META_PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to,
+        type: 'video',
+        video: {
+          id: mediaId,
+          ...(caption && { caption }),
+        },
+      }
+    );
+    return { messageId: response.data.messages[0]!.id };
+  } catch (error) {
+    handleMetaError(error, 'sendVideoMessage');
+  }
+};
+
+export const sendAudioMessage = async (
+  to: string,
+  mediaId: string
+): Promise<SendMessageResult> => {
+  try {
+    const response = await metaApi.post<{ messages: Array<{ id: string }> }>(
+      `/${env.META_PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to,
+        type: 'audio',
+        audio: { id: mediaId },
+      }
+    );
+    return { messageId: response.data.messages[0]!.id };
+  } catch (error) {
+    handleMetaError(error, 'sendAudioMessage');
+  }
+};
+
+export const sendDocumentMessage = async (
+  to: string,
+  mediaId: string,
+  filename?: string,
+  caption?: string
+): Promise<SendMessageResult> => {
+  try {
+    const response = await metaApi.post<{ messages: Array<{ id: string }> }>(
+      `/${env.META_PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to,
+        type: 'document',
+        document: {
+          id: mediaId,
+          ...(filename && { filename }),
+          ...(caption && { caption }),
+        },
+      }
+    );
+    return { messageId: response.data.messages[0]!.id };
+  } catch (error) {
+    handleMetaError(error, 'sendDocumentMessage');
   }
 };
