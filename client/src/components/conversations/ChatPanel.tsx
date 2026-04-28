@@ -41,23 +41,35 @@ export const ChatPanel = React.memo(function ChatPanel({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef(true);
   const prevMessageCountRef = useRef(0);
+  const hasScrolledInitiallyRef = useRef(false);
 
-  // Auto-scroll to bottom when new messages arrive (only if near bottom)
+  // Scroll to bottom on initial load (after skeleton disappears and messages render)
+  // With fixed media dimensions, no layout shift will occur
+  useEffect(() => {
+    if (!loadingInitial && !hasScrolledInitiallyRef.current && messages.length > 0) {
+      hasScrolledInitiallyRef.current = true;
+      const container = messagesContainerRef.current;
+      if (container) {
+        // Use requestAnimationFrame to ensure DOM has rendered
+        requestAnimationFrame(() => {
+          container.scrollTop = container.scrollHeight;
+        });
+      }
+    }
+  }, [loadingInitial]);
+
+  // Auto-scroll to bottom when new messages arrive (only if user is near bottom)
   useEffect(() => {
     const count = messages.length;
     const prevCount = prevMessageCountRef.current;
     prevMessageCountRef.current = count;
     if (count > prevCount && isNearBottomRef.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      const container = messagesContainerRef.current;
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+      }
     }
   }, [messages]);
-
-  // Scroll to bottom on initial load
-  useEffect(() => {
-    if (!loadingInitial && messages.length > 0) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
-    }
-  }, [loadingInitial]);
 
   const handleScroll = useCallback(() => {
     const container = messagesContainerRef.current;
@@ -68,16 +80,18 @@ export const ChatPanel = React.memo(function ChatPanel({
     if (container.scrollTop < 50 && hasMore && !loadingMore) loadMore();
   }, [hasMore, loadingMore, loadMore]);
 
-  // Mark conversation as read when opened
+  // Mark conversation as read when opened and reset scroll tracking
   useEffect(() => {
     if (!conversationId) return;
+    hasScrolledInitiallyRef.current = false;
     onMarkRead(conversationId);
     void api.patch(`/conversations/${conversationId}/read`).catch(() => {});
   }, [conversationId, onMarkRead]);
 
   const handleMessageSent = useCallback((_message: Message) => {
     isNearBottomRef.current = true;
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const container = messagesContainerRef.current;
+    if (container) container.scrollTop = container.scrollHeight;
   }, []);
 
   // Group messages by day

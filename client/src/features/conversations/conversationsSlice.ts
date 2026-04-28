@@ -70,7 +70,10 @@ const conversationsSlice = createSlice({
     conversationUpdated: (state, action: PayloadAction<ConversationUpdatedEvent>) => {
       const idx = state.allConversations.findIndex((c) => c.id === action.payload.conversation.id);
       if (idx !== -1) {
-        state.allConversations[idx] = action.payload.conversation;
+        state.allConversations[idx] = {
+          ...action.payload.conversation,
+          category: action.payload.category,
+        };
       }
     },
     newMessageInConversation: (state, action: PayloadAction<NewMessageEvent>) => {

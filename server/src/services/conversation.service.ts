@@ -120,6 +120,16 @@ export const getMessages = async (
     take: limit + 1,
   });
 
+  // Debug logging to verify mediaId is returned
+  const mediaMessages = rows.filter((m) => m.mediaId);
+  if (mediaMessages.length > 0) {
+    logger.info(`getMessages: returning ${mediaMessages.length} messages with mediaId`, {
+      conversationId,
+      count: mediaMessages.length,
+      sample: mediaMessages[0],
+    });
+  }
+
   const hasMore = rows.length > limit;
   const items = hasMore ? rows.slice(0, limit) : rows;
   const lastItem = items[items.length - 1];

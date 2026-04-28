@@ -68,6 +68,14 @@ export const fetchMessages = createAsyncThunk<
       const messages = [...res.data.data]
         .reverse()
         .map((m) => ({ ...m, reactions: m.reactions ?? [] }));
+
+      // Debug: log media messages
+      const mediaMessages = messages.filter((m) => m.mediaId);
+      console.log(`[fetchMessages] Loaded ${messages.length} messages, ${mediaMessages.length} have mediaId`, {
+        conversationId,
+        sample: mediaMessages[0] || 'none',
+      });
+
       return {
         conversationId,
         messages,

@@ -1,23 +1,15 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Check,
   CheckCheck,
   AlertCircle,
   Clock,
-  FileText,
-  Image,
-  Video,
-  Music,
-  File,
   MousePointerClick,
   ExternalLink,
   Phone,
-  Play,
 } from 'lucide-react';
-import Lightbox from 'yet-another-react-lightbox';
-import VideoPlugin from 'yet-another-react-lightbox/plugins/video';
-import 'yet-another-react-lightbox/styles.css';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { MediaContainer } from './MediaContainer';
 import { cn, formatRelativeTime } from '@/lib/utils';
 import type { Message, MessageStatus, Reaction } from '@/types';
 
@@ -44,128 +36,13 @@ function StatusIcon({ status }: { status: MessageStatus }) {
 }
 
 function MediaContent({ message }: { message: Message }) {
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const src = message.mediaId ? `/api/media/${message.mediaId}` : null;
-  const mimeType = message.mediaMimeType ?? undefined;
-
-  if (message.type === 'IMAGE') {
-    return (
-      <>
-        <div className="flex flex-col gap-2">
-          {src ? (
-            <button
-              type="button"
-              onClick={() => setLightboxOpen(true)}
-              className="relative group rounded-lg overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              <img
-                src={src}
-                alt={message.caption ?? 'Image'}
-                className="block w-full max-w-[280px] sm:max-w-xs max-h-64 object-cover rounded-lg"
-              />
-              <span className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-colors rounded-lg">
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-medium bg-black/50 px-2 py-1 rounded-full">
-                  View
-                </span>
-              </span>
-            </button>
-          ) : (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-black/10 text-sm">
-              <Image className="h-5 w-5" />
-              <span>Image unavailable</span>
-            </div>
-          )}
-          {message.caption && <p className="text-sm px-1">{message.caption}</p>}
-        </div>
-        {src && (
-          <Lightbox
-            open={lightboxOpen}
-            close={() => setLightboxOpen(false)}
-            slides={[{ src }]}
-          />
-        )}
-      </>
-    );
-  }
-
-  if (message.type === 'VIDEO') {
-    return (
-      <>
-        <div className="flex flex-col gap-2">
-          {src ? (
-            <button
-              type="button"
-              onClick={() => setLightboxOpen(true)}
-              className="relative group rounded-lg overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-              <video
-                src={src}
-                className="block w-full max-w-[280px] sm:max-w-xs max-h-64 object-cover rounded-lg"
-              />
-              <span className="absolute inset-0 flex items-center justify-center">
-                <span className="flex items-center justify-center w-12 h-12 rounded-full bg-black/50 group-hover:bg-black/70 transition-colors">
-                  <Play className="h-5 w-5 text-white fill-white ml-0.5" />
-                </span>
-              </span>
-            </button>
-          ) : (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-black/10 text-sm">
-              <Video className="h-5 w-5" />
-              <span>Video unavailable</span>
-            </div>
-          )}
-          {message.caption && <p className="text-sm px-1">{message.caption}</p>}
-        </div>
-        {src && (
-          <Lightbox
-            open={lightboxOpen}
-            close={() => setLightboxOpen(false)}
-            plugins={[VideoPlugin]}
-            slides={[{ type: 'video', sources: [{ src, type: mimeType ?? 'video/mp4' }] }]}
-          />
-        )}
-      </>
-    );
-  }
-
-  if (message.type === 'AUDIO') {
-    return (
-      <div className="flex flex-col gap-2">
-        {src ? (
-          // eslint-disable-next-line jsx-a11y/media-has-caption
-          <audio src={src} controls className="w-full min-w-[200px]" />
-        ) : (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-black/10 text-sm">
-            <Music className="h-5 w-5" />
-            <span>Audio unavailable</span>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  if (message.type === 'DOCUMENT') {
-    return (
-      <div className="flex flex-col gap-2">
-        <a
-          href={src ?? '#'}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 px-3 py-2 rounded-md bg-black/10 hover:bg-black/20 transition-colors text-sm font-medium"
-        >
-          <FileText className="h-5 w-5 flex-shrink-0" />
-          <span>{message.caption ?? 'Document'}</span>
-        </a>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-black/10 text-sm">
-      <File className="h-5 w-5" />
-      <span>File</span>
-    </div>
+    <MediaContainer
+      mediaId={message.mediaId ?? null}
+      type={message.type}
+      caption={message.caption ?? undefined}
+      mediaMimeType={message.mediaMimeType ?? undefined}
+    />
   );
 }
 
