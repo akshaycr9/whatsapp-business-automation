@@ -78,7 +78,7 @@ export const MediaContainer = React.memo(function MediaContainer({
     setHasError(true);
   }, [mediaId]);
 
-  // IMAGE
+  // IMAGE — Fixed dimensions (280px × 210px for 4:3 aspect ratio)
   if (type === "IMAGE") {
     return (
       <div ref={containerRef} className="flex flex-col gap-2">
@@ -97,11 +97,13 @@ export const MediaContainer = React.memo(function MediaContainer({
               type="button"
               onClick={() => setLightboxOpen(true)}
               className="relative group rounded-lg overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              style={{ width: '280px', height: '210px' }}
             >
               <img
                 src={mediaUrl}
                 alt={caption ?? "Image"}
-                className="block w-full max-w-[280px] sm:max-w-xs aspect-[4/3] object-cover rounded-lg"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                className="rounded-lg"
                 onLoad={handleMediaLoad}
                 onError={handleMediaError}
               />
@@ -126,7 +128,7 @@ export const MediaContainer = React.memo(function MediaContainer({
     );
   }
 
-  // VIDEO
+  // VIDEO — Fixed dimensions (280px × 157px for 16:9 aspect ratio)
   if (type === "VIDEO") {
     return (
       <div ref={containerRef} className="flex flex-col gap-2">
@@ -145,11 +147,13 @@ export const MediaContainer = React.memo(function MediaContainer({
               type="button"
               onClick={() => setLightboxOpen(true)}
               className="relative group rounded-lg overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              style={{ width: '280px', height: '157px' }}
             >
               {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
               <video
                 src={mediaUrl}
-                className="block w-full max-w-[280px] sm:max-w-xs aspect-video object-cover rounded-lg"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                className="rounded-lg"
                 onLoadedMetadata={handleMediaLoad}
                 onError={handleMediaError}
               />
@@ -182,7 +186,7 @@ export const MediaContainer = React.memo(function MediaContainer({
     );
   }
 
-  // AUDIO
+  // AUDIO — Fixed dimensions (flexible width, 40px height)
   if (type === "AUDIO") {
     return (
       <div ref={containerRef} className="flex flex-col gap-2">
@@ -200,7 +204,7 @@ export const MediaContainer = React.memo(function MediaContainer({
           <audio
             src={mediaUrl}
             controls
-            className="w-full min-w-[200px] max-w-sm"
+            style={{ width: '100%', maxWidth: '320px', height: '40px' }}
             onLoadedMetadata={handleMediaLoad}
             onError={handleMediaError}
           />
@@ -209,7 +213,7 @@ export const MediaContainer = React.memo(function MediaContainer({
     );
   }
 
-  // DOCUMENT
+  // DOCUMENT — Fixed dimensions (flexible width, 40px height)
   if (type === "DOCUMENT") {
     return (
       <div ref={containerRef} className="flex flex-col gap-2">
@@ -228,6 +232,7 @@ export const MediaContainer = React.memo(function MediaContainer({
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 px-3 py-2 rounded-md bg-black/10 hover:bg-black/20 transition-colors text-sm font-medium"
+            style={{ width: '100%', maxWidth: '320px', height: '40px' }}
             onLoad={handleMediaLoad}
             onError={handleMediaError}
           >

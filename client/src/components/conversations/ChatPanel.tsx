@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import { MessageSquare, ArrowLeft, Loader2 } from 'lucide-react';
+import { useAppDispatch } from '@/app/hooks';
+import { messageSentLocally } from '@/features/messages/messagesSlice';
 import { MessageBubble } from './MessageBubble';
 import { ChatInput } from './ChatInput';
 import { DateSeparator } from './DateSeparator';
@@ -25,6 +27,7 @@ export const ChatPanel = React.memo(function ChatPanel({
   onBack,
   onMarkRead,
 }: ChatPanelProps) {
+  const dispatch = useAppDispatch();
   const {
     messages,
     hasMore,
@@ -88,11 +91,12 @@ export const ChatPanel = React.memo(function ChatPanel({
     void api.patch(`/conversations/${conversationId}/read`).catch(() => {});
   }, [conversationId, onMarkRead]);
 
-  const handleMessageSent = useCallback((_message: Message) => {
+  const handleMessageSent = useCallback((message: Message) => {
+    dispatch(messageSentLocally({ conversationId, message }));
     isNearBottomRef.current = true;
     const container = messagesContainerRef.current;
     if (container) container.scrollTop = container.scrollHeight;
-  }, []);
+  }, [conversationId, dispatch]);
 
   // Group messages by day
   const messagesWithDates: Array<
