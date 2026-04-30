@@ -30,6 +30,16 @@ export function useMessages(conversationId: string | undefined): UseMessagesRetu
   );
   const convState = useAppSelector(selector);
 
+  // Debug: log when selector result changes
+  useEffect(() => {
+    console.log('[hook] useMessages selector result:', {
+      conversationId,
+      messageCount: convState.items.length,
+      status: convState.status,
+      messages: convState.items.map(m => ({ id: m.id, body: m.body?.substring(0, 20) })),
+    });
+  }, [conversationId, convState.items]);
+
   // Fetch messages and check window whenever conversationId changes
   useEffect(() => {
     if (!conversationId) return;

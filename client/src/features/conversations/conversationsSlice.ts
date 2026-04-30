@@ -79,6 +79,12 @@ const conversationsSlice = createSlice({
     newMessageInConversation: (state, action: PayloadAction<NewMessageEvent>) => {
       const { conversationId, message } = action.payload;
       const idx = state.allConversations.findIndex((c) => c.id === conversationId);
+      console.log('[redux] newMessageInConversation:', {
+        conversationId,
+        messageId: message.id,
+        conversationFound: idx !== -1,
+        totalConversations: state.allConversations.length,
+      });
       // Only update if conversation exists in list. The conversationUpdated reducer
       // handles moving the conversation to the top, so we focus on updating timestamps.
       if (idx !== -1) {
@@ -89,6 +95,9 @@ const conversationsSlice = createSlice({
         };
         state.allConversations.splice(idx, 1);
         state.allConversations.unshift(updated);
+        console.log('[redux] conversation moved to top, new position: 0');
+      } else {
+        console.log('[redux] conversation not in list, skipping list update');
       }
     },
     markRead: (state, action: PayloadAction<string>) => {

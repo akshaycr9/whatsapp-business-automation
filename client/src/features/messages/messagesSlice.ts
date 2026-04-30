@@ -165,18 +165,50 @@ const messagesSlice = createSlice({
     },
     messageReceived: (state, action: PayloadAction<NewMessageEvent>) => {
       const { conversationId, message } = action.payload;
+      console.log('[redux] messageReceived action received:', {
+        conversationId,
+        messageId: message.id,
+        direction: message.direction,
+        hasConversationState: !!state.byConversationId[conversationId],
+      });
+
       let conv = state.byConversationId[conversationId];
+
       // Initialize conversation state if it doesn't exist (e.g., message received before thread opened)
       if (!conv) {
-        conv = defaultConvMessages();
-        state.byConversationId[conversationId] = conv;
+        console.log('[redux] initializing new conversation state for', conversationId);
+        state.byConversationId[conversationId] = defaultConvMessages();
+        conv = state.byConversationId[conversationId];
       }
+
       // Avoid duplicates
-      if (conv.items.some((m) => m.id === message.id)) return;
-      conv.items.push({ ...message, reactions: message.reactions ?? [] });
+      const isDuplicate = conv.items.some((m) => m.id === message.id);
+      if (isDuplicate) {
+        console.log('[redux] duplicate detected, returning early:', message.id);
+        return;
+      }
+
+      // Create new message object with reactions
+      const newMessage = { ...message, reactions: message.reactions ?? [] };
+
+      // Update the conversation with the new message
+      // Use immutable update pattern to ensure Immer detects the change
+      const updatedItems = [...conv.items, newMessage];
+      state.byConversationId[conversationId] = {
+        ...conv,
+        items: updatedItems,
+      };
+
+      console.log('[redux] messageReceived complete:', {
+        conversationId,
+        messageId: message.id,
+        newItemCount: updatedItems.length,
+        allMessageIds: updatedItems.map(m => m.id),
+      });
+
       // If inbound message, window is definitely open now
       if (message.direction === 'INBOUND') {
-        conv.isWithin24HourWindow = true;
+        state.byConversationId[conversationId].isWithin24HourWindow = true;
       }
     },
     messageStatusUpdated: (state, action: PayloadAction<MessageStatusUpdateEvent>) => {
