@@ -177,30 +177,11 @@ export const isWithin24HourWindow = async (conversationId: string): Promise<bool
 };
 
 export const categorizeConversation = (conversation: ConversationWithCustomer | ConversationWithCustomerOnly): ConversationCategory => {
-  const windowMs = 24 * 60 * 60 * 1000;
-
-  // Requesting: customer sent message within 24h and app hasn't replied (or app replied before customer's last message)
-  if (conversation.lastInboundMessageAt) {
-    const timeSinceInbound = Date.now() - conversation.lastInboundMessageAt.getTime();
-    if (timeSinceInbound < windowMs) {
-      // Within 24-hour window
-      if (!conversation.lastOutboundMessageAt || conversation.lastOutboundMessageAt < conversation.lastInboundMessageAt) {
-        // App hasn't replied or replied before customer's last message
-        return 'requesting';
-      }
-    }
+  switch (conversation.tab) {
+    case 'REQUESTING': return 'requesting';
+    case 'INTERVENED': return 'intervened';
+    default: return 'chats';
   }
-
-  // Intervened: app has replied within 24-hour window after customer's last inbound message
-  if (conversation.lastOutboundMessageAt && conversation.lastInboundMessageAt) {
-    const timeSinceInbound = Date.now() - conversation.lastInboundMessageAt.getTime();
-    if (timeSinceInbound < windowMs && conversation.lastOutboundMessageAt >= conversation.lastInboundMessageAt) {
-      return 'intervened';
-    }
-  }
-
-  // Chats: everything else (outside 24-hour window, or no inbound messages, or only outbound messages)
-  return 'chats';
 };
 
 export const listCategorized = async (params: ListParams): Promise<ListResult & { items: CategorizedConversation[] }> => {

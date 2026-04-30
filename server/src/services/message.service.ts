@@ -91,6 +91,7 @@ export const sendTextReply = async (conversationId: string, text: string): Promi
   const updatedConversation = await prisma.conversation.update({
     where: { id: conversationId },
     data: {
+      ...(conversation.tab === 'REQUESTING' && { tab: 'INTERVENED' as const }),
       lastMessageAt: now,
       lastMessageText: text,
       lastOutboundMessageAt: now,
@@ -215,6 +216,7 @@ export const sendTemplateReply = async (
   const updatedConversation = await prisma.conversation.update({
     where: { id: conversationId },
     data: {
+      ...(conversation.tab === 'REQUESTING' && { tab: 'INTERVENED' as const }),
       lastMessageAt: now,
       lastMessageText: resolvedBody,
       lastOutboundMessageAt: now,
@@ -272,6 +274,7 @@ export const sendImageMessage = async (
   const updatedConversation = await prisma.conversation.update({
     where: { id: conversationId },
     data: {
+      ...(conversation.tab === 'REQUESTING' && { tab: 'INTERVENED' as const }),
       lastMessageAt: now,
       lastMessageText: caption || '[Image]',
       lastOutboundMessageAt: now,
@@ -328,6 +331,7 @@ export const sendVideoMessage = async (
   const updatedConversation = await prisma.conversation.update({
     where: { id: conversationId },
     data: {
+      ...(conversation.tab === 'REQUESTING' && { tab: 'INTERVENED' as const }),
       lastMessageAt: now,
       lastMessageText: caption || '[Video]',
       lastOutboundMessageAt: now,
@@ -383,6 +387,7 @@ export const sendAudioMessage = async (
   const updatedConversation = await prisma.conversation.update({
     where: { id: conversationId },
     data: {
+      ...(conversation.tab === 'REQUESTING' && { tab: 'INTERVENED' as const }),
       lastMessageAt: now,
       lastMessageText: '[Audio]',
       lastOutboundMessageAt: now,
@@ -445,6 +450,7 @@ export const sendDocumentMessage = async (
   const updatedConversation = await prisma.conversation.update({
     where: { id: conversationId },
     data: {
+      ...(conversation.tab === 'REQUESTING' && { tab: 'INTERVENED' as const }),
       lastMessageAt: now,
       lastMessageText: filename || '[Document]',
       lastOutboundMessageAt: now,
@@ -561,6 +567,13 @@ export const processInboundMessage = async (
   const lastMessageText = body ?? '[Media]';
   const now = new Date();
 
+  // Determine new tab: CHATS → REQUESTING on first customer message; REQUESTING/INTERVENED stay unchanged
+  const currentConv = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    select: { tab: true },
+  });
+  const newTab = currentConv?.tab === 'CHATS' ? 'REQUESTING' : (currentConv?.tab ?? 'REQUESTING');
+
   const message = await prisma.message.create({
     data: {
       conversationId,
@@ -578,6 +591,7 @@ export const processInboundMessage = async (
   const updatedConversation = await prisma.conversation.update({
     where: { id: conversationId },
     data: {
+      tab: newTab,
       lastMessageAt: now,
       lastMessageText,
       lastInboundMessageAt: now,
@@ -694,6 +708,13 @@ export const processInteractiveMessage = async (
 
   const now = new Date();
 
+  // Determine new tab: CHATS → REQUESTING on first customer message; REQUESTING/INTERVENED stay unchanged
+  const currentConvInteractive = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    select: { tab: true },
+  });
+  const newTabInteractive = currentConvInteractive?.tab === 'CHATS' ? 'REQUESTING' : (currentConvInteractive?.tab ?? 'REQUESTING');
+
   const message = await prisma.message.create({
     data: {
       conversationId,
@@ -716,6 +737,7 @@ export const processInteractiveMessage = async (
   const updatedConversation = await prisma.conversation.update({
     where: { id: conversationId },
     data: {
+      tab: newTabInteractive,
       lastMessageAt: now,
       lastMessageText: buttonTitle,
       lastInboundMessageAt: now,

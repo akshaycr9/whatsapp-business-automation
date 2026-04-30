@@ -21,6 +21,7 @@ import { env } from "../config/env.js";
 import { requireAuth } from "../middleware/auth.js";
 import { startAbandonedCartQueueJob } from "../jobs/abandoned-cart.job.js";
 import { startCodFollowUpJob } from "../jobs/cod-follow-up.job.js";
+import { startConversationExpiryJob } from "../jobs/conversation-expiry.job.js";
 import { registerWebhooks } from "../services/shopify.service.js";
 
 export const registerRoutes = (app: Express): void => {
@@ -165,6 +166,7 @@ export const registerRoutes = (app: Express): void => {
   // startAbandonedCartJob();  // disabled — Razorpay webhook drives the AbandonedCartQueue now
   startAbandonedCartQueueJob();
   startCodFollowUpJob();
+  startConversationExpiryJob();
 
   // ── Shopify webhook auto-registration ─────────────────────────────────────
   // Uses the Shopify Admin API to programmatically register/update all 4 webhook

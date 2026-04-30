@@ -27,17 +27,24 @@ enum CustomerSource {
 }
 
 model Conversation {
-  id                    String    @id @default(cuid())
-  customerId            String    @unique
-  customer              Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  id                    String           @id @default(cuid())
+  customerId            String           @unique
+  customer              Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tab                   ConversationTab  @default(CHATS)
   lastMessageAt         DateTime?
   lastMessageText       String?
   lastInboundMessageAt  DateTime?
   lastOutboundMessageAt DateTime?
-  unreadCount           Int       @default(0)
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  unreadCount           Int              @default(0)
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
   messages              Message[]
+}
+
+enum ConversationTab {
+  CHATS
+  REQUESTING
+  INTERVENED
 }
 
 model Message {

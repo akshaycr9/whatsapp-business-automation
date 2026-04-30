@@ -10,6 +10,7 @@ import {
   messageStatusUpdated,
   messageReactionUpdated,
   checkWindow,
+  windowUpdated,
 } from '@/features/messages/messagesSlice';
 import { fetchDashboardStats } from '@/features/dashboard/dashboardSlice';
 import type {
@@ -47,6 +48,10 @@ export function useSocketEvents(): void {
 
     const handleConversationUpdated = (event: ConversationUpdatedEvent) => {
       dispatch(conversationUpdated(event));
+      // When conversation expires to Chats, close the free-form editor immediately
+      if (event.category === 'chats') {
+        dispatch(windowUpdated({ conversationId: event.conversation.id, isOpen: false }));
+      }
     };
 
     const handleMessageReaction = (event: MessageReactionEvent) => {
