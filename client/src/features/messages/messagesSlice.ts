@@ -165,8 +165,12 @@ const messagesSlice = createSlice({
     },
     messageReceived: (state, action: PayloadAction<NewMessageEvent>) => {
       const { conversationId, message } = action.payload;
-      const conv = state.byConversationId[conversationId];
-      if (!conv) return; // conversation not open, no need to update
+      let conv = state.byConversationId[conversationId];
+      // Initialize conversation state if it doesn't exist (e.g., message received before thread opened)
+      if (!conv) {
+        conv = defaultConvMessages();
+        state.byConversationId[conversationId] = conv;
+      }
       // Avoid duplicates
       if (conv.items.some((m) => m.id === message.id)) return;
       conv.items.push({ ...message, reactions: message.reactions ?? [] });

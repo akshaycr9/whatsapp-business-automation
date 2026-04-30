@@ -77,15 +77,19 @@ const conversationsSlice = createSlice({
       }
     },
     newMessageInConversation: (state, action: PayloadAction<NewMessageEvent>) => {
-      const idx = state.allConversations.findIndex((c) => c.id === action.payload.conversationId);
-      if (idx === -1) return;
-      const updated: Conversation = {
-        ...state.allConversations[idx],
-        lastMessageAt: action.payload.message.createdAt,
-        lastMessageText: action.payload.message.body || '[Media]',
-      };
-      state.allConversations.splice(idx, 1);
-      state.allConversations.unshift(updated);
+      const { conversationId, message } = action.payload;
+      const idx = state.allConversations.findIndex((c) => c.id === conversationId);
+      // Only update if conversation exists in list. The conversationUpdated reducer
+      // handles moving the conversation to the top, so we focus on updating timestamps.
+      if (idx !== -1) {
+        const updated: Conversation = {
+          ...state.allConversations[idx],
+          lastMessageAt: message.createdAt,
+          lastMessageText: message.body || '[Media]',
+        };
+        state.allConversations.splice(idx, 1);
+        state.allConversations.unshift(updated);
+      }
     },
     markRead: (state, action: PayloadAction<string>) => {
       const conversation = state.allConversations.find((c) => c.id === action.payload);

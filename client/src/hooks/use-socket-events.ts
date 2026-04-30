@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
 import { socket } from '@/lib/socket';
-import { useAppDispatch } from '@/app/hooks';
+import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import {
   conversationUpdated,
   newMessageInConversation,
+  setCategory,
+  selectActiveCategory,
 } from '@/features/conversations/conversationsSlice';
 import {
   messageReceived,
@@ -29,9 +31,16 @@ import type {
  */
 export function useSocketEvents(): void {
   const dispatch = useAppDispatch();
+  const activeCategory = useAppSelector(selectActiveCategory);
 
   useEffect(() => {
     const handleNewMessage = (event: NewMessageEvent) => {
+      console.log('[socket] new_message:', {
+        conversationId: event.conversationId,
+        messageId: event.message.id,
+        direction: event.message.direction,
+        body: event.message.body,
+      });
       // Update conversation list (move to top, update lastMessage)
       dispatch(newMessageInConversation(event));
       // Append message if its conversation is open in the messages slice
@@ -47,6 +56,11 @@ export function useSocketEvents(): void {
     };
 
     const handleConversationUpdated = (event: ConversationUpdatedEvent) => {
+      console.log('[socket] conversation_updated:', {
+        conversationId: event.conversation.id,
+        category: event.category,
+        lastMessageText: event.conversation.lastMessageText,
+      });
       dispatch(conversationUpdated(event));
       // Sync editor open/closed state with the new category in real time.
       // 'chats' = window closed (template-only); 'requesting'/'intervened' = window open.
@@ -54,6 +68,16 @@ export function useSocketEvents(): void {
         conversationId: event.conversation.id,
         isOpen: event.category !== 'chats',
       }));
+      // If conversation moved to a different category, auto-switch to show it immediately.
+      // Otherwise it would disappear from the current view and confuse the user.
+      const targetCategory = event.category === 'chats' ? null : event.category;
+      if (targetCategory !== activeCategory) {
+        console.log('[socket] auto-switching category:', {
+          from: activeCategory,
+          to: targetCategory,
+        });
+        dispatch(setCategory(targetCategory));
+      }
     };
 
     const handleMessageReaction = (event: MessageReactionEvent) => {
@@ -77,5 +101,5 @@ export function useSocketEvents(): void {
       socket.off('message_reaction', handleMessageReaction);
       socket.off('automation_triggered', handleAutomationTriggered);
     };
-  }, [dispatch]);
+  }, [dispatch, activeCategory]);
 }
