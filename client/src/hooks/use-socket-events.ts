@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { socket } from '@/lib/socket';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import {
@@ -32,6 +32,12 @@ import type {
 export function useSocketEvents(): void {
   const dispatch = useAppDispatch();
   const activeCategory = useAppSelector(selectActiveCategory);
+  const activeCategoryRef = useRef(activeCategory);
+
+  // Keep the ref in sync with Redux state, but don't re-run socket handlers effect
+  useEffect(() => {
+    activeCategoryRef.current = activeCategory;
+  }, [activeCategory]);
 
   useEffect(() => {
     const handleNewMessage = (event: NewMessageEvent) => {
@@ -71,9 +77,9 @@ export function useSocketEvents(): void {
       // If conversation moved to a different category, auto-switch to show it immediately.
       // Otherwise it would disappear from the current view and confuse the user.
       const targetCategory = event.category === 'chats' ? null : event.category;
-      if (targetCategory !== activeCategory) {
+      if (targetCategory !== activeCategoryRef.current) {
         console.log('[socket] auto-switching category:', {
-          from: activeCategory,
+          from: activeCategoryRef.current,
           to: targetCategory,
         });
         dispatch(setCategory(targetCategory));
@@ -101,5 +107,5 @@ export function useSocketEvents(): void {
       socket.off('message_reaction', handleMessageReaction);
       socket.off('automation_triggered', handleAutomationTriggered);
     };
-  }, [dispatch, activeCategory]);
+  }, [dispatch]);
 }
