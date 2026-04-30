@@ -48,10 +48,12 @@ export function useSocketEvents(): void {
 
     const handleConversationUpdated = (event: ConversationUpdatedEvent) => {
       dispatch(conversationUpdated(event));
-      // When conversation expires to Chats, close the free-form editor immediately
-      if (event.category === 'chats') {
-        dispatch(windowUpdated({ conversationId: event.conversation.id, isOpen: false }));
-      }
+      // Sync editor open/closed state with the new category in real time.
+      // 'chats' = window closed (template-only); 'requesting'/'intervened' = window open.
+      dispatch(windowUpdated({
+        conversationId: event.conversation.id,
+        isOpen: event.category !== 'chats',
+      }));
     };
 
     const handleMessageReaction = (event: MessageReactionEvent) => {

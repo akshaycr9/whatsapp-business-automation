@@ -69,11 +69,11 @@ const conversationsSlice = createSlice({
     },
     conversationUpdated: (state, action: PayloadAction<ConversationUpdatedEvent>) => {
       const idx = state.allConversations.findIndex((c) => c.id === action.payload.conversation.id);
+      const updatedConv = { ...action.payload.conversation, category: action.payload.category };
       if (idx !== -1) {
-        state.allConversations[idx] = {
-          ...action.payload.conversation,
-          category: action.payload.category,
-        };
+        state.allConversations[idx] = updatedConv;
+      } else {
+        state.allConversations.unshift(updatedConv);
       }
     },
     newMessageInConversation: (state, action: PayloadAction<NewMessageEvent>) => {

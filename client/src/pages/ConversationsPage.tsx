@@ -44,12 +44,18 @@ export default function ConversationsPage() {
 
   const handleBack = useCallback(() => navigate('/conversations'), [navigate]);
 
-  // If the active conversation is not in the current tab, clear the selection
+  // If the active conversation moved to a different tab, switch to that tab instead of
+  // navigating away. Only deselect when the conversation is genuinely not found at all.
   useEffect(() => {
     if (activeId && !conversations.find((c) => c.id === activeId)) {
-      navigate('/conversations');
+      const conv = allConversations.find((c) => c.id === activeId);
+      if (conv) {
+        setActiveCategory(conv.category !== 'chats' ? conv.category : null);
+      } else {
+        navigate('/conversations');
+      }
     }
-  }, [activeId, conversations, navigate]);
+  }, [activeId, conversations, allConversations, navigate, setActiveCategory]);
 
   const showListOnMobile = !activeId;
   const showChatOnMobile = !!activeId;
