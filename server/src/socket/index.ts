@@ -9,14 +9,19 @@ import { categorizeConversation } from '../services/conversation.service.js';
 let io: SocketServer;
 
 export const initSocket = (httpServer: HttpServer): SocketServer => {
-  const allowedOrigins = [process.env.CLIENT_URL ?? 'http://localhost:5173'];
-  // Allow the backend's own PUBLIC_URL so the iPhone (via ngrok) can connect
-  if (process.env.PUBLIC_URL) allowedOrigins.push(process.env.PUBLIC_URL);
+  // In development: allow all origins so that localhost:5173, localhost:4173,
+  // and any ngrok / tunnel URL work without needing to configure CLIENT_URL.
+  // In production: restrict to the explicit CLIENT_URL.
+  const corsOrigin: string | boolean =
+    env.NODE_ENV === 'production'
+      ? (process.env.CLIENT_URL ?? false)
+      : true; // reflect any request origin — safe for single-user dev tool
 
   io = new SocketServer(httpServer, {
     cors: {
-      origin: allowedOrigins,
+      origin: corsOrigin,
       methods: ['GET', 'POST'],
+      credentials: true,
     },
   });
 
@@ -38,10 +43,10 @@ export const initSocket = (httpServer: HttpServer): SocketServer => {
   });
 
   io.on('connection', (socket) => {
-    logger.info(`Socket connected: ${socket.id}`);
+    logger.info(`Socket connected: ${socket.id} (origin: ${socket.handshake.headers.origin ?? 'unknown'})`);
 
-    socket.on('disconnect', () => {
-      logger.info(`Socket disconnected: ${socket.id}`);
+    socket.on('disconnect', (reason) => {
+      logger.info(`Socket disconnected: ${socket.id} — reason: ${reason}`);
     });
   });
 
