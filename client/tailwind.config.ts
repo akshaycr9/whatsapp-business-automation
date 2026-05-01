@@ -1,15 +1,89 @@
 import type { Config } from 'tailwindcss';
 import animate from 'tailwindcss-animate';
+import plugin from 'tailwindcss/plugin';
+
+// ── Design tokens — single source of truth ──────────────────────────
+const designTokens = {
+  light: {
+    background: '90 4% 96%',
+    foreground: '165 14% 12%',
+    'outer-bg': '90 6% 80%',
+    card: '0 0% 100%',
+    'card-foreground': '165 14% 12%',
+    popover: '0 0% 100%',
+    'popover-foreground': '165 14% 12%',
+    primary: '172 74% 27%',
+    'primary-foreground': '0 0% 100%',
+    secondary: '90 7% 93%',
+    'secondary-foreground': '165 10% 25%',
+    muted: '90 7% 93%',
+    'muted-foreground': '165 5% 44%',
+    accent: '163 41% 94%',
+    'accent-foreground': '172 74% 20%',
+    destructive: '350 49% 44%',
+    'destructive-foreground': '0 0% 100%',
+    border: '90 10% 89%',
+    input: '90 10% 89%',
+    ring: '172 74% 27%',
+    radius: '0.625rem',
+    'sidebar-width': '16rem',
+    'sidebar-width-collapsed': '4rem',
+    'header-height': '3.5rem',
+  },
+  dark: {
+    background: '165 25% 7%',
+    'outer-bg': '165 22% 4%',
+    foreground: '130 7% 92%',
+    card: '165 20% 10%',
+    'card-foreground': '130 7% 92%',
+    popover: '165 20% 10%',
+    'popover-foreground': '130 7% 92%',
+    primary: '172 74% 35%',
+    'primary-foreground': '0 0% 100%',
+    secondary: '165 16% 16%',
+    'secondary-foreground': '130 7% 76%',
+    muted: '165 20% 10%',
+    'muted-foreground': '165 5% 55%',
+    accent: '165 40% 11%',
+    'accent-foreground': '163 41% 75%',
+    destructive: '350 49% 55%',
+    'destructive-foreground': '0 0% 100%',
+    border: '165 16% 16%',
+    input: '165 16% 16%',
+    ring: '172 74% 35%',
+  },
+};
+
+// ── Tailwind plugin to generate CSS variables from design tokens ──────
+const generateCssVariables = plugin(function ({ addBase }) {
+  const lightVars: Record<string, string> = {};
+  const darkVars: Record<string, string> = {};
+
+  Object.entries(designTokens.light).forEach(([key, value]) => {
+    lightVars[`--${key}`] = value;
+  });
+
+  Object.entries(designTokens.dark).forEach(([key, value]) => {
+    darkVars[`--${key}`] = value;
+  });
+
+  addBase({
+    ':root': lightVars,
+    '.dark': darkVars,
+    '#root': {
+      'max-width': '1920px',
+      margin: '0 auto',
+      height: '100vh',
+      overflow: 'hidden',
+      background: 'hsl(var(--background))',
+    },
+  });
+});
 
 const config: Config = {
   darkMode: ['class'],
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
-    container: {
-      center: true,
-      padding: '2rem',
-      screens: { '2xl': '1400px' },
-    },
     extend: {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
@@ -92,24 +166,13 @@ const config: Config = {
       borderRadius: {
         xl: '20px',
         lg: '14px',
-        DEFAULT: '10px',
-        md: '8px',
         sm: '6px',
       },
       boxShadow: {
         sm: '0 1px 2px rgba(16, 32, 28, 0.04)',
-        DEFAULT: '0 2px 8px rgba(16, 32, 28, 0.06), 0 1px 2px rgba(16, 32, 28, 0.04)',
         lg: '0 12px 32px -8px rgba(16, 32, 28, 0.14), 0 4px 12px rgba(16, 32, 28, 0.06)',
       },
       keyframes: {
-        'accordion-down': {
-          from: { height: '0' },
-          to: { height: 'var(--radix-accordion-content-height)' },
-        },
-        'accordion-up': {
-          from: { height: 'var(--radix-accordion-content-height)' },
-          to: { height: '0' },
-        },
         'scale-in': {
           from: { opacity: '0', transform: 'scale(0.96) translateY(6px)' },
           to: { opacity: '1', transform: 'scale(1) translateY(0)' },
@@ -118,21 +181,14 @@ const config: Config = {
           from: { opacity: '0' },
           to: { opacity: '1' },
         },
-        spin: {
-          from: { transform: 'rotate(0deg)' },
-          to: { transform: 'rotate(360deg)' },
-        },
       },
       animation: {
-        'accordion-down': 'accordion-down 0.2s ease-out',
-        'accordion-up': 'accordion-up 0.2s ease-out',
         'scale-in': 'scale-in 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
         'fade-in': 'fade-in 0.15s ease',
-        spin: 'spin 0.8s linear infinite',
       },
     },
   },
-  plugins: [animate],
+  plugins: [animate, generateCssVariables],
 };
 
 export default config;
