@@ -1,14 +1,14 @@
 /**
- * Razorpay Magic Checkout path options for the v2 configure-flow modal.
+ * Razorpay Magic Checkout path options for parameter mapping.
  * Used exclusively for ABANDONED_CART_1 / ABANDONED_CART_2 / ABANDONED_CART_3 flows
  * where the payload comes from the Razorpay webhook (not Shopify).
  */
-import type { V2PathOption } from "./v2-shopify-paths";
+import type { PathOption } from './shopify-paths';
 
 // Re-export the shared grouping helper so callers only need one import.
-export { groupPathOptions } from "./v2-shopify-paths";
+export { groupPathOptions } from './shopify-paths';
 
-export const RAZORPAY_PATH_OPTIONS: V2PathOption[] = [
+export const RAZORPAY_PATH_OPTIONS: PathOption[] = [
   // ── Computed (virtual) ──────────────────────────────────────────────────────
   // __line_items_summary__ is handled server-side in resolvePath() — it loops
   // line_items and returns a formatted string like "Classic T-Shirt (x2), Polo Shirt (x1)".

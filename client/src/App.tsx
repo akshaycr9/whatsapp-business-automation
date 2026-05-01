@@ -17,10 +17,6 @@ import EditAutomationPage from '@/pages/EditAutomationPage';
 import CustomersPage from '@/pages/CustomersPage';
 import LoginPage from '@/pages/LoginPage';
 
-// V2 — new design system (hard-coded phase, no auth guard)
-import { V2AppShell } from '@/v2/components/layout/V2AppShell';
-import V2AutomationsPage from '@/v2/pages/AutomationsPage';
-
 // Layout wrapper — runs only when the user is authenticated.
 // Connects the socket, registers all Socket.io→Redux event handlers,
 // starts the global notification listener, and monitors for session expiration.
@@ -53,12 +49,6 @@ export default function App() {
         <Routes>
           {/* Public */}
           <Route path="/login" element={<LoginPage />} />
-
-          {/* V2 — new design system, publicly accessible during the design phase */}
-          <Route path="/v2" element={<V2AppShell />}>
-            <Route path="automations" element={<V2AutomationsPage />} />
-            <Route index element={<Navigate to="/v2/automations" replace />} />
-          </Route>
 
           {/* Protected — all app routes require a valid JWT */}
           <Route element={<ProtectedRoute />}>

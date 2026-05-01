@@ -1,12 +1,12 @@
-/** Shopify data path options used in the v2 configure-flow modal parameter mapping rows. */
-export interface V2PathOption {
+/** Shopify data path options used in parameter mapping rows. */
+export interface PathOption {
   value: string;
   label: string;
   group: string;
 }
 
 /** Full list covering both order and cart event types. */
-export const SHOPIFY_PATH_OPTIONS: V2PathOption[] = [
+export const SHOPIFY_PATH_OPTIONS: PathOption[] = [
   // ── Order ────────────────────────────────────────────────────────────────────
   { value: 'name',                             label: 'Order Number',             group: 'Order' },
   { value: 'order_number',                     label: 'Order Number (numeric)',   group: 'Order' },
@@ -47,8 +47,8 @@ export const SHOPIFY_PATH_OPTIONS: V2PathOption[] = [
 ];
 
 /** Groups options by their `group` field for rendering `<optgroup>` elements. */
-export function groupPathOptions(options: V2PathOption[]): Map<string, V2PathOption[]> {
-  const map = new Map<string, V2PathOption[]>();
+export function groupPathOptions(options: PathOption[]): Map<string, PathOption[]> {
+  const map = new Map<string, PathOption[]>();
   for (const opt of options) {
     const group = map.get(opt.group) ?? [];
     group.push(opt);
