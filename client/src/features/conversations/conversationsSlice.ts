@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, createSelector, type PayloadAction } from '@reduxjs/toolkit';
 import { api } from '@/lib/api';
 import type {
   Conversation,
@@ -141,12 +141,14 @@ export const { setSearch, setCategory, conversationUpdated, newMessageInConversa
 
 // ─── Selectors ─────────────────────────────────────────────────────────────────
 
-export const selectConversations = (state: RootState): Conversation[] => {
-  const { allConversations, activeCategory } = state.conversations;
-  // Filter by active category (null = 'chats')
-  const targetCategory = activeCategory || 'chats';
-  return allConversations.filter((c) => (c.category || 'chats') === targetCategory);
-};
+export const selectConversations = createSelector(
+  [(state: RootState) => state.conversations.allConversations, (state: RootState) => state.conversations.activeCategory],
+  (allConversations: Conversation[], activeCategory: ConversationCategory | null): Conversation[] => {
+    // Filter by active category (null = 'chats')
+    const targetCategory = activeCategory || 'chats';
+    return allConversations.filter((c) => (c.category || 'chats') === targetCategory);
+  }
+);
 
 export const selectAllConversations = (state: RootState): Conversation[] =>
   state.conversations.allConversations;
@@ -168,9 +170,11 @@ export const selectConversationById =
 export const selectActiveCategory = (state: RootState): ConversationCategory | null =>
   state.conversations.activeCategory;
 
-export const selectConversationsByCategory =
-  (category: ConversationCategory) =>
-  (state: RootState): Conversation[] =>
-    state.conversations.allConversations.filter((c) => (c.category || 'chats') === category);
+export const selectConversationsByCategory = (category: ConversationCategory) =>
+  createSelector(
+    [(state: RootState) => state.conversations.allConversations],
+    (allConversations: Conversation[]): Conversation[] =>
+      allConversations.filter((c) => (c.category || 'chats') === category)
+  );
 
 export default conversationsSlice.reducer;
