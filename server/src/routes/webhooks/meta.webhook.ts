@@ -53,11 +53,11 @@ router.post('/', (req, res) => {
 
   logger.info('Meta webhook: signature and raw body present, validating...');
 
-  const expected =
-    'sha256=' +
-    crypto.createHmac('sha256', env.META_APP_SECRET).update(rawBody).digest('hex');
-
   try {
+    const expected =
+      'sha256=' +
+      crypto.createHmac('sha256', env.META_APP_SECRET).update(rawBody).digest('hex');
+
     const sigBuf = Buffer.from(signature);
     const expBuf = Buffer.from(expected);
 

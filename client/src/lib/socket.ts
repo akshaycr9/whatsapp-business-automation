@@ -25,16 +25,13 @@ socket.on('reconnect_attempt', () => {
   socket.auth = token ? { token } : {};
 });
 
-// ── Lifecycle logging ────────────────────────────────────────────────────────
-// These fire in the browser console and help diagnose connection issues fast.
-socket.on('connect', () => {
-  console.log('[socket] connected', socket.id);
-});
-socket.on('disconnect', (reason) => {
-  console.warn('[socket] disconnected —', reason);
-});
+// Handle token expiration on socket connection error
 socket.on('connect_error', (err) => {
-  console.error('[socket] connect_error —', err.message);
+  // Check if the error is due to expired or invalid token
+  if (err.message === 'Invalid or expired token') {
+    // Dispatch custom event that the app can listen to
+    window.dispatchEvent(new CustomEvent('session-expired'));
+  }
 });
 
 export const connectSocket = () => {
@@ -47,5 +44,16 @@ export const connectSocket = () => {
 };
 
 export const disconnectSocket = () => {
-  if (socket.connected) socket.disconnect();
+  if (socket.connected) {
+    socket.disconnect();
+  }
+};
+
+export const logoutUser = () => {
+  // Clear token from localStorage
+  localStorage.removeItem(TOKEN_KEY);
+  // Disconnect socket
+  disconnectSocket();
+  // Redirect to login page
+  window.location.href = '/login';
 };

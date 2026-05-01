@@ -4,6 +4,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useGlobalNotifications } from '@/hooks/use-global-notifications';
 import { useSocketEvents } from '@/hooks/use-socket-events';
+import { useSessionExpiration } from '@/hooks/use-session-expiration';
 import { connectSocket, disconnectSocket } from '@/lib/socket';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import DashboardPage from '@/pages/DashboardPage';
@@ -22,7 +23,7 @@ import V2AutomationsPage from '@/v2/pages/AutomationsPage';
 
 // Layout wrapper — runs only when the user is authenticated.
 // Connects the socket, registers all Socket.io→Redux event handlers,
-// and starts the global notification listener.
+// starts the global notification listener, and monitors for session expiration.
 function AppShellLayout() {
   useEffect(() => {
     connectSocket();
@@ -34,6 +35,9 @@ function AppShellLayout() {
 
   // Notification permission prompts and in-app notification toasts
   useGlobalNotifications();
+
+  // Monitor for session expiration (expired/invalid token)
+  useSessionExpiration();
 
   return (
     <AppShell>

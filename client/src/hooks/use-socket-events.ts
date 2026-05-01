@@ -41,12 +41,6 @@ export function useSocketEvents(): void {
 
   useEffect(() => {
     const handleNewMessage = (event: NewMessageEvent) => {
-      console.log('[socket] new_message:', {
-        conversationId: event.conversationId,
-        messageId: event.message.id,
-        direction: event.message.direction,
-        body: event.message.body,
-      });
       // Update conversation list (move to top, update lastMessage)
       dispatch(newMessageInConversation(event));
       // Append message if its conversation is open in the messages slice
@@ -62,11 +56,6 @@ export function useSocketEvents(): void {
     };
 
     const handleConversationUpdated = (event: ConversationUpdatedEvent) => {
-      console.log('[socket] conversation_updated:', {
-        conversationId: event.conversation.id,
-        category: event.category,
-        lastMessageText: event.conversation.lastMessageText,
-      });
       dispatch(conversationUpdated(event));
       // Sync editor open/closed state with the new category in real time.
       // 'chats' = window closed (template-only); 'requesting'/'intervened' = window open.
@@ -78,10 +67,6 @@ export function useSocketEvents(): void {
       // Otherwise it would disappear from the current view and confuse the user.
       const targetCategory = event.category === 'chats' ? null : event.category;
       if (targetCategory !== activeCategoryRef.current) {
-        console.log('[socket] auto-switching category:', {
-          from: activeCategoryRef.current,
-          to: targetCategory,
-        });
         dispatch(setCategory(targetCategory));
       }
     };

@@ -33,7 +33,12 @@ api.interceptors.response.use(
       const isLoginRequest = error.config?.url === 'auth/login';
       if (error.response?.status === 401 && !isLoginRequest) {
         localStorage.removeItem(TOKEN_KEY);
-        window.location.href = '/login';
+        // Dispatch event so the session expiration hook can show a toast
+        window.dispatchEvent(new CustomEvent('session-expired'));
+        // Redirect to login after a short delay to allow the toast to be shown
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 500);
         return Promise.reject(new Error('Session expired. Please log in again.'));
       }
       const message =
