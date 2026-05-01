@@ -1,6 +1,7 @@
 import {
   createSlice,
   createAsyncThunk,
+  createSelector,
   type PayloadAction,
 } from "@reduxjs/toolkit";
 import { api } from "@/lib/api";
@@ -271,14 +272,16 @@ export const selectAutomationsError = (state: RootState): string | null =>
   state.automations.error;
 
 // Selector to get all automations (flattened from categories for backward compatibility)
-export const selectAutomations = (state: RootState): Automation[] => {
-  const categories = state.automations.categories;
-  const automations: Automation[] = [];
-  for (const category of categories) {
-    automations.push(...category.automations);
+export const selectAutomations = createSelector(
+  [(state: RootState) => state.automations.categories],
+  (categories: AutomationCategoryGroup[]): Automation[] => {
+    const automations: Automation[] = [];
+    for (const category of categories) {
+      automations.push(...category.automations);
+    }
+    return automations;
   }
-  return automations;
-};
+);
 
 export const { automationToggled } = automationsSlice.actions;
 
