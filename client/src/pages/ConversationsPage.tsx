@@ -125,9 +125,6 @@ export default function ConversationsPage() {
                   fontSize: 12.5,
                   fontWeight: 600,
                   color: (activeCategory === tab.id || (activeCategory === null && tab.id === 'chats')) ? 'var(--brand-800)' : 'var(--ink-500)',
-                  borderBottom: (activeCategory === tab.id || (activeCategory === null && tab.id === 'chats'))
-                    ? '2px solid var(--brand-700)'
-                    : '2px solid transparent',
                   marginBottom: -1,
                   background: 'none',
                   border: 'none',
