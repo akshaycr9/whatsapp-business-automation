@@ -1,8 +1,12 @@
-import { useState, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useTemplates, type StatusFilter, type StatusCounts } from '@/hooks/use-templates';
-import { toast } from '@/hooks/use-toast';
-import type { Template } from '@/types';
+import { useState, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  useTemplates,
+  type StatusFilter,
+  type StatusCounts,
+} from "@/hooks/templates/use-templates";
+import { toast } from "@/hooks/use-toast";
+import type { Template } from "@/types";
 
 interface UseTemplatesPageReturn {
   setPreviewId: (id: string | null) => void;
@@ -29,7 +33,7 @@ export function useTemplatesPage(
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [syncingAll, setSyncingAll] = useState(false);
   const [syncingIds, setSyncingIds] = useState<Set<string>>(new Set());
-  const [catFilter, setCatFilter] = useState<string>('all');
+  const [catFilter, setCatFilter] = useState<string>("all");
 
   const tabCounts = useMemo(
     () => ({
@@ -43,12 +47,15 @@ export function useTemplatesPage(
 
   const filtered = useMemo(
     () =>
-      catFilter === 'all' ? templates : templates.filter((t) => t.category === catFilter),
+      catFilter === "all"
+        ? templates
+        : templates.filter((t) => t.category === catFilter),
     [templates, catFilter],
   );
 
   const previewTemplate = useMemo(
-    () => (previewId ? templates.find((t) => t.id === previewId) ?? null : null),
+    () =>
+      previewId ? (templates.find((t) => t.id === previewId) ?? null) : null,
     [previewId, templates],
   );
 
@@ -56,12 +63,14 @@ export function useTemplatesPage(
     setSyncingAll(true);
     try {
       const result = await syncAll();
-      toast({ title: `Synced ${result.synced} template${result.synced !== 1 ? 's' : ''}` });
+      toast({
+        title: `Synced ${result.synced} template${result.synced !== 1 ? "s" : ""}`,
+      });
     } catch (err) {
       toast({
-        variant: 'destructive',
-        title: 'Sync failed',
-        description: err instanceof Error ? err.message : 'Unknown error',
+        variant: "destructive",
+        title: "Sync failed",
+        description: err instanceof Error ? err.message : "Unknown error",
       });
     } finally {
       setSyncingAll(false);
@@ -74,17 +83,17 @@ export function useTemplatesPage(
       try {
         const updated = await syncOne(id);
         toast({
-          title: 'Template synced',
+          title: "Template synced",
           description:
-            updated.status === 'REJECTED' && updated.rejectedReason
+            updated.status === "REJECTED" && updated.rejectedReason
               ? `Rejected: ${updated.rejectedReason}`
               : `Status: ${updated.status}`,
         });
       } catch (err) {
         toast({
-          variant: 'destructive',
-          title: 'Sync failed',
-          description: err instanceof Error ? err.message : 'Unknown error',
+          variant: "destructive",
+          title: "Sync failed",
+          description: err instanceof Error ? err.message : "Unknown error",
         });
       } finally {
         setSyncingIds((prev) => {
@@ -101,25 +110,28 @@ export function useTemplatesPage(
     async (id: string) => {
       try {
         await removeTemplate(id);
-        toast({ title: 'Template deleted' });
+        toast({ title: "Template deleted" });
       } catch (err) {
         toast({
-          variant: 'destructive',
-          title: 'Failed to delete template',
-          description: err instanceof Error ? err.message : 'Unknown error',
+          variant: "destructive",
+          title: "Failed to delete template",
+          description: err instanceof Error ? err.message : "Unknown error",
         });
       }
     },
     [removeTemplate],
   );
 
-  const openEditor = useCallback((id: string) => {
-    setPreviewId(null);
-    navigate(`/templates/${id}/edit`);
-  }, [navigate]);
+  const openEditor = useCallback(
+    (id: string) => {
+      setPreviewId(null);
+      navigate(`/templates/${id}/edit`);
+    },
+    [navigate],
+  );
 
   const navigateToNew = useCallback(() => {
-    navigate('/templates/new');
+    navigate("/templates/new");
   }, [navigate]);
 
   return {

@@ -1,5 +1,5 @@
-import { useTemplates } from "@/hooks/use-templates";
-import { useTemplatesPage } from "@/hooks/use-templates-page";
+import { useTemplates } from "@/hooks/templates/use-templates";
+import { useTemplatesPage } from "@/hooks/templates/use-templates-page";
 import { TemplateTable } from "@/components/templates/TemplateTable";
 import { TemplateTableSkeleton } from "@/components/templates/TemplateCardSkeleton";
 import { TemplatePreviewModal } from "@/components/templates/TemplatePreviewModal";

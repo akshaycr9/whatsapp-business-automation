@@ -1,5 +1,5 @@
 import { Plus, FileText } from 'lucide-react';
-import type { StatusFilter } from '@/hooks/use-templates';
+import type { StatusFilter } from '@/hooks/templates/use-templates';
 
 interface TemplateEmptyStateProps {
   statusFilter: StatusFilter;

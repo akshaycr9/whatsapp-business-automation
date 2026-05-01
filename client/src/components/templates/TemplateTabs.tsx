@@ -1,5 +1,5 @@
 import { STATUS_TABS } from '@/lib/template-constants';
-import type { StatusFilter, StatusCounts } from '@/hooks/use-templates';
+import type { StatusFilter, StatusCounts } from '@/hooks/templates/use-templates';
 
 interface TemplateTabsProps {
   statusFilter: StatusFilter;

@@ -1,4 +1,4 @@
-import type { StatusFilter } from '@/hooks/use-templates';
+import type { StatusFilter } from '@/hooks/templates/use-templates';
 
 export const STATUS_TABS: { id: StatusFilter; label: string }[] = [
   { id: 'all', label: 'All' },

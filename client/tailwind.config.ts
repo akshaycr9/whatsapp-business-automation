@@ -161,6 +161,8 @@ const config: Config = {
         base: ['14px', { lineHeight: '1.5' }],
         sm: ['13px', { lineHeight: '1.5' }],
         xs: ['12px', { lineHeight: '1.4' }],
+        '2xs': ['11.5px', { lineHeight: '1.4' }],
+        '3xs': ['11px', { lineHeight: '1.4' }],
       },
       colors: {
         // ── Chatflo brand palette (teal-green family) ──────────────────
@@ -239,6 +241,12 @@ const config: Config = {
       boxShadow: {
         sm: '0 1px 2px rgba(16, 32, 28, 0.04)',
         lg: '0 12px 32px -8px rgba(16, 32, 28, 0.14), 0 4px 12px rgba(16, 32, 28, 0.06)',
+      },
+      minHeight: {
+        '110px': '110px',
+      },
+      lineHeight: {
+        '1.55': '1.55',
       },
       keyframes: {
         'scale-in': {

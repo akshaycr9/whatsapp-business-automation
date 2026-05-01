@@ -4,6 +4,27 @@ type ComponentsArray = Array<{ type?: string; text?: string; buttons?: unknown[]
 
 type ButtonShape = { type?: string; text?: string; url?: string; phone_number?: string };
 
+// ── Dialog Button (used in template creation form) ─────────────────────────
+
+export interface DialogButton {
+  type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER' | 'COPY_CODE';
+  text: string;
+  url: string;
+  phone_number: string;
+  example: string;
+}
+
+export function makeButton(type: DialogButton['type']): DialogButton {
+  return { type, text: '', url: '', phone_number: '', example: '' };
+}
+
+export function substituteWithSamples(text: string, samples: string[]): string {
+  return text.replace(/\{\{(\d+)\}\}/g, (_match, numStr: string) => {
+    const idx = parseInt(numStr, 10) - 1;
+    return samples[idx]?.trim() || _match;
+  });
+}
+
 export function getHeaderText(components: unknown): string {
   if (!Array.isArray(components)) return '';
   const comps = components as ComponentsArray;
