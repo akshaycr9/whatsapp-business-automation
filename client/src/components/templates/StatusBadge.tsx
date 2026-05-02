@@ -5,27 +5,35 @@ interface StatusBadgeProps {
   status: TemplateStatus;
 }
 
+// Configuration map for status styles
+const STATUS_CONFIG: Record<TemplateStatus, { bgClass: string; textClass: string; label: string }> = {
+  APPROVED: {
+    bgClass: 'bg-brand-100',
+    textClass: 'text-brand-800',
+    label: 'APPROVED',
+  },
+  REJECTED: {
+    bgClass: 'bg-accent-rose-bg',
+    textClass: 'text-accent-rose',
+    label: 'REJECTED',
+  },
+  PENDING: {
+    bgClass: 'bg-accent-amber-bg',
+    textClass: 'text-accent-amber',
+    label: 'PENDING',
+  },
+};
+
+const baseClasses = 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-semibold leading-relaxed';
+const dotClasses = 'w-1.5 h-1.5 rounded-full bg-current flex-shrink-0';
+
 export const StatusBadge = React.memo(function StatusBadge({ status }: StatusBadgeProps) {
-  if (status === 'APPROVED') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-semibold leading-relaxed bg-brand-100 text-brand-800">
-        <span className="w-1.5 h-1.5 rounded-full bg-current flex-shrink-0" />
-        APPROVED
-      </span>
-    );
-  }
-  if (status === 'REJECTED') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-semibold leading-relaxed bg-accent-rose-bg text-accent-rose">
-        <span className="w-1.5 h-1.5 rounded-full bg-current flex-shrink-0" />
-        REJECTED
-      </span>
-    );
-  }
+  const config = STATUS_CONFIG[status];
+
   return (
-    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-semibold leading-relaxed bg-accent-amber-bg text-accent-amber">
-      <span className="w-1.5 h-1.5 rounded-full bg-current flex-shrink-0" />
-      PENDING
+    <span className={`${baseClasses} ${config.bgClass} ${config.textClass}`}>
+      <span className={dotClasses} />
+      {config.label}
     </span>
   );
 });
