@@ -12,7 +12,6 @@ import {
   extractVariables,
   substituteWithSamples,
   makeButton,
-  type DialogButton,
 } from "@/lib/template-utils";
 import type { TemplateFormData } from "@/lib/template-form.schema";
 
@@ -73,12 +72,8 @@ export function useTemplateFormLogic(
     headerText,
     bodyText,
     bodySamples,
-    footerEnabled,
-    footerText,
     buttonsEnabled,
-    buttonGroup,
     buttons,
-    category,
   } = params;
 
   // Note: bodyRef is kept for backwards compatibility but is no longer actively used

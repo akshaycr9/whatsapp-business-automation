@@ -52,8 +52,3 @@ export function TemplateTableSkeleton() {
     </div>
   );
 }
-
-/** @deprecated Use TemplateTableSkeleton instead */
-export function TemplateCardSkeleton() {
-  return <TemplateTableSkeleton />;
-}
