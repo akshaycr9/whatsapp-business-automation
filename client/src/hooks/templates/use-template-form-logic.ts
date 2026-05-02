@@ -81,6 +81,9 @@ export function useTemplateFormLogic(
     category,
   } = params;
 
+  // Note: bodyRef is kept for backwards compatibility but is no longer actively used
+  // insertVariable now appends to the end of the body text for simplicity
+
   // Detect variables from body text
   const detectedVars = useMemo(() => extractVariables(bodyText), [bodyText]);
 
@@ -101,36 +104,15 @@ export function useTemplateFormLogic(
     }
   }, [detectedVars, form]);
 
-  // Insert variable at cursor position
+  // Insert variable at the end of body text
   const insertVariable = useCallback(() => {
     const nextNum = detectedVars.length + 1;
     const variable = `{{${nextNum}}}`;
-    if (bodyRef.current) {
-      const start = bodyRef.current.selectionStart ?? bodyText.length;
-      const end = bodyRef.current.selectionEnd ?? bodyText.length;
-      const newText = bodyText.slice(0, start) + variable + bodyText.slice(end);
-      form.setValue("bodyText", newText);
-      setTimeout(() => {
-        if (bodyRef.current) {
-          const pos = start + variable.length;
-          bodyRef.current.setSelectionRange(pos, pos);
-          bodyRef.current.focus();
-        }
-      }, 0);
-    } else {
-      form.setValue("bodyText", bodyText + variable);
-    }
-  }, [bodyText, detectedVars.length, form]);
-
-  // Sync bodyRef with the textarea element
-  useEffect(() => {
-    const textarea = document.querySelector(
-      'textarea[maxLength="1024"]'
-    ) as HTMLTextAreaElement | null;
-    if (textarea) {
-      bodyRef.current = textarea;
-    }
-  }, []);
+    // Append variable to the end of the body text
+    const currentText = form.getValues("bodyText") || "";
+    const separator = currentText && !currentText.endsWith(" ") ? " " : "";
+    form.setValue("bodyText", currentText + separator + variable);
+  }, [detectedVars.length, form]);
 
   // Filter buttons by type
   const quickReplies = useMemo(

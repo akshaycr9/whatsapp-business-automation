@@ -4,7 +4,11 @@ import { FieldGroup } from "./FieldGroup";
 import { useTemplateFormState } from "@/hooks/templates/use-template-form-state";
 import { useTemplateFormLogic } from "@/hooks/templates/use-template-form-logic";
 import { useEditTemplateForm } from "@/hooks/templates/use-edit-template-form";
-import { useTemplates, type TemplateComponentInput, type TemplateButtonInput } from "@/hooks/templates/use-templates";
+import {
+  useTemplates,
+  type TemplateComponentInput,
+  type TemplateButtonInput,
+} from "@/hooks/templates/use-templates";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import type { TemplateFormData } from "@/lib/template-form.schema";
@@ -47,7 +51,7 @@ export function TemplateForm({
 
   // Load template data if in edit mode
   const { template } = useEditTemplateForm(
-    mode === "edit" ? templateId : undefined
+    mode === "edit" ? templateId : undefined,
   );
 
   const {
@@ -60,7 +64,6 @@ export function TemplateForm({
     phoneBtnIndex,
     copyBtnIndex,
     isDynamicUrl,
-    bodyRef,
     insertVariable,
     addButtonOfType,
     handleButtonGroupChange,
@@ -79,7 +82,10 @@ export function TemplateForm({
     category,
   } as Parameters<typeof useTemplateFormLogic>[0]);
 
-  const { handleSubmit, formState: { isSubmitting } } = form;
+  const {
+    handleSubmit,
+    formState: { isSubmitting },
+  } = form;
 
   // Override submit handler for edit mode
   const onSubmit = async (data: TemplateFormData) => {
@@ -112,7 +118,10 @@ export function TemplateForm({
 
       if (data.buttonsEnabled && data.buttons.length > 0) {
         const btnInputs: TemplateButtonInput[] = data.buttons.map((btn) => {
-          const base: TemplateButtonInput = { type: btn.type, text: btn.text.trim() };
+          const base: TemplateButtonInput = {
+            type: btn.type,
+            text: btn.text.trim(),
+          };
           if (btn.type === "URL") {
             base.url = btn.url.trim();
             if (btn.example.trim()) base.example = btn.example.trim();
@@ -132,7 +141,8 @@ export function TemplateForm({
       } catch (err) {
         toast({
           title: "Error",
-          description: err instanceof Error ? err.message : "Failed to save template",
+          description:
+            err instanceof Error ? err.message : "Failed to save template",
           variant: "destructive",
         });
       }
@@ -445,7 +455,7 @@ export function TemplateForm({
                       />
                       <input
                         {...form.register(
-                          `buttons.${phoneBtnIndex}.phone_number`
+                          `buttons.${phoneBtnIndex}.phone_number`,
                         )}
                         className="w-full rounded-lg border border-border bg-card px-3 py-1.5 font-mono text-xs text-ink-900 outline-none"
                         placeholder="+919876543210"
