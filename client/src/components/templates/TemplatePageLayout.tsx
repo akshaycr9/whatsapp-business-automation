@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
-import { PhonePreview } from "./PhonePreview";
 import { NewTemplatePageTopbar } from "./NewTemplatePageTopbar";
+import { TemplatePreviewPanel } from "./TemplatePreviewPanel";
 
 interface TemplatePageLayoutProps {
   topbarPageName: string;
@@ -46,22 +46,13 @@ export function TemplatePageLayout({
           {children}
 
           {/* Right: live preview */}
-          <div className="sticky top-0 self-start pt-1">
-            <div className="mb-2.5 text-center text-2xs font-bold uppercase tracking-[0.06em] text-ink-500">
-              Live Preview
-            </div>
-            <PhonePreview
-              header={previewHeader}
-              body={previewBody}
-              footer={previewFooter}
-              buttons={previewButtons.length > 0 ? previewButtons : undefined}
-            />
-            <div className="mt-3 text-center text-3xs text-ink-400">
-              {detectedVars.length > 0
-                ? "Preview with entered sample values"
-                : "Preview with sample data"}
-            </div>
-          </div>
+          <TemplatePreviewPanel
+            header={previewHeader}
+            body={previewBody}
+            footer={previewFooter}
+            buttons={previewButtons}
+            detectedVars={detectedVars}
+          />
         </div>
       </div>
     </div>
