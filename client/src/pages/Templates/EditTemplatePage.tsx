@@ -38,6 +38,7 @@ export default function EditTemplatePage() {
     buttonGroup,
     buttons,
     category,
+    removeButton,
   } = useTemplateFormState({ initialValues });
 
   // Get preview data
@@ -67,7 +68,22 @@ export default function EditTemplatePage() {
       previewButtons={previewButtons}
       detectedVars={detectedVars}
     >
-      <TemplateForm mode="edit" templateId={id} />
+      <TemplateForm
+        mode="edit"
+        templateId={id}
+        form={form}
+        headerEnabled={headerEnabled}
+        headerText={headerText}
+        bodyText={bodyText}
+        bodySamples={bodySamples}
+        footerEnabled={footerEnabled}
+        footerText={footerText}
+        buttonsEnabled={buttonsEnabled}
+        buttonGroup={buttonGroup}
+        buttons={buttons}
+        category={category}
+        removeButton={removeButton}
+      />
     </TemplatePageLayout>
   );
 }

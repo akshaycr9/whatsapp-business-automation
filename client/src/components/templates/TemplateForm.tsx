@@ -13,31 +13,43 @@ import type { TemplateFormData } from "@/lib/template-form.schema";
 interface TemplateFormProps {
   mode?: "new" | "edit";
   templateId?: string;
+  form: ReturnType<typeof useTemplateFormState>["form"];
+  headerEnabled: boolean;
+  headerText: string;
+  bodyText: string;
+  bodySamples: string[];
+  footerEnabled: boolean;
+  footerText: string;
+  buttonsEnabled: boolean;
+  buttonGroup: "QUICK_REPLY" | "CTA";
+  buttons: TemplateFormData["buttons"];
+  category: TemplateFormData["category"];
+  removeButton: (index: number) => void;
 }
 
-export function TemplateForm({ mode = "new", templateId }: TemplateFormProps) {
+export function TemplateForm({
+  mode = "new",
+  templateId,
+  form,
+  headerEnabled,
+  headerText,
+  bodyText,
+  bodySamples,
+  footerEnabled,
+  footerText,
+  buttonsEnabled,
+  buttonGroup,
+  buttons,
+  category,
+  removeButton,
+}: TemplateFormProps) {
   const navigate = useNavigate();
   const { updateTemplate } = useTemplates();
 
   // Load template data if in edit mode
-  const { template, initialValues } = useEditTemplateForm(
+  const { template } = useEditTemplateForm(
     mode === "edit" ? templateId : undefined
   );
-
-  const {
-    form,
-    headerEnabled,
-    headerText,
-    bodyText,
-    bodySamples,
-    footerEnabled,
-    footerText,
-    buttonsEnabled,
-    buttonGroup,
-    buttons,
-    category,
-    removeButton,
-  } = useTemplateFormState({ initialValues });
 
   const {
     detectedVars,
@@ -66,7 +78,7 @@ export function TemplateForm({ mode = "new", templateId }: TemplateFormProps) {
     buttonGroup,
     buttons,
     category,
-  });
+  } as Parameters<typeof useTemplateFormLogic>[0]);
 
   const { handleSubmit, formState: { isSubmitting } } = form;
 

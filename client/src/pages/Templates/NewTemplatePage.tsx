@@ -7,7 +7,7 @@ import { useTemplateFormLogic } from "@/hooks/templates/use-template-form-logic"
 export default function NewTemplatePage() {
   const navigate = useNavigate();
 
-  // Get form state and logic for preview data only
+  // Get form state and logic for preview data and form
   const {
     form,
     headerEnabled,
@@ -20,6 +20,7 @@ export default function NewTemplatePage() {
     buttonGroup,
     buttons,
     category,
+    removeButton,
   } = useTemplateFormState();
 
   const { previewHeader, previewBody, previewButtons, detectedVars } =
@@ -48,7 +49,21 @@ export default function NewTemplatePage() {
       previewButtons={previewButtons}
       detectedVars={detectedVars}
     >
-      <TemplateForm mode="new" />
+      <TemplateForm
+        mode="new"
+        form={form}
+        headerEnabled={headerEnabled}
+        headerText={headerText}
+        bodyText={bodyText}
+        bodySamples={bodySamples}
+        footerEnabled={footerEnabled}
+        footerText={footerText}
+        buttonsEnabled={buttonsEnabled}
+        buttonGroup={buttonGroup}
+        buttons={buttons}
+        category={category}
+        removeButton={removeButton}
+      />
     </TemplatePageLayout>
   );
 }
