@@ -1,6 +1,7 @@
 import React from 'react';
 import { RefreshCw, Copy, Pencil, Trash2 } from 'lucide-react';
 import { CategoryChip } from './CategoryChip';
+import { TableDataCell } from './TableDataCell';
 import { StatusBadge } from './StatusBadge';
 import { getBodyText, getHeaderText } from '@/lib/template-utils';
 import type { Template } from '@/types';
@@ -38,11 +39,11 @@ export const TemplateRow = React.memo(function TemplateRow({
 
   return (
     <tr
-      className="border-b border-border cursor-pointer transition-colors hover:bg-[#eff1ed]"
+      className="border-b border-border cursor-pointer transition-colors hover:bg-surface-sunken"
       onClick={onPreview}
     >
       {/* Template name */}
-      <td className="px-3.5 py-3 align-middle">
+      <TableDataCell>
         <div className="font-mono text-[13px] font-semibold text-ink-900">{template.name}</div>
         {preview && (
           <div
@@ -52,25 +53,25 @@ export const TemplateRow = React.memo(function TemplateRow({
             {preview}
           </div>
         )}
-      </td>
+      </TableDataCell>
 
       {/* Category */}
-      <td className="px-3.5 py-3 align-middle">
+      <TableDataCell>
         <CategoryChip category={template.category} />
-      </td>
+      </TableDataCell>
 
       {/* Language */}
-      <td className="px-3.5 py-3 align-middle">
+      <TableDataCell>
         <span className="text-[12.5px] text-ink-500">{template.language.toUpperCase()}</span>
-      </td>
+      </TableDataCell>
 
       {/* Status */}
-      <td className="px-3.5 py-3 align-middle">
+      <TableDataCell>
         <StatusBadge status={template.status} />
-      </td>
+      </TableDataCell>
 
       {/* Sync */}
-      <td className="px-3.5 py-3 align-middle" onClick={(e) => e.stopPropagation()}>
+      <TableDataCell onClick={(e) => e.stopPropagation()}>
         <button
           className="inline-flex items-center gap-1.5 rounded-[8px] border border-border bg-card px-2.5 py-1 text-[12px] font-semibold text-ink-700 transition-colors hover:border-brand-500 hover:text-brand-500 disabled:opacity-60 disabled:pointer-events-none"
           onClick={onSync}
@@ -80,30 +81,30 @@ export const TemplateRow = React.memo(function TemplateRow({
           <RefreshCw className={`h-[13px] w-[13px] ${syncing ? 'animate-spin' : ''}`} />
           {syncing ? 'Syncing…' : 'Sync'}
         </button>
-      </td>
+      </TableDataCell>
 
       {/* Created */}
-      <td className="px-3.5 py-3 align-middle">
+      <TableDataCell>
         <span className="text-[12.5px] text-ink-500">{createdDate}</span>
-      </td>
+      </TableDataCell>
 
       {/* Updated */}
-      <td className="px-3.5 py-3 align-middle">
+      <TableDataCell>
         <span className="text-[12.5px] text-ink-500">{updatedDate}</span>
-      </td>
+      </TableDataCell>
 
       {/* Actions */}
-      <td className="px-3.5 py-3 align-middle text-right" onClick={(e) => e.stopPropagation()}>
+      <TableDataCell className="text-right" onClick={(e) => e.stopPropagation()}>
         <div className="inline-flex items-center gap-1">
           <button
-            className="w-[30px] h-[30px] inline-grid place-items-center rounded-[8px] border-none bg-transparent transition-colors hover:bg-[#eff1ed] text-ink-400"
+            className="w-[30px] h-[30px] inline-grid place-items-center rounded-[8px] border-none bg-transparent transition-colors hover:bg-surface-sunken text-ink-400"
             title="Duplicate"
             onClick={onDuplicate}
           >
             <Copy size={14} />
           </button>
           <button
-            className="w-[30px] h-[30px] inline-grid place-items-center rounded-[8px] border-none bg-transparent transition-colors hover:bg-[#eff1ed] text-ink-400"
+            className="w-[30px] h-[30px] inline-grid place-items-center rounded-[8px] border-none bg-transparent transition-colors hover:bg-surface-sunken text-ink-400"
             title="Edit"
             onClick={onEdit}
           >
@@ -117,7 +118,7 @@ export const TemplateRow = React.memo(function TemplateRow({
             <Trash2 size={14} />
           </button>
         </div>
-      </td>
+      </TableDataCell>
     </tr>
   );
 });
