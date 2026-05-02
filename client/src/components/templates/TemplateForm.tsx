@@ -1,5 +1,5 @@
 import { Plus, Check, X, ExternalLink, Phone, Copy } from "lucide-react";
-import { useCallback } from "react";
+import { useEffect } from "react";
 import { Toggle } from "./Toggle";
 import { FieldGroup } from "./FieldGroup";
 import { useTemplateFormState } from "@/hooks/templates/use-template-form-state";
@@ -70,10 +70,13 @@ export function TemplateForm({ mode = "new", templateId }: TemplateFormProps) {
 
   const { handleSubmit, formState: { isSubmitting } } = form;
 
-  // Callback ref that syncs with bodyRef for insertVariable function
-  const bodyTextInputRef = useCallback((element: HTMLTextAreaElement | null) => {
-    if (element && bodyRef) {
-      bodyRef.current = element;
+  // Sync bodyRef with the actual textarea element for insertVariable function
+  useEffect(() => {
+    const textarea = document.querySelector(
+      'textarea[maxLength="1024"]'
+    ) as HTMLTextAreaElement | null;
+    if (textarea && bodyRef) {
+      bodyRef.current = textarea;
     }
   }, [bodyRef]);
 
@@ -232,7 +235,6 @@ export function TemplateForm({ mode = "new", templateId }: TemplateFormProps) {
       <FieldGroup label="Body" hint="Required · 1,024 char max">
         <textarea
           {...form.register("bodyText")}
-          ref={bodyTextInputRef}
           className="min-h-[110px] w-full resize-y rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm leading-[1.55] text-ink-900 outline-none transition-[border-color,box-shadow] focus:border-brand-500 focus:shadow-[0_0_0_3px_rgba(23,163,152,0.1)]"
           placeholder="Hello {{1}}, your order {{2}} has been confirmed."
           maxLength={1024}
