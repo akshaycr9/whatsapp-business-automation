@@ -1,11 +1,12 @@
 import { PhonePreview } from "./PhonePreview";
+import type { TemplateButtonType } from "@/types";
 
 interface TemplatePreviewPanelProps {
   header: string | undefined;
   body: string;
   footer: string | undefined;
   buttons: Array<{
-    type: "URL" | "PHONE_NUMBER" | "QUICK_REPLY" | "COPY_CODE";
+    type: TemplateButtonType;
     text: string;
   }>;
   detectedVars: string[];

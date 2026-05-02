@@ -7,6 +7,7 @@ import {
   getFooterText,
 } from "@/lib/template-utils";
 import type { TemplateFormData } from "@/lib/template-form.schema";
+import { TemplateComponentType, TemplateButtonType, TemplateButtonGroupType } from "@/types";
 
 interface EditTemplateFormReturn {
   template: ReturnType<typeof useTemplates>["templates"][0] | null;
@@ -36,15 +37,11 @@ export function useEditTemplateForm(
     // Get buttons from components
     const buttonComponent = (
       template.components as Array<Record<string, unknown>>
-    )?.find((c) => c["type"] === "BUTTONS");
+    )?.find((c) => c["type"] === TemplateComponentType.BUTTONS);
     const buttons = buttonComponent && Array.isArray(buttonComponent["buttons"])
       ? (buttonComponent["buttons"] as Array<Record<string, unknown>>).map(
           (b) => ({
-            type: (b["type"] as
-              | "QUICK_REPLY"
-              | "URL"
-              | "PHONE_NUMBER"
-              | "COPY_CODE") || "QUICK_REPLY",
+            type: (b["type"] as TemplateButtonType) || TemplateButtonType.QUICK_REPLY,
             text: (b["text"] as string) || "",
             url: (b["url"] as string) || "",
             phone_number: (b["phone_number"] as string) || "",
@@ -64,9 +61,9 @@ export function useEditTemplateForm(
       footerEnabled: footerText !== "",
       footerText,
       buttonsEnabled: buttons.length > 0,
-      buttonGroup: buttons.length > 0 && buttons[0].type === "QUICK_REPLY"
-        ? ("QUICK_REPLY" as const)
-        : ("CTA" as const),
+      buttonGroup: buttons.length > 0 && buttons[0].type === TemplateButtonType.QUICK_REPLY
+        ? (TemplateButtonGroupType.QUICK_REPLY as const)
+        : (TemplateButtonGroupType.CTA as const),
       buttons,
     } as Partial<TemplateFormData>;
   }, [template]);

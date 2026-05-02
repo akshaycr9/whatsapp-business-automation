@@ -8,6 +8,7 @@ import { RAZORPAY_PATH_OPTIONS } from '@/lib/razorpay-paths';
 import { PhonePreview, type PhoneButton } from '@/components/templates/PhonePreview';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { Template } from '@/types';
+import { TemplateComponentType, TemplateComponentFormat } from '@/types';
 import { cn } from '@/lib/utils';
 
 // ── Delay options ─────────────────────────────────────────────────────────────
@@ -41,7 +42,7 @@ const ABANDONED_CART_DELAY_OPTIONS = import.meta.env.DEV
 function extractHeaderText(components: unknown): string {
   if (!Array.isArray(components)) return '';
   const header = (components as Array<{ type: string; format?: string; text?: string }>).find(
-    (c) => c.type === 'HEADER' && c.format === 'TEXT',
+    (c) => c.type === TemplateComponentType.HEADER && c.format === TemplateComponentFormat.TEXT,
   );
   return header?.text ?? '';
 }
@@ -49,7 +50,7 @@ function extractHeaderText(components: unknown): string {
 function extractFooterText(components: unknown): string {
   if (!Array.isArray(components)) return '';
   const footer = (components as Array<{ type: string; text?: string }>).find(
-    (c) => c.type === 'FOOTER',
+    (c) => c.type === TemplateComponentType.FOOTER,
   );
   return footer?.text ?? '';
 }
@@ -58,7 +59,7 @@ function extractPhoneButtons(components: unknown): PhoneButton[] {
   if (!Array.isArray(components)) return [];
   const buttonsComp = (
     components as Array<{ type: string; buttons?: Array<{ type: string; text: string }> }>
-  ).find((c) => c.type === 'BUTTONS');
+  ).find((c) => c.type === TemplateComponentType.BUTTONS);
   if (!buttonsComp?.buttons) return [];
   return buttonsComp.buttons
     .filter((b) => b.text?.trim())

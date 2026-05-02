@@ -60,8 +60,34 @@ export interface Message {
 }
 
 // ── Template ─────────────────────────────────────────────────
-export { TemplateStatus, TEMPLATE_TABLE_COLUMNS, type StatusConfig, type TemplateTableColumn } from './templates';
-export type TemplateCategory = 'MARKETING' | 'UTILITY' | 'AUTHENTICATION';
+export {
+  // Enums
+  TemplateStatus,
+  TemplateButtonType,
+  TemplateComponentType,
+  TemplateComponentFormat,
+  TemplateButtonGroupType,
+  TemplateCategory,
+  // Constants
+  TEMPLATE_TABLE_COLUMNS,
+  // Config/Display types
+  type StatusConfig,
+  type TemplateTableColumn,
+  // Filter/Status types
+  type StatusFilter,
+  type LoadStatus,
+  // Input/Form interfaces
+  type TemplateButtonInput,
+  type TemplateComponentInput,
+  type CreateTemplateInput,
+  type UpdateTemplateInput,
+  // Meta/State interfaces
+  type TemplateMeta,
+  type StatusCounts,
+  type TemplatesState,
+  // Thunk interfaces
+  type FetchTemplatesArg,
+} from './templates';
 
 export interface Template {
   id: string;

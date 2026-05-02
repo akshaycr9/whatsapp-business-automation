@@ -8,6 +8,8 @@ import {
   syncTemplate as syncTemplateThunk,
   syncAllTemplates as syncAllTemplatesThunk,
   updateTemplate as updateTemplateThunk,
+} from '@/api/templates';
+import {
   setSearch,
   setStatusFilter,
   setPage,
@@ -20,12 +22,17 @@ import {
   selectTemplatesPage,
   selectStatusCounts,
   selectStatusCountsLoaded,
-  type StatusFilter,
-  type CreateTemplateInput,
-  type StatusCounts,
 } from '@/features/templates/templatesSlice';
-import type { Template } from '@/types';
+import type {
+  Template,
+  StatusFilter,
+  CreateTemplateInput,
+  StatusCounts,
+  TemplateMeta,
+  TemplateComponentInput,
+} from '@/types';
 
+// Re-export types from centralized source for convenience
 export type {
   StatusFilter,
   CreateTemplateInput,
@@ -33,14 +40,8 @@ export type {
   TemplateButtonInput,
   UpdateTemplateInput,
   StatusCounts,
-} from '@/features/templates/templatesSlice';
-
-interface TemplateMeta {
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
+  TemplateMeta,
+} from '@/types';
 
 export interface UseTemplatesReturn {
   templates: Template[];
@@ -56,7 +57,7 @@ export interface UseTemplatesReturn {
   setPage: (value: number) => void;
   statusCounts: StatusCounts;
   createTemplate: (input: CreateTemplateInput) => Promise<Template>;
-  updateTemplate: (id: string, components: import('@/features/templates/templatesSlice').TemplateComponentInput[]) => Promise<Template>;
+  updateTemplate: (id: string, components: TemplateComponentInput[]) => Promise<Template>;
   removeTemplate: (id: string) => Promise<void>;
   syncOne: (id: string) => Promise<Template>;
   syncAll: () => Promise<{ synced: number }>;
@@ -152,7 +153,7 @@ export function useTemplates(): UseTemplatesReturn {
   );
 
   const handleUpdateTemplate = useCallback(
-    async (id: string, components: import('@/features/templates/templatesSlice').TemplateComponentInput[]): Promise<Template> => {
+    async (id: string, components: TemplateComponentInput[]): Promise<Template> => {
       const result = await dispatch(updateTemplateThunk({ id, components }));
       if (updateTemplateThunk.rejected.match(result)) {
         throw new Error((result.payload as string | undefined) ?? 'Failed to update template');

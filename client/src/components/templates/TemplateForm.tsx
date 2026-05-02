@@ -4,11 +4,16 @@ import { FieldGroup } from "./FieldGroup";
 import { useTemplateFormState } from "@/hooks/templates/use-template-form-state";
 import { useTemplateFormLogic } from "@/hooks/templates/use-template-form-logic";
 import { useEditTemplateForm } from "@/hooks/templates/use-edit-template-form";
+import { useTemplates } from "@/hooks/templates/use-templates";
 import {
-  useTemplates,
+  TemplateComponentType,
+  TemplateComponentFormat,
+  TemplateButtonType,
+  TemplateButtonGroupType,
+  TemplateCategory,
   type TemplateComponentInput,
   type TemplateButtonInput,
-} from "@/hooks/templates/use-templates";
+} from "@/types";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import type { TemplateFormData } from "@/lib/template-form.schema";
@@ -24,7 +29,7 @@ interface TemplateFormProps {
   footerEnabled: boolean;
   footerText: string;
   buttonsEnabled: boolean;
-  buttonGroup: "QUICK_REPLY" | "CTA";
+  buttonGroup: TemplateButtonGroupType;
   buttons: TemplateFormData["buttons"];
   category: TemplateFormData["category"];
   removeButton: (index: number) => void;
@@ -95,14 +100,14 @@ export function TemplateForm({
 
       if (data.headerEnabled && data.headerText.trim()) {
         components.push({
-          type: "HEADER",
-          format: "TEXT",
+          type: TemplateComponentType.HEADER,
+          format: TemplateComponentFormat.TEXT,
           text: data.headerText.trim(),
         });
       }
 
       const bodyComp: TemplateComponentInput = {
-        type: "BODY",
+        type: TemplateComponentType.BODY,
         text: data.bodyText.trim(),
       };
       if (data.bodySamples.length > 0) {
@@ -113,25 +118,25 @@ export function TemplateForm({
       components.push(bodyComp);
 
       if (data.footerEnabled && data.footerText.trim()) {
-        components.push({ type: "FOOTER", text: data.footerText.trim() });
+        components.push({ type: TemplateComponentType.FOOTER, text: data.footerText.trim() });
       }
 
       if (data.buttonsEnabled && data.buttons.length > 0) {
         const btnInputs: TemplateButtonInput[] = data.buttons.map((btn) => {
           const base: TemplateButtonInput = {
-            type: btn.type,
+            type: btn.type as TemplateButtonType,
             text: btn.text.trim(),
           };
-          if (btn.type === "URL") {
+          if (btn.type === TemplateButtonType.URL) {
             base.url = btn.url.trim();
             if (btn.example.trim()) base.example = btn.example.trim();
           }
-          if (btn.type === "PHONE_NUMBER")
+          if (btn.type === TemplateButtonType.PHONE_NUMBER)
             base.phone_number = btn.phone_number.trim();
-          if (btn.type === "COPY_CODE") base.example = btn.example.trim();
+          if (btn.type === TemplateButtonType.COPY_CODE) base.example = btn.example.trim();
           return base;
         });
-        components.push({ type: "BUTTONS", buttons: btnInputs });
+        components.push({ type: TemplateComponentType.BUTTONS, buttons: btnInputs });
       }
 
       try {
@@ -180,7 +185,7 @@ export function TemplateForm({
       {/* Category */}
       <FieldGroup label="Category">
         <div className="flex flex-wrap gap-1.5">
-          {(["MARKETING", "UTILITY", "AUTHENTICATION"] as const).map((cat) => (
+          {Object.values(TemplateCategory).map((cat) => (
             <button
               key={cat}
               type="button"
@@ -331,7 +336,7 @@ export function TemplateForm({
         {buttonsEnabled && (
           <div className="space-y-3 rounded-lg border border-border bg-surface-2 p-3">
             <div className="flex overflow-hidden rounded-lg border border-border">
-              {(["QUICK_REPLY", "CTA"] as const).map((g) => (
+              {[TemplateButtonGroupType.QUICK_REPLY, TemplateButtonGroupType.CTA].map((g) => (
                 <button
                   key={g}
                   type="button"
@@ -379,7 +384,7 @@ export function TemplateForm({
                   <button
                     type="button"
                     className="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-border py-1.5 text-xs font-semibold text-ink-500 transition-colors hover:bg-surface-sunken"
-                    onClick={() => addButtonOfType("QUICK_REPLY")}
+                    onClick={() => addButtonOfType(TemplateButtonType.QUICK_REPLY)}
                   >
                     <Plus size={12} /> Add Quick Reply
                   </button>
@@ -403,7 +408,7 @@ export function TemplateForm({
                       enabled={!!urlBtn}
                       onToggle={() => {
                         if (urlBtn) removeButton(urlBtnIndex);
-                        else addButtonOfType("URL");
+                        else addButtonOfType(TemplateButtonType.URL);
                       }}
                     />
                   </div>
@@ -441,7 +446,7 @@ export function TemplateForm({
                       enabled={!!phoneBtn}
                       onToggle={() => {
                         if (phoneBtn) removeButton(phoneBtnIndex);
-                        else addButtonOfType("PHONE_NUMBER");
+                        else addButtonOfType(TemplateButtonType.PHONE_NUMBER);
                       }}
                     />
                   </div>
@@ -475,7 +480,7 @@ export function TemplateForm({
                         enabled={!!copyBtn}
                         onToggle={() => {
                           if (copyBtn) removeButton(copyBtnIndex);
-                          else addButtonOfType("COPY_CODE");
+                          else addButtonOfType(TemplateButtonType.COPY_CODE);
                         }}
                       />
                     </div>

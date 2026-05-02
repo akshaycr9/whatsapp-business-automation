@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
-import { useForm, useFieldArray, useWatch, UseFormReturn, FieldArrayMethodProps } from 'react-hook-form';
+import { useForm, useFieldArray, useWatch, UseFormReturn, UseFieldArrayReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { templateFormSchema, type TemplateFormData } from '@/lib/template-form.schema';
+import { TemplateButtonGroupType } from '@/types';
 
 interface UseTemplateFormStateReturn {
   // Form instance
@@ -15,13 +16,13 @@ interface UseTemplateFormStateReturn {
   footerEnabled: boolean;
   footerText: string;
   buttonsEnabled: boolean;
-  buttonGroup: 'QUICK_REPLY' | 'CTA';
+  buttonGroup: TemplateButtonGroupType;
   buttons: TemplateFormData['buttons'];
   category: TemplateFormData['category'];
 
   // Field array operations
   buttonFields: Array<{ id: string }>;
-  appendButton: (value: FieldArrayMethodProps) => void;
+  appendButton: UseFieldArrayReturn<TemplateFormData, 'buttons'>['append'];
   removeButton: (index: number) => void;
 }
 
@@ -32,7 +33,7 @@ interface UseTemplateFormStateParams {
 export function useTemplateFormState(params?: UseTemplateFormStateParams): UseTemplateFormStateReturn {
   // Initialize form
   const form = useForm<TemplateFormData>({
-    resolver: zodResolver(templateFormSchema),
+    resolver: zodResolver(templateFormSchema) as any,
     mode: 'onChange',
     defaultValues: {
       name: '',
@@ -45,7 +46,7 @@ export function useTemplateFormState(params?: UseTemplateFormStateParams): UseTe
       footerEnabled: false,
       footerText: '',
       buttonsEnabled: false,
-      buttonGroup: 'QUICK_REPLY',
+      buttonGroup: TemplateButtonGroupType.QUICK_REPLY,
       buttons: [],
       ...params?.initialValues,
     },
@@ -67,7 +68,7 @@ export function useTemplateFormState(params?: UseTemplateFormStateParams): UseTe
         footerEnabled: false,
         footerText: '',
         buttonsEnabled: false,
-        buttonGroup: 'QUICK_REPLY',
+        buttonGroup: TemplateButtonGroupType.QUICK_REPLY,
         buttons: [],
         ...params.initialValues,
       });
@@ -101,7 +102,7 @@ export function useTemplateFormState(params?: UseTemplateFormStateParams): UseTe
     footerEnabled,
     footerText,
     buttonsEnabled,
-    buttonGroup,
+    buttonGroup: buttonGroup as TemplateButtonGroupType,
     buttons,
     category,
     buttonFields,

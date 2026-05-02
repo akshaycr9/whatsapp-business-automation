@@ -1,4 +1,9 @@
 import { z } from 'zod';
+import {
+  TemplateCategory,
+  TemplateButtonType,
+  TemplateButtonGroupType,
+} from '@/types';
 
 export const templateFormSchema = z.object({
   name: z
@@ -6,7 +11,7 @@ export const templateFormSchema = z.object({
     .min(1, 'Template name is required')
     .regex(/^[a-z0-9_]+$/, 'Only lowercase letters, numbers, and underscores allowed'),
   language: z.enum(['en', 'en_US', 'hi']),
-  category: z.enum(['MARKETING', 'UTILITY', 'AUTHENTICATION']),
+  category: z.enum(Object.values(TemplateCategory) as [string, ...string[]]),
 
   // Header
   headerEnabled: z.boolean().default(false),
@@ -33,11 +38,11 @@ export const templateFormSchema = z.object({
 
   // Buttons
   buttonsEnabled: z.boolean().default(false),
-  buttonGroup: z.enum(['QUICK_REPLY', 'CTA']).default('QUICK_REPLY'),
+  buttonGroup: z.enum(Object.values(TemplateButtonGroupType) as [string, ...string[]]).default(TemplateButtonGroupType.QUICK_REPLY),
   buttons: z
     .array(
       z.object({
-        type: z.enum(['QUICK_REPLY', 'URL', 'PHONE_NUMBER', 'COPY_CODE']),
+        type: z.enum(Object.values(TemplateButtonType) as [string, ...string[]]),
         text: z.string().min(1, 'Button text is required').max(25, 'Button text must be at most 25 characters'),
         url: z.string().optional().default(''),
         phone_number: z.string().optional().default(''),

@@ -1,5 +1,7 @@
 // ── Pure utility functions extracted from TemplatesPage ──────────────────────
 
+import { TemplateButtonType, TemplateComponentType, TemplateComponentFormat } from '@/types';
+
 type ComponentsArray = Array<{ type?: string; text?: string; buttons?: unknown[]; format?: string }>;
 
 type ButtonShape = { type?: string; text?: string; url?: string; phone_number?: string };
@@ -7,14 +9,14 @@ type ButtonShape = { type?: string; text?: string; url?: string; phone_number?: 
 // ── Dialog Button (used in template creation form) ─────────────────────────
 
 export interface DialogButton {
-  type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER' | 'COPY_CODE';
+  type: TemplateButtonType;
   text: string;
   url: string;
   phone_number: string;
   example: string;
 }
 
-export function makeButton(type: DialogButton['type']): DialogButton {
+export function makeButton(type: TemplateButtonType): DialogButton {
   return { type, text: '', url: '', phone_number: '', example: '' };
 }
 
@@ -28,26 +30,26 @@ export function substituteWithSamples(text: string, samples: string[]): string {
 export function getHeaderText(components: unknown): string {
   if (!Array.isArray(components)) return '';
   const comps = components as ComponentsArray;
-  const header = comps.find((c) => c.type === 'HEADER');
+  const header = comps.find((c) => c.type === TemplateComponentType.HEADER);
   if (header?.text) return header.text;
-  if (header?.format && header.format !== 'TEXT') return `[${header.format}]`;
+  if (header?.format && header.format !== TemplateComponentFormat.TEXT) return `[${header.format}]`;
   return '';
 }
 
 export function getFooterText(components: unknown): string {
   if (!Array.isArray(components)) return '';
   const comps = components as ComponentsArray;
-  const footer = comps.find((c) => c.type === 'FOOTER');
+  const footer = comps.find((c) => c.type === TemplateComponentType.FOOTER);
   return footer?.text ?? '';
 }
 
 export function getCtaText(components: unknown): string {
   if (!Array.isArray(components)) return '';
   const comps = components as ComponentsArray;
-  const buttons = comps.find((c) => c.type === 'BUTTONS');
+  const buttons = comps.find((c) => c.type === TemplateComponentType.BUTTONS);
   if (!Array.isArray(buttons?.buttons)) return '';
   const first = (buttons.buttons as ButtonShape[]).find(
-    (b) => b.type === 'URL' || b.type === 'PHONE_NUMBER' || b.type === 'COPY_CODE',
+    (b) => b.type === TemplateButtonType.URL || b.type === TemplateButtonType.PHONE_NUMBER || b.type === TemplateButtonType.COPY_CODE,
   );
   return first?.text ?? '';
 }
@@ -77,7 +79,7 @@ export function getBodyText(components: unknown): string {
   if (!Array.isArray(components)) return '';
   const comps = components as ComponentsArray;
   for (const c of comps) {
-    if (c.type === 'BODY' && c.text) return c.text;
+    if (c.type === TemplateComponentType.BODY && c.text) return c.text;
   }
   for (const c of comps) {
     if (c.text) return c.text;
@@ -86,18 +88,18 @@ export function getBodyText(components: unknown): string {
 }
 
 export interface TemplateButton {
-  type: 'URL' | 'PHONE_NUMBER' | 'QUICK_REPLY' | 'COPY_CODE';
+  type: TemplateButtonType;
   text: string;
 }
 
 export function getTemplateButtons(components: unknown): TemplateButton[] {
   if (!Array.isArray(components)) return [];
   const comps = components as ComponentsArray;
-  const buttonsComp = comps.find((c) => c.type === 'BUTTONS');
+  const buttonsComp = comps.find((c) => c.type === TemplateComponentType.BUTTONS);
   if (!Array.isArray(buttonsComp?.buttons)) return [];
   return (buttonsComp.buttons as ButtonShape[])
     .filter((b) => b.type && b.text)
-    .map((b) => ({ type: b.type as TemplateButton['type'], text: b.text ?? '' }));
+    .map((b) => ({ type: b.type as TemplateButtonType, text: b.text ?? '' }));
 }
 
 export function getBodyExamples(components: unknown): string[] {
@@ -122,7 +124,7 @@ export function getButtonCount(components: unknown): number {
   if (!Array.isArray(components)) return 0;
   const comps = components as ComponentsArray;
   for (const c of comps) {
-    if (c.type === 'BUTTONS' && Array.isArray(c.buttons)) return c.buttons.length;
+    if (c.type === TemplateComponentType.BUTTONS && Array.isArray(c.buttons)) return c.buttons.length;
   }
   return 0;
 }

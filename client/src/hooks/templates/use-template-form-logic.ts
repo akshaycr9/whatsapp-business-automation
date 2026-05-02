@@ -1,12 +1,17 @@
 import { useRef, useMemo, useCallback, useEffect } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
+import { useTemplates } from "@/hooks/templates/use-templates";
 import {
-  useTemplates,
+  TemplateComponentType,
+  TemplateComponentFormat,
+  TemplateButtonType,
+  TemplateButtonGroupType,
+  TemplateCategory,
   type CreateTemplateInput,
   type TemplateComponentInput,
   type TemplateButtonInput,
-} from "@/hooks/templates/use-templates";
+} from "@/types";
 import { toast } from "@/hooks/use-toast";
 import {
   extractVariables,
@@ -24,7 +29,7 @@ interface UseTemplateFormLogicParams {
   footerEnabled: boolean;
   footerText: string;
   buttonsEnabled: boolean;
-  buttonGroup: "QUICK_REPLY" | "CTA";
+  buttonGroup: TemplateButtonGroupType;
   buttons: TemplateFormData["buttons"];
   category: TemplateFormData["category"];
 }
@@ -45,17 +50,15 @@ interface UseTemplateFormLogicReturn {
   previewHeader: string | undefined;
   previewBody: string;
   previewButtons: Array<{
-    type: "URL" | "PHONE_NUMBER" | "QUICK_REPLY" | "COPY_CODE";
+    type: TemplateButtonType;
     text: string;
   }>;
 
   // Handlers
   bodyRef: React.RefObject<HTMLTextAreaElement>;
   insertVariable: () => void;
-  addButtonOfType: (
-    type: "QUICK_REPLY" | "URL" | "PHONE_NUMBER" | "COPY_CODE",
-  ) => void;
-  handleButtonGroupChange: (group: "QUICK_REPLY" | "CTA") => void;
+  addButtonOfType: (type: TemplateButtonType) => void;
+  handleButtonGroupChange: (group: TemplateButtonGroupType) => void;
   onSubmit: (data: TemplateFormData) => Promise<void>;
 }
 
@@ -111,31 +114,31 @@ export function useTemplateFormLogic(
 
   // Filter buttons by type
   const quickReplies = useMemo(
-    () => buttons.filter((b) => b.type === "QUICK_REPLY"),
+    () => buttons.filter((b) => b.type === TemplateButtonType.QUICK_REPLY),
     [buttons],
   );
   const urlBtn = useMemo(
-    () => buttons.find((b) => b.type === "URL"),
+    () => buttons.find((b) => b.type === TemplateButtonType.URL),
     [buttons],
   );
   const phoneBtn = useMemo(
-    () => buttons.find((b) => b.type === "PHONE_NUMBER"),
+    () => buttons.find((b) => b.type === TemplateButtonType.PHONE_NUMBER),
     [buttons],
   );
   const copyBtn = useMemo(
-    () => buttons.find((b) => b.type === "COPY_CODE"),
+    () => buttons.find((b) => b.type === TemplateButtonType.COPY_CODE),
     [buttons],
   );
   const urlBtnIndex = useMemo(
-    () => buttons.findIndex((b) => b.type === "URL"),
+    () => buttons.findIndex((b) => b.type === TemplateButtonType.URL),
     [buttons],
   );
   const phoneBtnIndex = useMemo(
-    () => buttons.findIndex((b) => b.type === "PHONE_NUMBER"),
+    () => buttons.findIndex((b) => b.type === TemplateButtonType.PHONE_NUMBER),
     [buttons],
   );
   const copyBtnIndex = useMemo(
-    () => buttons.findIndex((b) => b.type === "COPY_CODE"),
+    () => buttons.findIndex((b) => b.type === TemplateButtonType.COPY_CODE),
     [buttons],
   );
   const isDynamicUrl = useMemo(
@@ -163,11 +166,7 @@ export function useTemplateFormLogic(
         ? buttons
             .filter((b) => b.text.trim())
             .map((b) => ({
-              type: b.type as
-                | "URL"
-                | "PHONE_NUMBER"
-                | "QUICK_REPLY"
-                | "COPY_CODE",
+              type: b.type as TemplateButtonType,
               text: b.text,
             }))
         : [],
@@ -176,7 +175,7 @@ export function useTemplateFormLogic(
 
   // Add button of specific type
   const addButtonOfType = useCallback(
-    (type: "QUICK_REPLY" | "URL" | "PHONE_NUMBER" | "COPY_CODE") => {
+    (type: TemplateButtonType) => {
       form.setValue("buttons", [...buttons, makeButton(type)]);
     },
     [buttons, form],
@@ -184,14 +183,14 @@ export function useTemplateFormLogic(
 
   // Handle button group change
   const handleButtonGroupChange = useCallback(
-    (group: "QUICK_REPLY" | "CTA") => {
+    (group: TemplateButtonGroupType) => {
       form.setValue("buttonGroup", group);
       // Clear buttons when switching groups
-      if (group === "QUICK_REPLY") {
-        const newButtons = buttons.filter((b) => b.type === "QUICK_REPLY");
+      if (group === TemplateButtonGroupType.QUICK_REPLY) {
+        const newButtons = buttons.filter((b) => b.type === TemplateButtonType.QUICK_REPLY);
         form.setValue("buttons", newButtons);
       } else {
-        const newButtons = buttons.filter((b) => b.type !== "QUICK_REPLY");
+        const newButtons = buttons.filter((b) => b.type !== TemplateButtonType.QUICK_REPLY);
         form.setValue("buttons", newButtons);
       }
     },
@@ -205,14 +204,14 @@ export function useTemplateFormLogic(
 
       if (data.headerEnabled && data.headerText.trim()) {
         components.push({
-          type: "HEADER",
-          format: "TEXT",
+          type: TemplateComponentType.HEADER,
+          format: TemplateComponentFormat.TEXT,
           text: data.headerText.trim(),
         });
       }
 
       const bodyComp: TemplateComponentInput = {
-        type: "BODY",
+        type: TemplateComponentType.BODY,
         text: data.bodyText.trim(),
       };
       if (data.bodySamples.length > 0) {
@@ -223,31 +222,31 @@ export function useTemplateFormLogic(
       components.push(bodyComp);
 
       if (data.footerEnabled && data.footerText.trim()) {
-        components.push({ type: "FOOTER", text: data.footerText.trim() });
+        components.push({ type: TemplateComponentType.FOOTER, text: data.footerText.trim() });
       }
 
       if (data.buttonsEnabled && data.buttons.length > 0) {
         const btnInputs: TemplateButtonInput[] = data.buttons.map((btn) => {
           const base: TemplateButtonInput = {
-            type: btn.type,
+            type: btn.type as TemplateButtonType,
             text: btn.text.trim(),
           };
-          if (btn.type === "URL") {
+          if (btn.type === TemplateButtonType.URL) {
             base.url = btn.url.trim();
             if (btn.example.trim()) base.example = btn.example.trim();
           }
-          if (btn.type === "PHONE_NUMBER")
+          if (btn.type === TemplateButtonType.PHONE_NUMBER)
             base.phone_number = btn.phone_number.trim();
-          if (btn.type === "COPY_CODE") base.example = btn.example.trim();
+          if (btn.type === TemplateButtonType.COPY_CODE) base.example = btn.example.trim();
           return base;
         });
-        components.push({ type: "BUTTONS", buttons: btnInputs });
+        components.push({ type: TemplateComponentType.BUTTONS, buttons: btnInputs });
       }
 
       const input: CreateTemplateInput = {
         name: data.name.trim(),
         language: data.language,
-        category: data.category,
+        category: data.category as TemplateCategory,
         components,
       };
 

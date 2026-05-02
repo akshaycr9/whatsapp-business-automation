@@ -8,7 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { api } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
-import { TemplateStatus } from '@/types/templates';
+import { TemplateStatus, TemplateComponentType, TemplateButtonType } from '@/types';
 import type { Template, Message, ApiResponse, PaginatedResponse } from '@/types';
 
 interface Props {
@@ -26,7 +26,7 @@ interface TemplateComponent {
 
 function extractVariablePositions(components: unknown): number[] {
   const comps = (components as TemplateComponent[]) ?? [];
-  const bodyComp = comps.find((c) => c.type === 'BODY');
+  const bodyComp = comps.find((c) => c.type === TemplateComponentType.BODY);
   if (!bodyComp?.text) return [];
   const matches = bodyComp.text.match(/\{\{(\d+)\}\}/g) ?? [];
   const positions = matches.map((m) => parseInt(m.replace(/\D/g, ''), 10));
@@ -41,12 +41,12 @@ interface UrlButtonVar {
 
 function extractUrlButtonVars(components: unknown): UrlButtonVar[] {
   const comps = (components as TemplateComponent[]) ?? [];
-  const buttonsComp = comps.find((c) => c.type === 'BUTTONS');
+  const buttonsComp = comps.find((c) => c.type === TemplateComponentType.BUTTONS);
   if (!buttonsComp?.buttons) return [];
 
   const result: UrlButtonVar[] = [];
   buttonsComp.buttons.forEach((btn, buttonIndex) => {
-    if (btn.type !== 'URL' || !btn.url) return;
+    if (btn.type !== TemplateButtonType.URL || !btn.url) return;
     const matches = btn.url.match(/\{\{(\d+)\}\}/g) ?? [];
     const positions = [...new Set(matches.map((m) => parseInt(m.replace(/\D/g, ''), 10)))].sort((a, b) => a - b);
     positions.forEach((varPos) => {
@@ -58,7 +58,7 @@ function extractUrlButtonVars(components: unknown): UrlButtonVar[] {
 
 function getBodyText(components: unknown): string {
   const comps = (components as TemplateComponent[]) ?? [];
-  return comps.find((c) => c.type === 'BODY')?.text ?? '';
+  return comps.find((c) => c.type === TemplateComponentType.BODY)?.text ?? '';
 }
 
 const CATEGORY_LABELS: Record<string, string> = {

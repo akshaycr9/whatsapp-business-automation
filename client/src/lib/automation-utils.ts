@@ -1,6 +1,7 @@
 import { CreditCard, Banknote, Package, ShoppingCart, MessageSquare, XCircle, Clock, ShoppingBag, Gift } from 'lucide-react';
 import React from 'react';
 import type { ShopifyEvent } from '@/types';
+import { TemplateComponentType, TemplateButtonType } from '@/types';
 
 // ── Event config ──────────────────────────────────────────────────────────────
 
@@ -102,7 +103,7 @@ export function getCategoryIdForEvent(triggerType: string, shopifyEvent: Shopify
 export function extractBodyText(components: unknown): string {
   if (!Array.isArray(components)) return '';
   const body = (components as Array<{ type: string; text?: string }>).find(
-    (c) => c.type === 'BODY',
+    (c) => c.type === TemplateComponentType.BODY,
   );
   return body?.text ?? '';
 }
@@ -124,12 +125,12 @@ export function extractUrlButtonVars(components: unknown): UrlButtonVar[] {
   if (!Array.isArray(components)) return [];
   const buttonsComp = (
     components as Array<{ type: string; buttons?: Array<{ type: string; text: string; url?: string }> }>
-  ).find((c) => c.type === 'BUTTONS');
+  ).find((c) => c.type === TemplateComponentType.BUTTONS);
   if (!buttonsComp?.buttons) return [];
 
   const result: UrlButtonVar[] = [];
   buttonsComp.buttons.forEach((btn, buttonIndex) => {
-    if (btn.type !== 'URL' || !btn.url) return;
+    if (btn.type !== TemplateButtonType.URL || !btn.url) return;
     const matches = btn.url.match(/\{\{(\d+)\}\}/g) ?? [];
     const positions = [...new Set(matches.map((m) => m.replace(/\{\{|\}\}/g, '')))];
     positions.sort((a, b) => Number(a) - Number(b)).forEach((varPos) => {

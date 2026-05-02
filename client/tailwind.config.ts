@@ -228,6 +228,15 @@ const config: Config = {
         'category-auth-bg': '#eff1ed',
         'category-auth-text': '#6b7671',
         'category-auth-border': '#c9cec4',
+        // ── WhatsApp phone preview colors ───────────────────────────────
+        'whatsapp-bezel': '#0a0a0a',
+        'whatsapp-chat-bg': '#e3dcd0',
+        'whatsapp-avatar-dark': '#2a1f16',
+        'whatsapp-avatar-light': '#3a2d22',
+        'whatsapp-avatar-text': '#e7d8c5',
+        'whatsapp-bubble': '#dcf8c6',
+        'whatsapp-timestamp': '#7b8480',
+        'whatsapp-read-tick': '#53bdeb',
         // ── shadcn/ui HSL tokens (keep unchanged) ─────────────────────
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
