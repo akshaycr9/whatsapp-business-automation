@@ -1,23 +1,23 @@
 import React from 'react';
-import type { TemplateStatus } from '@/types';
+import { TemplateStatus, type StatusConfig } from '@/types/templates';
 
 interface StatusBadgeProps {
   status: TemplateStatus;
 }
 
 // Configuration map for status styles
-const STATUS_CONFIG: Record<TemplateStatus, { bgClass: string; textClass: string; label: string }> = {
-  APPROVED: {
+const STATUS_CONFIG: Record<TemplateStatus, StatusConfig> = {
+  [TemplateStatus.APPROVED]: {
     bgClass: 'bg-brand-100',
     textClass: 'text-brand-800',
     label: 'APPROVED',
   },
-  REJECTED: {
+  [TemplateStatus.REJECTED]: {
     bgClass: 'bg-accent-rose-bg',
     textClass: 'text-accent-rose',
     label: 'REJECTED',
   },
-  PENDING: {
+  [TemplateStatus.PENDING]: {
     bgClass: 'bg-accent-amber-bg',
     textClass: 'text-accent-amber',
     label: 'PENDING',

@@ -1,9 +1,10 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import { api } from '@/lib/api';
+import { TemplateStatus } from '@/types/templates';
 import type { Template, PaginatedResponse, ApiResponse } from '@/types';
 import type { RootState } from '@/app/store';
 
-export type StatusFilter = 'all' | 'PENDING' | 'APPROVED' | 'REJECTED';
+export type StatusFilter = 'all' | TemplateStatus;
 
 export interface TemplateButtonInput {
   type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER' | 'COPY_CODE';
@@ -39,9 +40,9 @@ type LoadStatus = 'idle' | 'loading' | 'succeeded' | 'failed';
 
 export interface StatusCounts {
   all: number;
-  APPROVED: number;
-  PENDING: number;
-  REJECTED: number;
+  [TemplateStatus.APPROVED]: number;
+  [TemplateStatus.PENDING]: number;
+  [TemplateStatus.REJECTED]: number;
 }
 
 interface TemplatesState {
@@ -59,7 +60,12 @@ interface TemplatesState {
 }
 
 const DEFAULT_META: TemplateMeta = { total: 0, page: 1, limit: 20, totalPages: 0 };
-const DEFAULT_STATUS_COUNTS: StatusCounts = { all: 0, APPROVED: 0, PENDING: 0, REJECTED: 0 };
+const DEFAULT_STATUS_COUNTS: StatusCounts = {
+  all: 0,
+  [TemplateStatus.APPROVED]: 0,
+  [TemplateStatus.PENDING]: 0,
+  [TemplateStatus.REJECTED]: 0,
+};
 
 const initialState: TemplatesState = {
   list: [],

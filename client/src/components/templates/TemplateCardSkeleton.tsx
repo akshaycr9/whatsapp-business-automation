@@ -1,4 +1,5 @@
 import { Skeleton } from '@/components/ui/skeleton';
+import { TEMPLATE_TABLE_COLUMNS } from '@/types/templates';
 
 export function TemplateTableSkeleton() {
   return (
@@ -6,23 +7,22 @@ export function TemplateTableSkeleton() {
       <table className="w-full border-collapse text-[13px]" style={{ minWidth: 780 }}>
         <thead>
           <tr>
-            {['Template Name', 'Category', 'Language', 'Status', 'Sync', 'Created', 'Updated', 'Actions'].map(
-              (col) => (
-                <th
-                  key={col}
-                  className="bg-card border-b border-border px-3.5 py-2.5 text-left"
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    color: '#8a948f',
-                  }}
-                >
-                  {col}
-                </th>
-              ),
-            )}
+            {TEMPLATE_TABLE_COLUMNS.map((col) => (
+              <th
+                key={col.id}
+                className="bg-card border-b border-border px-3.5 py-2.5 text-left"
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: '#8a948f',
+                  textAlign: col.isRightAligned ? 'right' : 'left',
+                }}
+              >
+                {col.label}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>

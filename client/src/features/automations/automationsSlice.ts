@@ -5,6 +5,7 @@ import {
   type PayloadAction,
 } from "@reduxjs/toolkit";
 import { api } from "@/lib/api";
+import { TemplateStatus } from "@/types/templates";
 import type {
   Automation,
   AutomationLog,
@@ -84,7 +85,7 @@ export const fetchApprovedTemplates = createAsyncThunk<
 >("automations/fetchApprovedTemplates", async (_, { rejectWithValue }) => {
   try {
     const res = await api.get<PaginatedResponse<Template>>("/templates", {
-      params: { status: "APPROVED", limit: 100 },
+      params: { status: TemplateStatus.APPROVED, limit: 100 },
     });
     return res.data.data;
   } catch (err: unknown) {

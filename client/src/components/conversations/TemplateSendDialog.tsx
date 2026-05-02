@@ -8,6 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { api } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
+import { TemplateStatus } from '@/types/templates';
 import type { Template, Message, ApiResponse, PaginatedResponse } from '@/types';
 
 interface Props {
@@ -77,7 +78,7 @@ export const TemplateSendDialog = React.memo(function TemplateSendDialog({ conve
     setLoading(true);
     try {
       const response = await api.get<PaginatedResponse<Template>>('/templates', {
-        params: { status: 'APPROVED', limit: 100 },
+        params: { status: TemplateStatus.APPROVED, limit: 100 },
       });
       setTemplates(response.data.data);
     } catch {

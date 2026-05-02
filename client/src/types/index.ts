@@ -60,8 +60,8 @@ export interface Message {
 }
 
 // ── Template ─────────────────────────────────────────────────
+export { TemplateStatus, TEMPLATE_TABLE_COLUMNS, type StatusConfig, type TemplateTableColumn } from './templates';
 export type TemplateCategory = 'MARKETING' | 'UTILITY' | 'AUTHENTICATION';
-export type TemplateStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export interface Template {
   id: string;

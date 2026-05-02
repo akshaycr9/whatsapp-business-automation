@@ -6,6 +6,7 @@ import {
   type StatusCounts,
 } from "@/hooks/templates/use-templates";
 import { toast } from "@/hooks/use-toast";
+import { TemplateStatus } from "@/types/templates";
 import type { Template } from "@/types";
 
 interface UseTemplatesPageReturn {
@@ -38,9 +39,9 @@ export function useTemplatesPage(
   const tabCounts = useMemo(
     () => ({
       all: statusCounts.all,
-      APPROVED: statusCounts.APPROVED,
-      PENDING: statusCounts.PENDING,
-      REJECTED: statusCounts.REJECTED,
+      [TemplateStatus.APPROVED]: statusCounts[TemplateStatus.APPROVED],
+      [TemplateStatus.PENDING]: statusCounts[TemplateStatus.PENDING],
+      [TemplateStatus.REJECTED]: statusCounts[TemplateStatus.REJECTED],
     }),
     [statusCounts],
   );
@@ -85,7 +86,7 @@ export function useTemplatesPage(
         toast({
           title: "Template synced",
           description:
-            updated.status === "REJECTED" && updated.rejectedReason
+            updated.status === TemplateStatus.REJECTED && updated.rejectedReason
               ? `Rejected: ${updated.rejectedReason}`
               : `Status: ${updated.status}`,
         });

@@ -4,14 +4,15 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from './StatusBadge';
 import { getBodyText, extractVariables, getButtonCount } from '@/lib/template-utils';
-import type { TemplateStatus } from '@/types';
+import { TemplateStatus } from '@/types/templates';
+import type { TemplateStatus as TemplateStatusType } from '@/types';
 
 interface TemplateCardProps {
   id: string;
   name: string;
   category: string;
   language: string;
-  status: TemplateStatus;
+  status: TemplateStatusType;
   components: unknown;
   rejectedReason?: string | null;
   createdAt: string;
@@ -95,7 +96,7 @@ export const TemplateCard = React.memo(function TemplateCard({
             </span>
           )}
         </div>
-        {status === 'REJECTED' && rejectedReason && (
+        {status === TemplateStatus.REJECTED && rejectedReason && (
           <p className="mt-2 text-xs text-destructive">{rejectedReason}</p>
         )}
       </div>
