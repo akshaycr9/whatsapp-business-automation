@@ -1,9 +1,8 @@
-import React from 'react';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { CategoryChip } from './CategoryChip';
-import { TemplateRow } from './TemplateRow';
-import { TEMPLATE_TABLE_COLUMNS } from '@/types/templates';
-import type { Template } from '@/types';
+import React from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { TemplateRow } from "./TemplateRow";
+import { TEMPLATE_TABLE_COLUMNS } from "@/types/templates";
+import type { Template } from "@/types";
 
 interface TemplateTableProps {
   templates: Template[];
@@ -45,7 +44,7 @@ export const TemplateTable = React.memo(function TemplateTable({
                 <th
                   key={col.id}
                   className={`sticky top-0 z-10 bg-card border-b border-border px-3.5 py-2.5 text-xs font-bold uppercase tracking-widest text-ink-400 ${
-                    col.isRightAligned ? 'text-right' : 'text-left'
+                    col.isRightAligned ? "text-right" : "text-left"
                   }`}
                 >
                   {col.label}

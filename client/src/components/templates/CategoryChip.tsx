@@ -6,22 +6,25 @@ interface CategoryChipConfig {
   borderClass: string;
 }
 
-// Category-specific branding colors (intentional brand design)
+// Base classes shared by all category chips (defined once for DRY principle)
+const baseClasses = 'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold border';
+
+// Category-specific design tokens from tailwind.config.ts
 const CATEGORY_CONFIG: Record<string, CategoryChipConfig> = {
   MARKETING: {
-    bgClass: 'bg-[#fdf0e6]',
-    textClass: 'text-[#b35a1f]',
-    borderClass: 'border-[#f5d5b5]',
+    bgClass: 'bg-category-marketing-bg',
+    textClass: 'text-category-marketing-text',
+    borderClass: 'border-category-marketing-border',
   },
   UTILITY: {
-    bgClass: 'bg-[#e8f0fe]',
-    textClass: 'text-[#2a5db0]',
-    borderClass: 'border-[#bdd0f5]',
+    bgClass: 'bg-category-utility-bg',
+    textClass: 'text-category-utility-text',
+    borderClass: 'border-category-utility-border',
   },
   AUTHENTICATION: {
-    bgClass: 'bg-[#eff1ed]',
-    textClass: 'text-ink-500',
-    borderClass: 'border-[#c9cec4]',
+    bgClass: 'bg-category-auth-bg',
+    textClass: 'text-category-auth-text',
+    borderClass: 'border-category-auth-border',
   },
 };
 
@@ -32,18 +35,12 @@ interface CategoryChipProps {
 export const CategoryChip = React.memo(function CategoryChip({ category }: CategoryChipProps) {
   const config = CATEGORY_CONFIG[category];
 
-  if (!config) {
-    return (
-      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold border bg-card text-foreground border-border">
-        {category}
-      </span>
-    );
-  }
+  const className = config
+    ? `${baseClasses} ${config.bgClass} ${config.textClass} ${config.borderClass}`
+    : `${baseClasses} bg-card text-foreground border-border`;
 
   return (
-    <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold border ${config.bgClass} ${config.textClass} ${config.borderClass}`}
-    >
+    <span className={className}>
       {category}
     </span>
   );
