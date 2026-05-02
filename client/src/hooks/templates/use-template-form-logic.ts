@@ -122,6 +122,16 @@ export function useTemplateFormLogic(
     }
   }, [bodyText, detectedVars.length, form]);
 
+  // Sync bodyRef with the textarea element
+  useEffect(() => {
+    const textarea = document.querySelector(
+      'textarea[maxLength="1024"]'
+    ) as HTMLTextAreaElement | null;
+    if (textarea) {
+      bodyRef.current = textarea;
+    }
+  }, []);
+
   // Filter buttons by type
   const quickReplies = useMemo(
     () => buttons.filter((b) => b.type === "QUICK_REPLY"),

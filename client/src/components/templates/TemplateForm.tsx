@@ -1,5 +1,4 @@
 import { Plus, Check, X, ExternalLink, Phone, Copy } from "lucide-react";
-import { useEffect } from "react";
 import { Toggle } from "./Toggle";
 import { FieldGroup } from "./FieldGroup";
 import { useTemplateFormState } from "@/hooks/templates/use-template-form-state";
@@ -81,16 +80,6 @@ export function TemplateForm({
   } as Parameters<typeof useTemplateFormLogic>[0]);
 
   const { handleSubmit, formState: { isSubmitting } } = form;
-
-  // Sync bodyRef with the actual textarea element for insertVariable function
-  useEffect(() => {
-    const textarea = document.querySelector(
-      'textarea[maxLength="1024"]'
-    ) as HTMLTextAreaElement | null;
-    if (textarea && bodyRef) {
-      bodyRef.current = textarea;
-    }
-  }, [bodyRef]);
 
   // Override submit handler for edit mode
   const onSubmit = async (data: TemplateFormData) => {
