@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   fetchTemplates,
   createTemplate,
@@ -12,6 +12,7 @@ import { createTestStore } from '@/test/test-utils';
 import { templateFactory } from '@/test/factories/template.factory';
 import { resetMockTemplates } from '@/test/mocks/handlers';
 import { TemplateStatus, TemplateCategory, TemplateComponentType } from '@/types/templates';
+import { api } from '@/lib/api';
 import type { CreateTemplateInput } from '@/types';
 
 describe('Template API Thunks', () => {
@@ -484,6 +485,69 @@ describe('Template API Thunks', () => {
           expect(deleteResult.payload).toBe(templateId);
         }
       }
+    });
+  });
+
+  describe('Error Fallback Messages (Non-Error Exceptions)', () => {
+    it('fetchTemplates returns fallback message for non-Error exception', async () => {
+      const getspy = vi.spyOn(api, 'get').mockRejectedValueOnce('Network error');
+
+      const result = await store.dispatch(
+        fetchTemplates({ search: '', page: 1, statusFilter: 'all' })
+      );
+
+      expect(fetchTemplates.rejected.match(result)).toBe(true);
+      if (fetchTemplates.rejected.match(result)) {
+        expect(result.payload).toBe('Failed to load templates');
+      }
+
+      getspy.mockRestore();
+    });
+
+    it('createTemplate returns fallback message for non-Error exception', async () => {
+      const postSpy = vi.spyOn(api, 'post').mockRejectedValueOnce({ code: 'ERR_UNKNOWN' });
+
+      const result = await store.dispatch(
+        createTemplate({
+          name: 'Test',
+          language: 'en',
+          category: TemplateCategory.UTILITY,
+          components: [],
+        })
+      );
+
+      expect(createTemplate.rejected.match(result)).toBe(true);
+      if (createTemplate.rejected.match(result)) {
+        expect(result.payload).toBe('Failed to create template');
+      }
+
+      postSpy.mockRestore();
+    });
+
+    it('syncAllTemplates returns fallback message for non-Error exception', async () => {
+      const postSpy = vi.spyOn(api, 'post').mockRejectedValueOnce(null);
+
+      const result = await store.dispatch(syncAllTemplates());
+
+      expect(syncAllTemplates.rejected.match(result)).toBe(true);
+      if (syncAllTemplates.rejected.match(result)) {
+        expect(result.payload).toBe('Failed to sync all templates');
+      }
+
+      postSpy.mockRestore();
+    });
+
+    it('fetchStatusCounts returns fallback message for non-Error exception', async () => {
+      const getSpy = vi.spyOn(api, 'get').mockRejectedValueOnce(undefined);
+
+      const result = await store.dispatch(fetchStatusCounts());
+
+      expect(fetchStatusCounts.rejected.match(result)).toBe(true);
+      if (fetchStatusCounts.rejected.match(result)) {
+        expect(result.payload).toBe('Failed to fetch status counts');
+      }
+
+      getSpy.mockRestore();
     });
   });
 });

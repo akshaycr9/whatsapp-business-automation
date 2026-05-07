@@ -181,6 +181,156 @@ describe('TemplateTable', () => {
       // Verify by checking that component doesn't throw
       expect(screen.getByRole('table')).toBeInTheDocument();
     });
+
+    it('calls onPreview with correct template id when row clicked', async () => {
+      const user = userEvent.setup();
+      const templates = [createMockTemplate({ id: 'template-123', name: 'Test Template' })];
+      const onPreview = vi.fn();
+
+      const { container } = render(
+        <TemplateTable
+          templates={templates}
+          syncingIds={new Set()}
+          onPreview={onPreview}
+          onEdit={vi.fn()}
+          onSync={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+        />
+      );
+
+      const row = container.querySelector('tbody tr');
+      if (row) {
+        await user.click(row);
+        expect(onPreview).toHaveBeenCalledWith('template-123');
+      }
+    });
+
+    it('calls onEdit with correct template id when edit button clicked', async () => {
+      const user = userEvent.setup();
+      const templates = [createMockTemplate({ id: 'template-456' })];
+      const onEdit = vi.fn();
+
+      render(
+        <TemplateTable
+          templates={templates}
+          syncingIds={new Set()}
+          onPreview={vi.fn()}
+          onEdit={onEdit}
+          onSync={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+        />
+      );
+
+      const editButton = screen.getByTitle('Edit');
+      await user.click(editButton);
+
+      expect(onEdit).toHaveBeenCalledWith('template-456');
+    });
+
+    it('calls onSync with correct template id when sync button clicked', async () => {
+      const user = userEvent.setup();
+      const templates = [createMockTemplate({ id: 'template-789' })];
+      const onSync = vi.fn();
+
+      render(
+        <TemplateTable
+          templates={templates}
+          syncingIds={new Set()}
+          onPreview={vi.fn()}
+          onEdit={vi.fn()}
+          onSync={onSync}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+        />
+      );
+
+      const syncButton = screen.getByRole('button', { name: /sync/i });
+      await user.click(syncButton);
+
+      expect(onSync).toHaveBeenCalledWith('template-789');
+    });
+
+    it('calls onDelete with correct template id when delete button clicked', async () => {
+      const user = userEvent.setup();
+      const templates = [createMockTemplate({ id: 'template-delete' })];
+      const onDelete = vi.fn();
+
+      render(
+        <TemplateTable
+          templates={templates}
+          syncingIds={new Set()}
+          onPreview={vi.fn()}
+          onEdit={vi.fn()}
+          onSync={vi.fn()}
+          onDelete={onDelete}
+          onDuplicate={vi.fn()}
+        />
+      );
+
+      const deleteButton = screen.getByTitle('Delete');
+      await user.click(deleteButton);
+
+      expect(onDelete).toHaveBeenCalledWith('template-delete');
+    });
+
+    it('calls onDuplicate with correct template id when duplicate button clicked', async () => {
+      const user = userEvent.setup();
+      const templates = [createMockTemplate({ id: 'template-dup' })];
+      const onDuplicate = vi.fn();
+
+      render(
+        <TemplateTable
+          templates={templates}
+          syncingIds={new Set()}
+          onPreview={vi.fn()}
+          onEdit={vi.fn()}
+          onSync={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={onDuplicate}
+        />
+      );
+
+      const duplicateButton = screen.getByTitle('Duplicate');
+      await user.click(duplicateButton);
+
+      expect(onDuplicate).toHaveBeenCalledWith('template-dup');
+    });
+
+    it('passes correct template ids to callbacks for multiple templates', async () => {
+      const user = userEvent.setup();
+      const templates = [
+        createMockTemplate({ id: 'template-1', name: 'Template 1' }),
+        createMockTemplate({ id: 'template-2', name: 'Template 2' }),
+        createMockTemplate({ id: 'template-3', name: 'Template 3' }),
+      ];
+      const onEdit = vi.fn();
+
+      render(
+        <TemplateTable
+          templates={templates}
+          syncingIds={new Set()}
+          onPreview={vi.fn()}
+          onEdit={onEdit}
+          onSync={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+        />
+      );
+
+      const editButtons = screen.getAllByTitle('Edit');
+
+      // Click edit button for second template
+      await user.click(editButtons[1]);
+      expect(onEdit).toHaveBeenCalledWith('template-2');
+
+      // Click edit button for third template
+      await user.click(editButtons[2]);
+      expect(onEdit).toHaveBeenCalledWith('template-3');
+
+      expect(onEdit).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('Syncing State', () => {

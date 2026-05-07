@@ -13,3 +13,12 @@ afterAll(() => server.close());
 
 // Mock canvas for PhonePreview component
 vi.mock('canvas');
+
+// Mock ResizeObserver for ScrollArea component
+class MockResizeObserver {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+}
+
+global.ResizeObserver = MockResizeObserver as any;

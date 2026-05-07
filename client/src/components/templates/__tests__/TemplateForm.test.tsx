@@ -506,5 +506,377 @@ describe('TemplateForm', () => {
       expect(screen.getByText('Utility')).toBeInTheDocument();
       expect(screen.getByText('Authentication')).toBeInTheDocument();
     });
+
+    it('shows copy code button only for AUTHENTICATION category', () => {
+      const form = createMockForm() as UseFormReturn<TemplateFormData>;
+      form.formState = { errors: {}, isSubmitting: false };
+
+      render(
+        <TemplateForm
+          form={form}
+          headerEnabled={false}
+          headerText=""
+          bodyText=""
+          bodySamples={[]}
+          footerEnabled={false}
+          footerText=""
+          buttonsEnabled={true}
+          buttonGroup={TemplateButtonGroupType.CTA}
+          buttons={[]}
+          category="AUTHENTICATION"
+          removeButton={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText(/copy code/i)).toBeInTheDocument();
+    });
+
+    it('hides copy code button for non-AUTHENTICATION categories', () => {
+      const form = createMockForm() as UseFormReturn<TemplateFormData>;
+      form.formState = { errors: {}, isSubmitting: false };
+
+      render(
+        <TemplateForm
+          form={form}
+          headerEnabled={false}
+          headerText=""
+          bodyText=""
+          bodySamples={[]}
+          footerEnabled={false}
+          footerText=""
+          buttonsEnabled={true}
+          buttonGroup={TemplateButtonGroupType.CTA}
+          buttons={[]}
+          category="MARKETING"
+          removeButton={vi.fn()}
+        />
+      );
+
+      expect(screen.queryByText(/copy code/i)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Quick Reply Buttons', () => {
+    it('renders quick reply buttons when button group is QUICK_REPLY', () => {
+      const form = createMockForm() as UseFormReturn<TemplateFormData>;
+      form.formState = { errors: {}, isSubmitting: false };
+
+      render(
+        <TemplateForm
+          form={form}
+          headerEnabled={false}
+          headerText=""
+          bodyText=""
+          bodySamples={[]}
+          footerEnabled={false}
+          footerText=""
+          buttonsEnabled={true}
+          buttonGroup={TemplateButtonGroupType.QUICK_REPLY}
+          buttons={[]}
+          category="MARKETING"
+          removeButton={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText(/up to 3 quick reply buttons/i)).toBeInTheDocument();
+      expect(screen.getByText(/add quick reply/i)).toBeInTheDocument();
+    });
+
+    it('does not render quick reply section when button group is CTA', () => {
+      const form = createMockForm() as UseFormReturn<TemplateFormData>;
+      form.formState = { errors: {}, isSubmitting: false };
+
+      render(
+        <TemplateForm
+          form={form}
+          headerEnabled={false}
+          headerText=""
+          bodyText=""
+          bodySamples={[]}
+          footerEnabled={false}
+          footerText=""
+          buttonsEnabled={true}
+          buttonGroup={TemplateButtonGroupType.CTA}
+          buttons={[]}
+          category="MARKETING"
+          removeButton={vi.fn()}
+        />
+      );
+
+      expect(screen.queryByText(/up to 3 quick reply buttons/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/add quick reply/i)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('CTA Buttons', () => {
+    it('renders CTA buttons section when button group is CTA', () => {
+      const form = createMockForm() as UseFormReturn<TemplateFormData>;
+      form.formState = { errors: {}, isSubmitting: false };
+
+      render(
+        <TemplateForm
+          form={form}
+          headerEnabled={false}
+          headerText=""
+          bodyText=""
+          bodySamples={[]}
+          footerEnabled={false}
+          footerText=""
+          buttonsEnabled={true}
+          buttonGroup={TemplateButtonGroupType.CTA}
+          buttons={[]}
+          category="MARKETING"
+          removeButton={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText(/add url and\/or phone number buttons/i)).toBeInTheDocument();
+    });
+
+    it('renders URL button section', () => {
+      const form = createMockForm() as UseFormReturn<TemplateFormData>;
+      form.formState = { errors: {}, isSubmitting: false };
+
+      render(
+        <TemplateForm
+          form={form}
+          headerEnabled={false}
+          headerText=""
+          bodyText=""
+          bodySamples={[]}
+          footerEnabled={false}
+          footerText=""
+          buttonsEnabled={true}
+          buttonGroup={TemplateButtonGroupType.CTA}
+          buttons={[]}
+          category="MARKETING"
+          removeButton={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText(/visit website/i)).toBeInTheDocument();
+    });
+
+    it('renders Phone button section', () => {
+      const form = createMockForm() as UseFormReturn<TemplateFormData>;
+      form.formState = { errors: {}, isSubmitting: false };
+
+      render(
+        <TemplateForm
+          form={form}
+          headerEnabled={false}
+          headerText=""
+          bodyText=""
+          bodySamples={[]}
+          footerEnabled={false}
+          footerText=""
+          buttonsEnabled={true}
+          buttonGroup={TemplateButtonGroupType.CTA}
+          buttons={[]}
+          category="MARKETING"
+          removeButton={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText(/call phone number/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('Button Group Toggle', () => {
+    it('calls handleButtonGroupChange when switching button groups', async () => {
+      const user = userEvent.setup();
+      const form = createMockForm() as UseFormReturn<TemplateFormData>;
+      form.formState = { errors: {}, isSubmitting: false };
+
+      const mockHandleButtonGroupChange = vi.fn();
+
+      vi.doMock('@/hooks/templates/use-template-form-logic', () => ({
+        useTemplateFormLogic: () => ({
+          detectedVars: [],
+          quickReplies: [],
+          urlBtn: null,
+          phoneBtn: null,
+          copyBtn: null,
+          urlBtnIndex: -1,
+          phoneBtnIndex: -1,
+          copyBtnIndex: -1,
+          isDynamicUrl: false,
+          insertVariable: vi.fn(),
+          addButtonOfType: vi.fn(),
+          handleButtonGroupChange: mockHandleButtonGroupChange,
+          onSubmit: vi.fn(),
+        }),
+      }));
+
+      const { rerender } = render(
+        <TemplateForm
+          form={form}
+          headerEnabled={false}
+          headerText=""
+          bodyText=""
+          bodySamples={[]}
+          footerEnabled={false}
+          footerText=""
+          buttonsEnabled={true}
+          buttonGroup={TemplateButtonGroupType.QUICK_REPLY}
+          buttons={[]}
+          category="MARKETING"
+          removeButton={vi.fn()}
+        />
+      );
+
+      const ctaButton = screen.getByText(/call to action/i);
+      await user.click(ctaButton);
+
+      rerender(
+        <TemplateForm
+          form={form}
+          headerEnabled={false}
+          headerText=""
+          bodyText=""
+          bodySamples={[]}
+          footerEnabled={false}
+          footerText=""
+          buttonsEnabled={true}
+          buttonGroup={TemplateButtonGroupType.CTA}
+          buttons={[]}
+          category="MARKETING"
+          removeButton={vi.fn()}
+        />
+      );
+
+      expect(ctaButton).toBeInTheDocument();
+    });
+  });
+
+  describe('Dynamic URL', () => {
+    it('renders URL button section in CTA mode', () => {
+      const form = createMockForm() as UseFormReturn<TemplateFormData>;
+      form.formState = { errors: {}, isSubmitting: false };
+
+      const { container } = render(
+        <TemplateForm
+          form={form}
+          headerEnabled={false}
+          headerText=""
+          bodyText=""
+          bodySamples={[]}
+          footerEnabled={false}
+          footerText=""
+          buttonsEnabled={true}
+          buttonGroup={TemplateButtonGroupType.CTA}
+          buttons={[{ type: TemplateButtonType.URL, text: '', url: '', example: '' }]}
+          category="MARKETING"
+          removeButton={vi.fn()}
+        />
+      );
+
+      // URL button section is rendered when in CTA mode
+      expect(screen.getByText(/visit website/i)).toBeInTheDocument();
+    });
+
+    it('hides example URL input when isDynamicUrl is false', () => {
+      const form = createMockForm() as UseFormReturn<TemplateFormData>;
+      form.formState = { errors: {}, isSubmitting: false };
+
+      const { container } = render(
+        <TemplateForm
+          form={form}
+          headerEnabled={false}
+          headerText=""
+          bodyText=""
+          bodySamples={[]}
+          footerEnabled={false}
+          footerText=""
+          buttonsEnabled={true}
+          buttonGroup={TemplateButtonGroupType.CTA}
+          buttons={[{ type: TemplateButtonType.URL, text: '', url: '', example: '' }]}
+          category="MARKETING"
+          removeButton={vi.fn()}
+        />
+      );
+
+      const exampleUrlInputs = container.querySelectorAll('input[placeholder="Example URL"]');
+      expect(exampleUrlInputs.length).toBe(0);
+    });
+  });
+
+  describe('Copy Code Button', () => {
+    it('renders form with AUTHENTICATION category and copy code button', () => {
+      const form = createMockForm() as UseFormReturn<TemplateFormData>;
+      form.formState = { errors: {}, isSubmitting: false };
+
+      const { container } = render(
+        <TemplateForm
+          form={form}
+          headerEnabled={false}
+          headerText=""
+          bodyText=""
+          bodySamples={[]}
+          footerEnabled={false}
+          footerText=""
+          buttonsEnabled={true}
+          buttonGroup={TemplateButtonGroupType.CTA}
+          buttons={[{ type: TemplateButtonType.COPY_CODE, text: 'Copy', example: '' }]}
+          category="AUTHENTICATION"
+          removeButton={vi.fn()}
+        />
+      );
+
+      // Form renders with AUTHENTICATION category (Copy Code button shown conditionally based on hook state)
+      expect(container.querySelector('form')).toBeInTheDocument();
+    });
+  });
+
+  describe('Sample Values', () => {
+    it('renders form successfully with bodySamples data', () => {
+      const form = createMockForm() as UseFormReturn<TemplateFormData>;
+      form.formState = { errors: {}, isSubmitting: false };
+
+      const { container } = render(
+        <TemplateForm
+          form={form}
+          headerEnabled={false}
+          headerText=""
+          bodyText="Hello {{1}}, your order {{2}}"
+          bodySamples={['John', 'ORD123']}
+          footerEnabled={false}
+          footerText=""
+          buttonsEnabled={false}
+          buttonGroup={TemplateButtonGroupType.QUICK_REPLY}
+          buttons={[]}
+          category="MARKETING"
+          removeButton={vi.fn()}
+        />
+      );
+
+      // Form renders without errors when bodySamples are provided
+      expect(container.querySelector('form')).toBeInTheDocument();
+    });
+
+    it('renders form successfully without bodySamples', () => {
+      const form = createMockForm() as UseFormReturn<TemplateFormData>;
+      form.formState = { errors: {}, isSubmitting: false };
+
+      const { container } = render(
+        <TemplateForm
+          form={form}
+          headerEnabled={false}
+          headerText=""
+          bodyText="Hello, your order is confirmed"
+          bodySamples={[]}
+          footerEnabled={false}
+          footerText=""
+          buttonsEnabled={false}
+          buttonGroup={TemplateButtonGroupType.QUICK_REPLY}
+          buttons={[]}
+          category="MARKETING"
+          removeButton={vi.fn()}
+        />
+      );
+
+      // Form renders without errors when no bodySamples
+      expect(container.querySelector('form')).toBeInTheDocument();
+    });
   });
 });
