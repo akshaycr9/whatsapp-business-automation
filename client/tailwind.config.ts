@@ -59,6 +59,16 @@ const designTokens = {
     'accent-rose-bg': '#fbe5e8',
     'accent-violet': '#5b4bb5',
     'accent-violet-bg': '#eae6fb',
+    // Category chip colors
+    'category-marketing-bg': '#fdf0e6',
+    'category-marketing-text': '#b35a1f',
+    'category-marketing-border': '#f5d5b5',
+    'category-utility-bg': '#e8f0fe',
+    'category-utility-text': '#2a5db0',
+    'category-utility-border': '#bdd0f5',
+    'category-auth-bg': '#eff1ed',
+    'category-auth-text': '#6b7671',
+    'category-auth-border': '#c9cec4',
     // Shadows
     'shadow-sm-cf': '0 1px 2px rgba(16, 32, 28, 0.04)',
     'shadow-cf': '0 2px 8px rgba(16, 32, 28, 0.06), 0 1px 2px rgba(16, 32, 28, 0.04)',
@@ -115,6 +125,16 @@ const designTokens = {
     'accent-rose-bg': '#fbe5e8',
     'accent-violet': '#5b4bb5',
     'accent-violet-bg': '#eae6fb',
+    // Category chip colors (no change for dark mode)
+    'category-marketing-bg': '#fdf0e6',
+    'category-marketing-text': '#b35a1f',
+    'category-marketing-border': '#f5d5b5',
+    'category-utility-bg': '#e8f0fe',
+    'category-utility-text': '#2a5db0',
+    'category-utility-border': '#bdd0f5',
+    'category-auth-bg': '#eff1ed',
+    'category-auth-text': '#6b7671',
+    'category-auth-border': '#c9cec4',
     // Shadows (no change for dark mode)
     'shadow-sm-cf': '0 1px 2px rgba(16, 32, 28, 0.04)',
     'shadow-cf': '0 2px 8px rgba(16, 32, 28, 0.06), 0 1px 2px rgba(16, 32, 28, 0.04)',
@@ -161,6 +181,8 @@ const config: Config = {
         base: ['14px', { lineHeight: '1.5' }],
         sm: ['13px', { lineHeight: '1.5' }],
         xs: ['12px', { lineHeight: '1.4' }],
+        '2xs': ['11.5px', { lineHeight: '1.4' }],
+        '3xs': ['11px', { lineHeight: '1.4' }],
       },
       colors: {
         // ── Chatflo brand palette (teal-green family) ──────────────────
@@ -196,6 +218,25 @@ const config: Config = {
         'accent-rose-bg': '#fbe5e8',
         'accent-violet': '#5b4bb5',
         'accent-violet-bg': '#eae6fb',
+        // ── Category chip colors ───────────────────────────────────────
+        'category-marketing-bg': '#fdf0e6',
+        'category-marketing-text': '#b35a1f',
+        'category-marketing-border': '#f5d5b5',
+        'category-utility-bg': '#e8f0fe',
+        'category-utility-text': '#2a5db0',
+        'category-utility-border': '#bdd0f5',
+        'category-auth-bg': '#eff1ed',
+        'category-auth-text': '#6b7671',
+        'category-auth-border': '#c9cec4',
+        // ── WhatsApp phone preview colors ───────────────────────────────
+        'whatsapp-bezel': '#0a0a0a',
+        'whatsapp-chat-bg': '#e3dcd0',
+        'whatsapp-avatar-dark': '#2a1f16',
+        'whatsapp-avatar-light': '#3a2d22',
+        'whatsapp-avatar-text': '#e7d8c5',
+        'whatsapp-bubble': '#dcf8c6',
+        'whatsapp-timestamp': '#7b8480',
+        'whatsapp-read-tick': '#53bdeb',
         // ── shadcn/ui HSL tokens (keep unchanged) ─────────────────────
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
@@ -239,6 +280,12 @@ const config: Config = {
       boxShadow: {
         sm: '0 1px 2px rgba(16, 32, 28, 0.04)',
         lg: '0 12px 32px -8px rgba(16, 32, 28, 0.14), 0 4px 12px rgba(16, 32, 28, 0.06)',
+      },
+      minHeight: {
+        '110px': '110px',
+      },
+      lineHeight: {
+        '1.55': '1.55',
       },
       keyframes: {
         'scale-in': {

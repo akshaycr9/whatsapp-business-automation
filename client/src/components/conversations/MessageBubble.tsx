@@ -12,6 +12,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { MediaContainer } from './MediaContainer';
 import { cn, formatRelativeTime } from '@/lib/utils';
 import type { Message, MessageStatus, Reaction } from '@/types';
+import { TemplateButtonType } from '@/types';
 
 interface Props {
   message: Message;
@@ -102,8 +103,8 @@ function TemplateButtons({ buttons }: { buttons: StoredButton[] }) {
   return (
     <div className="flex flex-col gap-2 mt-3 pt-3 border-t border-black/10">
       {buttons.map((btn, i) => {
-        const isUrl = btn.type === 'URL';
-        const isPhone = btn.type === 'PHONE_NUMBER';
+        const isUrl = btn.type === TemplateButtonType.URL;
+        const isPhone = btn.type === TemplateButtonType.PHONE_NUMBER;
         return (
           <div
             key={i}
