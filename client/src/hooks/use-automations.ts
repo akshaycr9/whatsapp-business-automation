@@ -8,13 +8,15 @@ import {
   deleteAutomation as deleteAutomationThunk,
   toggleAutomation as toggleAutomationThunk,
   fetchAutomationLogs,
+  type CreateAutomationInput,
+} from '@/store/actions/automations.actions';
+import {
   selectAutomationCategories,
   selectAutomations,
   selectApprovedTemplates,
   selectAutomationsStatus,
   selectAutomationsError,
-  type CreateAutomationInput,
-} from '@/features/automations/automationsSlice';
+} from '@/store/selectors/automations.selectors';
 import type { Automation, AutomationCategoryGroup, AutomationLog, Template } from '@/types';
 
 export type { CreateAutomationInput };
@@ -41,7 +43,6 @@ export function useAutomations(): UseAutomationsReturn {
   const status = useAppSelector(selectAutomationsStatus);
   const error = useAppSelector(selectAutomationsError);
 
-  // Initial fetch
   useEffect(() => {
     if (status === 'idle') {
       void dispatch(fetchAutomations());
@@ -55,7 +56,6 @@ export function useAutomations(): UseAutomationsReturn {
       if (createAutomationThunk.rejected.match(result)) {
         throw new Error((result.payload as string | undefined) ?? 'Failed to create automation');
       }
-      // Refetch to get all automations
       await dispatch(fetchAutomations());
       return result.payload as Automation;
     },
@@ -95,10 +95,7 @@ export function useAutomations(): UseAutomationsReturn {
   );
 
   const handleFetchLogs = useCallback(
-    async (
-      automationId: string,
-      logsPage = 1,
-    ): Promise<AutomationLog[]> => {
+    async (automationId: string, logsPage = 1): Promise<AutomationLog[]> => {
       const result = await dispatch(fetchAutomationLogs({ automationId, page: logsPage }));
       if (fetchAutomationLogs.rejected.match(result)) {
         throw new Error((result.payload as string | undefined) ?? 'Failed to load logs');

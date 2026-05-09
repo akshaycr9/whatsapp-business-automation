@@ -12,7 +12,7 @@ import ConversationsPage from '@/pages/ConversationsPage';
 import TemplatesPage from '@/pages/Templates/TemplatesPage';
 import NewTemplatePage from '@/pages/Templates/NewTemplatePage';
 import EditTemplatePage from '@/pages/Templates/EditTemplatePage';
-import AutomationsPage from '@/pages/AutomationsPage';
+import AutomationsPage from '@/pages/AutomationsPage/index';
 import EditAutomationPage from '@/pages/EditAutomationPage';
 import CustomersPage from '@/pages/CustomersPage';
 import LoginPage from '@/pages/LoginPage';
