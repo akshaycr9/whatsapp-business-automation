@@ -1,21 +1,27 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { useEffect } from 'react';
-import { AppShell } from '@/components/layout/AppShell';
-import { TooltipProvider } from '@/components/ui/tooltip';
-import { useGlobalNotifications } from '@/hooks/use-global-notifications';
-import { useSocketEvents } from '@/hooks/use-socket-events';
-import { useSessionExpiration } from '@/hooks/use-session-expiration';
-import { connectSocket, disconnectSocket } from '@/lib/socket';
-import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
-import DashboardPage from '@/pages/DashboardPage';
-import ConversationsPage from '@/pages/ConversationsPage';
-import TemplatesPage from '@/pages/Templates/TemplatesPage';
-import NewTemplatePage from '@/pages/Templates/NewTemplatePage';
-import EditTemplatePage from '@/pages/Templates/EditTemplatePage';
-import AutomationsPage from '@/pages/AutomationsPage/index';
-import EditAutomationPage from '@/pages/EditAutomationPage';
-import CustomersPage from '@/pages/CustomersPage';
-import LoginPage from '@/pages/LoginPage';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  Outlet,
+} from "react-router-dom";
+import { useEffect } from "react";
+import { AppShell } from "@/components/layout/AppShell";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { useGlobalNotifications } from "@/hooks/use-global-notifications";
+import { useSocketEvents } from "@/hooks/use-socket-events";
+import { useSessionExpiration } from "@/hooks/use-session-expiration";
+import { connectSocket, disconnectSocket } from "@/lib/socket";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import DashboardPage from "@/pages/DashboardPage";
+import ConversationsPage from "@/pages/ConversationsPage";
+import TemplatesPage from "@/pages/Templates/TemplatesPage";
+import NewTemplatePage from "@/pages/Templates/NewTemplatePage";
+import EditTemplatePage from "@/pages/Templates/EditTemplatePage";
+import AutomationsPage from "@/pages/AutomationsPage";
+import EditAutomationPage from "@/pages/EditAutomationPage";
+import CustomersPage from "@/pages/CustomersPage";
+import LoginPage from "@/pages/LoginPage";
 
 // Layout wrapper — runs only when the user is authenticated.
 // Connects the socket, registers all Socket.io→Redux event handlers,
@@ -56,12 +62,21 @@ export default function App() {
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/conversations" element={<ConversationsPage />} />
-              <Route path="/conversations/:id" element={<ConversationsPage />} />
+              <Route
+                path="/conversations/:id"
+                element={<ConversationsPage />}
+              />
               <Route path="/templates" element={<TemplatesPage />} />
               <Route path="/templates/new" element={<NewTemplatePage />} />
-              <Route path="/templates/:id/edit" element={<EditTemplatePage />} />
+              <Route
+                path="/templates/:id/edit"
+                element={<EditTemplatePage />}
+              />
               <Route path="/automations" element={<AutomationsPage />} />
-              <Route path="/automations/:id/edit" element={<EditAutomationPage />} />
+              <Route
+                path="/automations/:id/edit"
+                element={<EditAutomationPage />}
+              />
               <Route path="/customers" element={<CustomersPage />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>
