@@ -8,7 +8,7 @@ import {
   syncTemplate as syncTemplateThunk,
   syncAllTemplates as syncAllTemplatesThunk,
   updateTemplate as updateTemplateThunk,
-} from '@/api/templates';
+} from '@/store/actions/templates.actions';
 import { setSearch, setStatusFilter, setPage } from '@/store/slices/templates.slice';
 import {
   selectTemplates,

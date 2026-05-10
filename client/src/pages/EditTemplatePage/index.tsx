@@ -1,19 +1,14 @@
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
+import { useEditTemplatePage } from "@/hooks/useEditTemplatePage";
 import { TemplatePageLayout } from "@/components/templates/TemplatePageLayout";
 import { TemplateForm } from "@/components/templates/TemplateForm";
 import { TemplateNotFound } from "@/components/templates/TemplateNotFound";
-import { useTemplateFormState } from "@/hooks/templates/use-template-form-state";
-import { useTemplateFormLogic } from "@/hooks/templates/use-template-form-logic";
-import { useEditTemplateForm } from "@/hooks/templates/use-edit-template-form";
 
 export default function EditTemplatePage() {
-  const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
 
-  // Call all hooks unconditionally (must be called every render)
-  const { template, initialValues } = useEditTemplateForm(id);
-
   const {
+    template,
     form,
     headerEnabled,
     headerText,
@@ -26,24 +21,26 @@ export default function EditTemplatePage() {
     buttons,
     category,
     removeButton,
-  } = useTemplateFormState({ initialValues });
+    detectedVars,
+    quickReplies,
+    urlBtn,
+    phoneBtn,
+    copyBtn,
+    urlBtnIndex,
+    phoneBtnIndex,
+    copyBtnIndex,
+    isDynamicUrl,
+    previewHeader,
+    previewBody,
+    previewFooter,
+    previewButtons,
+    insertVariable,
+    addButtonOfType,
+    handleButtonGroupChange,
+    onSubmit,
+    handleBack,
+  } = useEditTemplatePage(id);
 
-  const { previewHeader, previewBody, previewButtons, detectedVars } =
-    useTemplateFormLogic({
-      form,
-      headerEnabled,
-      headerText,
-      bodyText,
-      bodySamples,
-      footerEnabled,
-      footerText,
-      buttonsEnabled,
-      buttonGroup,
-      buttons,
-      category,
-    });
-
-  // Conditional render after all hooks are called
   if (!template) {
     return <TemplateNotFound />;
   }
@@ -52,16 +49,14 @@ export default function EditTemplatePage() {
     <TemplatePageLayout
       topbarPageName="Templates"
       topbarSubPageName={template.name}
-      onBackClick={() => navigate("/templates")}
+      onBackClick={handleBack}
       previewHeader={previewHeader}
       previewBody={previewBody}
-      previewFooter={footerEnabled ? footerText : undefined}
+      previewFooter={previewFooter}
       previewButtons={previewButtons}
       detectedVars={detectedVars}
     >
       <TemplateForm
-        mode="edit"
-        templateId={id}
         form={form}
         headerEnabled={headerEnabled}
         headerText={headerText}
@@ -74,6 +69,19 @@ export default function EditTemplatePage() {
         buttons={buttons}
         category={category}
         removeButton={removeButton}
+        detectedVars={detectedVars}
+        quickReplies={quickReplies}
+        urlBtn={urlBtn}
+        phoneBtn={phoneBtn}
+        copyBtn={copyBtn}
+        urlBtnIndex={urlBtnIndex}
+        phoneBtnIndex={phoneBtnIndex}
+        copyBtnIndex={copyBtnIndex}
+        isDynamicUrl={isDynamicUrl}
+        insertVariable={insertVariable}
+        addButtonOfType={addButtonOfType}
+        handleButtonGroupChange={handleButtonGroupChange}
+        onSubmit={onSubmit}
       />
     </TemplatePageLayout>
   );

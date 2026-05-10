@@ -1,27 +1,17 @@
 import { Plus, Check, X, ExternalLink, Phone, Copy } from "lucide-react";
 import { Toggle } from "./Toggle";
 import { FieldGroup } from "./FieldGroup";
-import { useTemplateFormState } from "@/hooks/templates/use-template-form-state";
-import { useTemplateFormLogic } from "@/hooks/templates/use-template-form-logic";
-import { useEditTemplateForm } from "@/hooks/templates/use-edit-template-form";
-import { useTemplates } from "@/hooks/templates/use-templates";
 import {
-  TemplateComponentType,
-  TemplateComponentFormat,
   TemplateButtonType,
   TemplateButtonGroupType,
   TemplateCategory,
-  type TemplateComponentInput,
-  type TemplateButtonInput,
 } from "@/types";
-import { useNavigate } from "react-router-dom";
-import { toast } from "@/hooks/use-toast";
+import type { UseFormReturn } from "react-hook-form";
 import type { TemplateFormData } from "@/lib/template-form.schema";
 
 interface TemplateFormProps {
-  mode?: "new" | "edit";
-  templateId?: string;
-  form: ReturnType<typeof useTemplateFormState>["form"];
+  form: UseFormReturn<TemplateFormData>;
+  // Watched values (from page hook)
   headerEnabled: boolean;
   headerText: string;
   bodyText: string;
@@ -32,12 +22,25 @@ interface TemplateFormProps {
   buttonGroup: TemplateButtonGroupType;
   buttons: TemplateFormData["buttons"];
   category: TemplateFormData["category"];
+  // Derived from form logic (from page hook)
+  detectedVars: string[];
+  quickReplies: TemplateFormData["buttons"];
+  urlBtn: TemplateFormData["buttons"][0] | undefined;
+  phoneBtn: TemplateFormData["buttons"][0] | undefined;
+  copyBtn: TemplateFormData["buttons"][0] | undefined;
+  urlBtnIndex: number;
+  phoneBtnIndex: number;
+  copyBtnIndex: number;
+  isDynamicUrl: boolean;
+  // Handlers (from page hook)
+  onSubmit: (data: TemplateFormData) => Promise<void>;
   removeButton: (index: number) => void;
+  insertVariable: () => void;
+  addButtonOfType: (type: TemplateButtonType) => void;
+  handleButtonGroupChange: (group: TemplateButtonGroupType) => void;
 }
 
 export function TemplateForm({
-  mode = "new",
-  templateId,
   form,
   headerEnabled,
   headerText,
@@ -49,113 +52,25 @@ export function TemplateForm({
   buttonGroup,
   buttons,
   category,
+  detectedVars,
+  quickReplies,
+  urlBtn,
+  phoneBtn,
+  copyBtn,
+  urlBtnIndex,
+  phoneBtnIndex,
+  copyBtnIndex,
+  isDynamicUrl,
+  onSubmit,
   removeButton,
+  insertVariable,
+  addButtonOfType,
+  handleButtonGroupChange,
 }: TemplateFormProps) {
-  const navigate = useNavigate();
-  const { updateTemplate } = useTemplates();
-
-  // Load template data if in edit mode
-  const { template } = useEditTemplateForm(
-    mode === "edit" ? templateId : undefined,
-  );
-
-  const {
-    detectedVars,
-    quickReplies,
-    urlBtn,
-    phoneBtn,
-    copyBtn,
-    urlBtnIndex,
-    phoneBtnIndex,
-    copyBtnIndex,
-    isDynamicUrl,
-    insertVariable,
-    addButtonOfType,
-    handleButtonGroupChange,
-    onSubmit: onSubmitNew,
-  } = useTemplateFormLogic({
-    form,
-    headerEnabled,
-    headerText,
-    bodyText,
-    bodySamples,
-    footerEnabled,
-    footerText,
-    buttonsEnabled,
-    buttonGroup,
-    buttons,
-    category,
-  } as Parameters<typeof useTemplateFormLogic>[0]);
-
   const {
     handleSubmit,
     formState: { isSubmitting },
   } = form;
-
-  // Override submit handler for edit mode
-  const onSubmit = async (data: TemplateFormData) => {
-    if (mode === "edit" && template) {
-      // Edit mode: update existing template
-      const components: TemplateComponentInput[] = [];
-
-      if (data.headerEnabled && data.headerText.trim()) {
-        components.push({
-          type: TemplateComponentType.HEADER,
-          format: TemplateComponentFormat.TEXT,
-          text: data.headerText.trim(),
-        });
-      }
-
-      const bodyComp: TemplateComponentInput = {
-        type: TemplateComponentType.BODY,
-        text: data.bodyText.trim(),
-      };
-      if (data.bodySamples.length > 0) {
-        bodyComp.example = data.bodySamples
-          .map((s) => s.trim())
-          .filter((s) => s);
-      }
-      components.push(bodyComp);
-
-      if (data.footerEnabled && data.footerText.trim()) {
-        components.push({ type: TemplateComponentType.FOOTER, text: data.footerText.trim() });
-      }
-
-      if (data.buttonsEnabled && data.buttons.length > 0) {
-        const btnInputs: TemplateButtonInput[] = data.buttons.map((btn) => {
-          const base: TemplateButtonInput = {
-            type: btn.type as TemplateButtonType,
-            text: btn.text.trim(),
-          };
-          if (btn.type === TemplateButtonType.URL) {
-            base.url = btn.url.trim();
-            if (btn.example.trim()) base.example = btn.example.trim();
-          }
-          if (btn.type === TemplateButtonType.PHONE_NUMBER)
-            base.phone_number = btn.phone_number.trim();
-          if (btn.type === TemplateButtonType.COPY_CODE) base.example = btn.example.trim();
-          return base;
-        });
-        components.push({ type: TemplateComponentType.BUTTONS, buttons: btnInputs });
-      }
-
-      try {
-        await updateTemplate(template.id, components);
-        toast({ title: "Template saved" });
-        navigate("/templates");
-      } catch (err) {
-        toast({
-          title: "Error",
-          description:
-            err instanceof Error ? err.message : "Failed to save template",
-          variant: "destructive",
-        });
-      }
-    } else {
-      // New mode: use original handler
-      await onSubmitNew(data);
-    }
-  };
 
   return (
     <form

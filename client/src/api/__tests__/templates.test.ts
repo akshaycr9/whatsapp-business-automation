@@ -7,7 +7,7 @@ import {
   syncTemplate,
   syncAllTemplates,
   fetchStatusCounts,
-} from '../templates';
+} from '@/store/actions/templates.actions';
 import { createTestStore } from '@/test/test-utils';
 import { templateFactory } from '@/test/factories/template.factory';
 import { resetMockTemplates } from '@/test/mocks/handlers';

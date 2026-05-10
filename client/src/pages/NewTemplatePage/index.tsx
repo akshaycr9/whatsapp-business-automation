@@ -1,13 +1,8 @@
-import { useNavigate } from "react-router-dom";
+import { useNewTemplatePage } from "@/hooks/useNewTemplatePage";
 import { TemplatePageLayout } from "@/components/templates/TemplatePageLayout";
 import { TemplateForm } from "@/components/templates/TemplateForm";
-import { useTemplateFormState } from "@/hooks/templates/use-template-form-state";
-import { useTemplateFormLogic } from "@/hooks/templates/use-template-form-logic";
 
 export default function NewTemplatePage() {
-  const navigate = useNavigate();
-
-  // Get form state and logic for preview data and form
   const {
     form,
     headerEnabled,
@@ -21,36 +16,38 @@ export default function NewTemplatePage() {
     buttons,
     category,
     removeButton,
-  } = useTemplateFormState();
-
-  const { previewHeader, previewBody, previewButtons, detectedVars } =
-    useTemplateFormLogic({
-      form,
-      headerEnabled,
-      headerText,
-      bodyText,
-      bodySamples,
-      footerEnabled,
-      footerText,
-      buttonsEnabled,
-      buttonGroup,
-      buttons,
-      category,
-    });
+    detectedVars,
+    quickReplies,
+    urlBtn,
+    phoneBtn,
+    copyBtn,
+    urlBtnIndex,
+    phoneBtnIndex,
+    copyBtnIndex,
+    isDynamicUrl,
+    previewHeader,
+    previewBody,
+    previewFooter,
+    previewButtons,
+    insertVariable,
+    addButtonOfType,
+    handleButtonGroupChange,
+    onSubmit,
+    handleBack,
+  } = useNewTemplatePage();
 
   return (
     <TemplatePageLayout
       topbarPageName="Templates"
       topbarSubPageName="New Template"
-      onBackClick={() => navigate("/templates")}
+      onBackClick={handleBack}
       previewHeader={previewHeader}
       previewBody={previewBody}
-      previewFooter={footerEnabled ? footerText : undefined}
+      previewFooter={previewFooter}
       previewButtons={previewButtons}
       detectedVars={detectedVars}
     >
       <TemplateForm
-        mode="new"
         form={form}
         headerEnabled={headerEnabled}
         headerText={headerText}
@@ -63,6 +60,19 @@ export default function NewTemplatePage() {
         buttons={buttons}
         category={category}
         removeButton={removeButton}
+        detectedVars={detectedVars}
+        quickReplies={quickReplies}
+        urlBtn={urlBtn}
+        phoneBtn={phoneBtn}
+        copyBtn={copyBtn}
+        urlBtnIndex={urlBtnIndex}
+        phoneBtnIndex={phoneBtnIndex}
+        copyBtnIndex={copyBtnIndex}
+        isDynamicUrl={isDynamicUrl}
+        insertVariable={insertVariable}
+        addButtonOfType={addButtonOfType}
+        handleButtonGroupChange={handleButtonGroupChange}
+        onSubmit={onSubmit}
       />
     </TemplatePageLayout>
   );

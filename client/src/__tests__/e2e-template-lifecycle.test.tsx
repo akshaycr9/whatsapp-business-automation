@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { renderWithRedux } from '@/test/test-utils';
 import { resetMockTemplates } from '@/test/mocks/handlers';
 import TemplatesPage from '@/pages/TemplatesPage';
-import NewTemplatePage from '@/pages/Templates/NewTemplatePage';
+import NewTemplatePage from '@/pages/NewTemplatePage';
 
 // Mock router hooks
 vi.mock('react-router-dom', async () => {
