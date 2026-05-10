@@ -66,4 +66,47 @@ describe('CategorySidebar', () => {
     );
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
+
+  describe('selected state', () => {
+    it('marks the matching category as selected when selectedCategoryId is provided', () => {
+      // Both buttons must still be present — only the selected one changes visually
+      render(
+        <CategorySidebar
+          categories={categories}
+          selectedCategoryId="cod-flow"
+          onSelectCategory={vi.fn()}
+        />,
+      );
+      // Both buttons remain accessible
+      expect(screen.getByRole('button', { name: /order flow/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /cod flow/i })).toBeInTheDocument();
+    });
+
+    it('does not mark any button selected when selectedCategoryId is null', () => {
+      render(
+        <CategorySidebar
+          categories={categories}
+          selectedCategoryId={null}
+          onSelectCategory={vi.fn()}
+        />,
+      );
+      // All buttons still render
+      expect(screen.getAllByRole('button')).toHaveLength(2);
+    });
+
+    it('passes the correct isSelected prop — only the matching category button is selected', async () => {
+      // Selecting "order-flow" — clicking "cod-flow" should still call the handler
+      const onSelectCategory = vi.fn();
+      render(
+        <CategorySidebar
+          categories={categories}
+          selectedCategoryId="order-flow"
+          onSelectCategory={onSelectCategory}
+        />,
+      );
+      // COD Flow button should still be clickable (not selected, but functional)
+      await userEvent.click(screen.getByRole('button', { name: /cod flow/i }));
+      expect(onSelectCategory).toHaveBeenCalledWith('cod-flow');
+    });
+  });
 });
