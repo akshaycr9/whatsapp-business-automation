@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw';
 import { Template, TemplateStatus, TemplateCategory } from '@/types/templates';
 import { templateFactory } from '../factories/template.factory';
+import { automationHandlers } from './automations.handlers';
 
 interface ApiResponse<T> {
   data: T;
@@ -31,6 +32,7 @@ const generateMockTemplates = (count: number, overrides?: Partial<Template>[]): 
 let mockTemplates = generateMockTemplates(3);
 
 export const handlers = [
+  ...automationHandlers,
   // GET /api/templates - Fetch templates with filtering
   http.get('/api/templates', ({ request }) => {
     const url = new URL(request.url);

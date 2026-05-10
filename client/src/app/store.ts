@@ -3,7 +3,7 @@ import authReducer from '@/features/auth/authSlice';
 import conversationsReducer from '@/features/conversations/conversationsSlice';
 import messagesReducer from '@/features/messages/messagesSlice';
 import templatesReducer from '@/features/templates/templatesSlice';
-import automationsReducer from '@/features/automations/automationsSlice';
+import automationsReducer from '@/store/slices/automations.slice';
 import customersReducer from '@/features/customers/customersSlice';
 import dashboardReducer from '@/features/dashboard/dashboardSlice';
 
