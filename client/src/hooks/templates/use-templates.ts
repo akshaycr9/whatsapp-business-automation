@@ -9,10 +9,8 @@ import {
   syncAllTemplates as syncAllTemplatesThunk,
   updateTemplate as updateTemplateThunk,
 } from '@/api/templates';
+import { setSearch, setStatusFilter, setPage } from '@/store/slices/templates.slice';
 import {
-  setSearch,
-  setStatusFilter,
-  setPage,
   selectTemplates,
   selectTemplatesMeta,
   selectTemplatesStatus,
@@ -22,7 +20,7 @@ import {
   selectTemplatesPage,
   selectStatusCounts,
   selectStatusCountsLoaded,
-} from '@/features/templates/templatesSlice';
+} from '@/store/selectors/templates.selectors';
 import type {
   Template,
   StatusFilter,

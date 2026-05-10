@@ -15,7 +15,7 @@ import { connectSocket, disconnectSocket } from "@/lib/socket";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import DashboardPage from "@/pages/DashboardPage";
 import ConversationsPage from "@/pages/ConversationsPage";
-import TemplatesPage from "@/pages/Templates/TemplatesPage";
+import TemplatesPage from "@/pages/TemplatesPage";
 import NewTemplatePage from "@/pages/Templates/NewTemplatePage";
 import EditTemplatePage from "@/pages/Templates/EditTemplatePage";
 import AutomationsPage from "@/pages/AutomationsPage";

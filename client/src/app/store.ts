@@ -2,7 +2,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import authReducer from '@/features/auth/authSlice';
 import conversationsReducer from '@/features/conversations/conversationsSlice';
 import messagesReducer from '@/features/messages/messagesSlice';
-import templatesReducer from '@/features/templates/templatesSlice';
+import templatesReducer from '@/store/slices/templates.slice';
 import automationsReducer from '@/store/slices/automations.slice';
 import customersReducer from '@/features/customers/customersSlice';
 import dashboardReducer from '@/features/dashboard/dashboardSlice';

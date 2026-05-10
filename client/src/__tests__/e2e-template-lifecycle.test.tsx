@@ -4,7 +4,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithRedux } from '@/test/test-utils';
 import { resetMockTemplates } from '@/test/mocks/handlers';
-import TemplatesPage from '@/pages/Templates/TemplatesPage';
+import TemplatesPage from '@/pages/TemplatesPage';
 import NewTemplatePage from '@/pages/Templates/NewTemplatePage';
 
 // Mock router hooks
